@@ -38,10 +38,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
-  const [showAdvisor, setShowAdvisor] = useState(() => {
-    const saved = localStorage.getItem("guru-advisor-visible");
-    return saved === null ? true : saved === "true";
-  });
   const { headingFont, setHeadingFont } = useTheme();
 
   // Notifications
@@ -168,8 +164,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+  const [advisorMessageOpen, setAdvisorMessageOpen] = useState(() => {
+    const saved = localStorage.getItem("guru-advisor-visible");
+    return saved === null ? true : saved === "true";
+  });
+
   const toggleAdvisor = () => {
-    setShowAdvisor((v) => {
+    setAdvisorMessageOpen((v) => {
       const next = !v;
       localStorage.setItem("guru-advisor-visible", String(next));
       return next;
@@ -400,11 +401,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             <button
               onClick={toggleAdvisor}
               className={`rounded-base border-2 border-border p-2 shadow-button transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none ${
-                showAdvisor
+                advisorMessageOpen
                   ? "bg-main text-main-foreground"
                   : "bg-secondary-background text-foreground"
               }`}
-              title={showAdvisor ? "Ocultar búho Gurú" : "Mostrar búho Gurú"}
+              title={advisorMessageOpen ? "Ocultar búho Gurú" : "Mostrar búho Gurú"}
             >
               <Bird size={20} />
             </button>
@@ -493,7 +494,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      {showAdvisor && <GuruAdvisor />}
+      {<GuruAdvisor isOpen={advisorMessageOpen}  onOpenChange={setAdvisorMessageOpen}/>}
     </div>
   );
 };

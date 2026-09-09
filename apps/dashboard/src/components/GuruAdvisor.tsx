@@ -25,12 +25,16 @@ const tips = [
   "FACTURACIÓN DE ERRORES: Si el cliente revisó el borrador, lo aprobó y luego de impreso notó un error, el costo de la reimpresión corre por él, no por la empresa.",
 ];
 
-export default function GuruAdvisor() {
+interface GuruAdvisorProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) {
   const [tipIndex, setTipIndex] = useState(0);
   const [animando, setAnimando] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [isOpen, setIsOpen] = useState(true);
   const dragStart = useRef({ x: 0, y: 0 });
   const didDrag = useRef(false);
 
@@ -71,13 +75,13 @@ export default function GuruAdvisor() {
     if (didDrag.current) return;
     setAnimando(true);
     setTipIndex((prev) => getRandomTip(prev));
-    setIsOpen(true);
+    onOpenChange(true);
     setTimeout(() => setAnimando(false), 300);
   };
 
   const closeTip = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsOpen(false);
+    onOpenChange(false);
   };
 
   return (
