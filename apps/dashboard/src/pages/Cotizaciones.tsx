@@ -61,6 +61,8 @@ interface Quotation {
   rejected_by_name?: string;
   rejected_at?: string;
   notes?: string;
+  payment_method?: string | null;
+  payment_reference?: string | null;
 }
 
 export default function Cotizaciones() {
@@ -75,6 +77,9 @@ export default function Cotizaciones() {
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfFullscreen, setPdfFullscreen] = useState(false);
+  // Payment confirmation modal
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentReference, setPaymentReference] = useState("");
 
   // Create / edit invoice/quotation modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -306,7 +311,10 @@ export default function Cotizaciones() {
     try {
       await api.post(`/invoices/${selectedQuotation.id}/confirm-payment`, {
         payment_method: "manual",
+        payment_reference: paymentReference.trim() || undefined,
       });
+      setShowPaymentModal(false);
+      setPaymentReference("");
       const list = await fetchQuotations();
       const refreshed = list.find((q) => q.id === selectedQuotation.id);
       if (refreshed) setSelectedQuotation(refreshed);
@@ -969,6 +977,34 @@ export default function Cotizaciones() {
                 </NeoCard>
               )}
 
+              {/* Payment info */}
+              {selectedQuotation.status === "paid" && (
+                <NeoCard variant="outline" className="mb-4 p-4">
+                  <p className="mb-1 text-base font-black uppercase tracking-wider text-foreground/80">
+                    Pago registrado
+                  </p>
+                  <div className="space-y-1 text-base text-foreground/80">
+                    {selectedQuotation.payment_method && (
+                      <p>
+                        <span className="font-semibold">Método:</span>{" "}
+                        {selectedQuotation.payment_method === "manual"
+                          ? "Manual"
+                          : selectedQuotation.payment_method}
+                      </p>
+                    )}
+                    {selectedQuotation.payment_reference && (
+                      <p>
+                        <span className="font-semibold">Comprobante:</span>{" "}
+                        {selectedQuotation.payment_reference}
+                      </p>
+                    )}
+                    {!selectedQuotation.payment_method && !selectedQuotation.payment_reference && (
+                      <p className="text-foreground/60">No hay detalles adicionales.</p>
+                    )}
+                  </div>
+                </NeoCard>
+              )}
+
               {/* Actions */}
               {isAdmin &&
                 ["draft", "pending_approval"].includes(selectedQuotation.status) && (
@@ -1100,7 +1136,7 @@ export default function Cotizaciones() {
               {isAdmin && selectedQuotation.status !== "paid" && (
                 <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
                   <NeoButton
-                    onClick={handleConfirmPayment}
+                    onClick={() => setShowPaymentModal(true)}
                     disabled={confirmingPayment}
                     className="flex-1"
                   >
@@ -1273,6 +1309,50 @@ export default function Cotizaciones() {
               >
                 {deleting ? <RefreshCw size={16} className="mr-1 animate-spin" /> : <Trash2 size={16} />}
                 Eliminar
+              </NeoButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment confirmation modal */}
+      {showPaymentModal && selectedQuotation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setShowPaymentModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-base border-2 border-border bg-background p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-2 font-heading text-lg font-black">Confirmar pago</h3>
+            <p className="mb-4 text-base text-foreground/80">
+              ¿Marcar <strong>{selectedQuotation.doc_number}</strong> como pagada?
+            </p>
+            <label className="mb-1 block font-base text-sm font-semibold text-foreground/80">
+              Comprobante / referencia de pago (opcional)
+            </label>
+            <input
+              type="text"
+              value={paymentReference}
+              onChange={(e) => setPaymentReference(e.target.value)}
+              placeholder="Ej: transferencia #12345, depósito bancario..."
+              className="mb-4 w-full rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground shadow-none outline-none focus:border-main"
+            />
+            <div className="flex justify-end gap-2">
+              <NeoButton
+                variant="neutral"
+                onClick={() => setShowPaymentModal(false)}
+                disabled={confirmingPayment}
+              >
+                Cancelar
+              </NeoButton>
+              <NeoButton
+                onClick={handleConfirmPayment}
+                disabled={confirmingPayment}
+              >
+                {confirmingPayment ? <RefreshCw size={16} className="mr-1 animate-spin" /> : <CheckCircle size={16} />}
+                Confirmar pago
               </NeoButton>
             </div>
           </div>
