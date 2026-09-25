@@ -98,6 +98,7 @@ export default function Cotizaciones() {
   const [createDiscountReason, setCreateDiscountReason] = useState<string>("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   // Client selection for linking the invoice/quotation
   const [clients, setClients] = useState<BotClient[]>([]);
@@ -197,20 +198,72 @@ export default function Cotizaciones() {
     setCreateDiscountCode("");
     setCreateDiscountReason("");
     setCreateError(null);
+    setIsDirty(false);
+  };
+
+  function clearDraft() {
+    if (user?.id) {
+      try {
+        localStorage.removeItem(`guru_invoice_draft_${user.id}`);
+      } catch {}
+    }
+  }
+
+  const openCreateModal = () => {
+    resetCreateForm();
+    setEditingQuotation(null);
+    if (user?.id) {
+      try {
+        const saved = localStorage.getItem(`guru_invoice_draft_${user.id}`);
+        if (saved) {
+          const draft = JSON.parse(saved);
+          if (draft.createType) setCreateType(draft.createType as any);
+          if (draft.createClientId !== undefined) setCreateClientId(draft.createClientId);
+          if (draft.createClientName !== undefined) setCreateClientName(draft.createClientName);
+          if (draft.createClientPhone !== undefined) setCreateClientPhone(draft.createClientPhone);
+          if (draft.createNotes !== undefined) setCreateNotes(draft.createNotes);
+          if (Array.isArray(draft.createItems) && draft.createItems.length > 0) {
+            setCreateItems(draft.createItems);
+          }
+          if (draft.createDiscountType !== undefined) setCreateDiscountType(draft.createDiscountType as any);
+          if (draft.createDiscountValue !== undefined) setCreateDiscountValue(draft.createDiscountValue);
+          if (draft.createDiscountCode !== undefined) setCreateDiscountCode(draft.createDiscountCode);
+          if (draft.createDiscountReason !== undefined) setCreateDiscountReason(draft.createDiscountReason);
+          setIsDirty(true);
+        }
+      } catch (err) {
+        console.error("Failed to load invoice draft", err);
+      }
+    }
+    setShowCreateModal(true);
+  };
+
+  const handleCloseModal = () => {
+    if (isDirty) {
+      const ok = window.confirm("Tienes cambios sin guardar. ¿Descartarlos?");
+      if (!ok) return;
+    }
+    setShowCreateModal(false);
+    setEditingQuotation(null);
+    resetCreateForm();
+    clearDraft();
   };
 
   const addCreateItem = () => {
     setCreateItems((prev) => [...prev, { desc: "", cantidad: 1, precio: 0, itbis: false }]);
+    setIsDirty(true);
   };
 
   const removeCreateItem = (idx: number) => {
     setCreateItems((prev) => prev.filter((_, i) => i !== idx));
+    setIsDirty(true);
   };
 
   const updateCreateItem = (idx: number, field: keyof QuotationItem, value: any) => {
     setCreateItems((prev) =>
       prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item))
     );
+    setIsDirty(true);
   };
 
   const createTotals = useMemo(() => {
@@ -278,6 +331,7 @@ export default function Cotizaciones() {
       await api.post("/invoices", payload);
       setShowCreateModal(false);
       resetCreateForm();
+      clearDraft();
       await fetchQuotations();
     } catch (err: any) {
       console.error(err);
@@ -352,6 +406,7 @@ export default function Cotizaciones() {
     } else {
       setCreateClientId("");
     }
+    setIsDirty(false);
     setShowCreateModal(true);
   };
 
@@ -394,6 +449,7 @@ export default function Cotizaciones() {
       setShowCreateModal(false);
       setEditingQuotation(null);
       resetCreateForm();
+      clearDraft();
       const list = await fetchQuotations();
       const refreshed = list.find((q) => q.id === editingQuotation.id);
       if (refreshed) setSelectedQuotation(refreshed);
@@ -404,6 +460,46 @@ export default function Cotizaciones() {
       setCreating(false);
     }
   };
+
+  // Auto-save draft while creating a new invoice/quotation
+  useEffect(() => {
+    if (!showCreateModal || editingQuotation || !isDirty || !user?.id) return;
+    const timer = setTimeout(() => {
+      try {
+        const draft = {
+          createType,
+          createClientId,
+          createClientName,
+          createClientPhone,
+          createNotes,
+          createItems,
+          createDiscountType,
+          createDiscountValue,
+          createDiscountCode,
+          createDiscountReason,
+        };
+        localStorage.setItem(`guru_invoice_draft_${user.id}`, JSON.stringify(draft));
+      } catch (err) {
+        console.error("Failed to save invoice draft", err);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    showCreateModal,
+    editingQuotation,
+    isDirty,
+    user?.id,
+    createType,
+    createClientId,
+    createClientName,
+    createClientPhone,
+    createNotes,
+    createItems,
+    createDiscountType,
+    createDiscountValue,
+    createDiscountCode,
+    createDiscountReason,
+  ]);
 
   const handleReject = async () => {
     if (!selectedQuotation) return;
@@ -681,10 +777,7 @@ export default function Cotizaciones() {
           )}
 
           <NeoButton
-            onClick={() => {
-              resetCreateForm();
-              setShowCreateModal(true);
-            }}
+            onClick={openCreateModal}
             className="mt-3 w-full"
             size="sm"
           >
@@ -1363,11 +1456,7 @@ export default function Cotizaciones() {
       {showCreateModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => {
-            setShowCreateModal(false);
-            setEditingQuotation(null);
-            resetCreateForm();
-          }}
+          onClick={handleCloseModal}
         >
           <div
             className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-base border-2 border-border bg-background shadow-xl"
@@ -1379,11 +1468,7 @@ export default function Cotizaciones() {
                 {editingQuotation ? `Editar ${editingQuotation.doc_number}` : "Nueva cotización / factura"}
               </h3>
               <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setEditingQuotation(null);
-                  resetCreateForm();
-                }}
+                onClick={handleCloseModal}
                 className="rounded-base border-2 border-border bg-secondary-background p-1.5 text-foreground hover:bg-main hover:text-main-foreground"
               >
                 <X size={16} />
@@ -1398,7 +1483,7 @@ export default function Cotizaciones() {
                   type="button"
                   variant={createType === "COTIZACIÓN" ? "default" : "neutral"}
                   className="flex-1"
-                  onClick={() => setCreateType("COTIZACIÓN")}
+                  onClick={() => { setCreateType("COTIZACIÓN"); setIsDirty(true); }}
                 >
                   Cotización
                 </NeoButton>
@@ -1406,7 +1491,7 @@ export default function Cotizaciones() {
                   type="button"
                   variant={createType === "FACTURA" ? "default" : "neutral"}
                   className="flex-1"
-                  onClick={() => setCreateType("FACTURA")}
+                  onClick={() => { setCreateType("FACTURA"); setIsDirty(true); }}
                 >
                   Factura
                 </NeoButton>
@@ -1432,6 +1517,7 @@ export default function Cotizaciones() {
                         setCreateClientName("");
                         setCreateClientPhone("");
                       }
+                      setIsDirty(true);
                     }}
                     className="w-full rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground outline-none focus:border-main"
                   >
@@ -1453,7 +1539,7 @@ export default function Cotizaciones() {
                   <input
                     type="text"
                     value={createClientName}
-                    onChange={(e) => setCreateClientName(e.target.value)}
+                    onChange={(e) => { setCreateClientName(e.target.value); setIsDirty(true); }}
                     placeholder="Ej: Juan Pérez"
                     className="w-full rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground shadow-none outline-none focus:border-main"
                   />
@@ -1465,7 +1551,7 @@ export default function Cotizaciones() {
                   <input
                     type="text"
                     value={createClientPhone}
-                    onChange={(e) => setCreateClientPhone(e.target.value)}
+                    onChange={(e) => { setCreateClientPhone(e.target.value); setIsDirty(true); }}
                     placeholder="Ej: 8095551234"
                     className="w-full rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground shadow-none outline-none focus:border-main"
                   />
@@ -1550,7 +1636,7 @@ export default function Cotizaciones() {
                     </label>
                     <select
                       value={createDiscountType}
-                      onChange={(e) => setCreateDiscountType(e.target.value as any)}
+                      onChange={(e) => { setCreateDiscountType(e.target.value as any); setIsDirty(true); }}
                       className="w-full rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground outline-none focus:border-main"
                     >
                       <option value="">Sin descuento</option>
@@ -1575,7 +1661,7 @@ export default function Cotizaciones() {
                           step="1"
                           onKeyDown={preventDecimalInput}
                           value={createDiscountValue}
-                          onChange={(e) => setCreateDiscountValue(e.target.value)}
+                          onChange={(e) => { setCreateDiscountValue(e.target.value); setIsDirty(true); }}
                           placeholder={
                             createDiscountType === "percentage" ? "Ej: 10" : "Ej: 500"
                           }
@@ -1590,7 +1676,7 @@ export default function Cotizaciones() {
                           <input
                             type="text"
                             value={createDiscountCode}
-                            onChange={(e) => setCreateDiscountCode(e.target.value)}
+                            onChange={(e) => { setCreateDiscountCode(e.target.value); setIsDirty(true); }}
                             placeholder="Ej: PROMO10"
                             className="w-full rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground shadow-none outline-none focus:border-main"
                           />
@@ -1603,7 +1689,7 @@ export default function Cotizaciones() {
                         <input
                           type="text"
                           value={createDiscountReason}
-                          onChange={(e) => setCreateDiscountReason(e.target.value)}
+                          onChange={(e) => { setCreateDiscountReason(e.target.value); setIsDirty(true); }}
                           placeholder="Ej: cliente frecuente, promoción..."
                           className="w-full rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground shadow-none outline-none focus:border-main"
                         />
@@ -1620,7 +1706,7 @@ export default function Cotizaciones() {
                 </label>
                 <textarea
                   value={createNotes}
-                  onChange={(e) => setCreateNotes(e.target.value)}
+                  onChange={(e) => { setCreateNotes(e.target.value); setIsDirty(true); }}
                   placeholder="Condiciones de pago, detalles adicionales..."
                   rows={3}
                   className="w-full resize-none rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground shadow-none outline-none focus:border-main"
@@ -1667,11 +1753,7 @@ export default function Cotizaciones() {
               <NeoButton
                 type="button"
                 variant="neutral"
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setEditingQuotation(null);
-                  resetCreateForm();
-                }}
+                onClick={handleCloseModal}
                 disabled={creating}
               >
                 Cancelar
