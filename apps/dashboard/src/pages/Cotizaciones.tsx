@@ -99,6 +99,7 @@ export default function Cotizaciones() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
 
   // Client selection for linking the invoice/quotation
   const [clients, setClients] = useState<BotClient[]>([]);
@@ -240,13 +241,26 @@ export default function Cotizaciones() {
 
   const handleCloseModal = () => {
     if (isDirty) {
-      const ok = window.confirm("Tienes cambios sin guardar. ¿Descartarlos?");
-      if (!ok) return;
+      setShowDiscardModal(true);
+      return;
     }
+    actuallyCloseModal();
+  };
+
+  const actuallyCloseModal = () => {
     setShowCreateModal(false);
     setEditingQuotation(null);
     resetCreateForm();
     clearDraft();
+  };
+
+  const handleDiscardChanges = () => {
+    setShowDiscardModal(false);
+    actuallyCloseModal();
+  };
+
+  const handleKeepEditing = () => {
+    setShowDiscardModal(false);
   };
 
   const addCreateItem = () => {
@@ -1773,6 +1787,38 @@ export default function Cotizaciones() {
                 {editingQuotation
                   ? "Guardar cambios"
                   : `Crear ${createType === "FACTURA" ? "factura" : "cotización"}`}
+              </NeoButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discard unsaved changes confirmation modal */}
+      {showDiscardModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+          onClick={handleKeepEditing}
+        >
+          <div
+            className="w-full max-w-md rounded-base border-2 border-border bg-background p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-2 font-heading text-lg font-black">Cambios sin guardar</h3>
+            <p className="mb-4 text-base text-foreground/80">
+              Tienes cambios sin guardar. ¿Descartarlos?
+            </p>
+            <div className="flex justify-end gap-2">
+              <NeoButton
+                variant="neutral"
+                onClick={handleKeepEditing}
+              >
+                Seguir editando
+              </NeoButton>
+              <NeoButton
+                onClick={handleDiscardChanges}
+                className="border-red-500 bg-red-500 text-white hover:bg-red-600"
+              >
+                Descartar
               </NeoButton>
             </div>
           </div>
