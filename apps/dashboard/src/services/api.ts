@@ -63,8 +63,8 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  login: (email: string, password: string, rememberMe?: boolean) =>
-    api.post("/auth/login", { email, password, rememberMe }),
+  login: (email: string, password: string, rememberMe?: boolean, turnstileToken?: string) =>
+    api.post("/auth/login", { email, password, rememberMe, turnstileToken }),
 
   logout: () => api.post("/auth/logout"),
 

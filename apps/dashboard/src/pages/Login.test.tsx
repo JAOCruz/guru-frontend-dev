@@ -14,7 +14,11 @@ beforeEach(() => {
   login.mockReset();
   login.mockResolvedValue(undefined);
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllEnvs();
+  delete (window as any).turnstile;
+});
 
 describe("Login 'Recuérdame'", () => {
   it("is checked by default", () => {
@@ -34,7 +38,7 @@ describe("Login 'Recuérdame'", () => {
     fireEvent.change(screen.getByLabelText(/usuario/i), { target: { value: "hengi" } });
     fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: "secret1" } });
     fireEvent.submit(checkbox().closest("form")!);
-    expect(login).toHaveBeenCalledWith("hengi", "secret1", false);
+    expect(login).toHaveBeenCalledWith("hengi", "secret1", false, undefined);
     expect(localStorage.getItem("rememberMePref")).toBe("false");
   });
 });
@@ -45,5 +49,35 @@ describe("Login after deactivation", () => {
     render(<Login />);
     expect(screen.getByText("Usuario desactivado. Contacta al administrador.")).toBeTruthy();
     window.history.pushState({}, "", "/");
+  });
+});
+
+describe("Login human check (Cloudflare Turnstile)", () => {
+  const fillAndSubmit = () => {
+    fireEvent.change(screen.getByLabelText(/usuario/i), { target: { value: "hengi" } });
+    fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: "secret1" } });
+    fireEvent.submit(screen.getByLabelText(/usuario/i).closest("form")!);
+  };
+
+  it("sends the Turnstile token with the login", async () => {
+    vi.stubEnv("VITE_TURNSTILE_SITE_KEY", "0xTEST");
+    const render_ = vi.fn((_el: HTMLElement, opts: any) => {
+      opts.callback("tok-123");
+      return "w1";
+    });
+    (window as any).turnstile = { render: render_, remove: vi.fn(), reset: vi.fn() };
+    render(<Login />);
+    await screen.findByRole("button", { name: /iniciar|entrar|ingresar/i });
+    fillAndSubmit();
+    expect(render_).toHaveBeenCalledWith(expect.any(HTMLElement), expect.objectContaining({ sitekey: "0xTEST" }));
+    expect(login).toHaveBeenCalledWith("hengi", "secret1", true, "tok-123");
+  });
+
+  it("keeps the button disabled until the check finishes", () => {
+    vi.stubEnv("VITE_TURNSTILE_SITE_KEY", "0xTEST");
+    (window as any).turnstile = { render: vi.fn(() => "w1"), remove: vi.fn(), reset: vi.fn() };
+    render(<Login />);
+    const button = screen.getByRole("button", { name: /iniciar|entrar|ingresar|verificando/i }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
   });
 });

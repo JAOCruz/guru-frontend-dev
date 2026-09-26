@@ -22,7 +22,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string, rememberMe?: boolean) => Promise<void>;
+  login: (username: string, password: string, rememberMe?: boolean, turnstileToken?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   isAdmin: boolean;
@@ -126,9 +126,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const login = async (username: string, password: string, rememberMe = false) => {
+  const login = async (username: string, password: string, rememberMe = false, turnstileToken?: string) => {
     try {
-      const response = await authAPI.login(username, password, rememberMe);
+      const response = await authAPI.login(username, password, rememberMe, turnstileToken);
       const { token, user } = response.data;
 
       if (token) storeToken(token, rememberMe);

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import TurnstileWidget from "../components/TurnstileWidget";
+import { turnstileSiteKey } from "../lib/turnstile";
 import {
   Card,
   CardHeader,
@@ -27,6 +29,10 @@ const Login: React.FC = () => {
       : "",
   );
   const [loading, setLoading] = useState(false);
+  const siteKey = turnstileSiteKey();
+  const [humanToken, setHumanToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
+  const waitingHuman = !!siteKey && !humanToken;
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,9 +46,11 @@ const Login: React.FC = () => {
     }
 
     try {
-      await login(email, password, rememberMe);
+      await login(email, password, rememberMe, humanToken ?? undefined);
     } catch (err: any) {
       setError(err.message);
+      // Turnstile tokens are single-use: get a fresh one for the next attempt
+      if (siteKey) setTurnstileReset((n) => n + 1);
     } finally {
       setLoading(false);
     }
@@ -118,13 +126,15 @@ const Login: React.FC = () => {
               Recuérdame
             </label>
 
+            {siteKey && <TurnstileWidget siteKey={siteKey} onToken={setHumanToken} resetSignal={turnstileReset} />}
+
             <Button
               type="submit"
               variant="neutral"
-              disabled={loading}
+              disabled={loading || waitingHuman}
               className="h-14 w-full px-7 text-lg"
             >
-              {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+              {loading ? "Iniciando sesión..." : waitingHuman ? "Verificando que eres humano..." : "Iniciar Sesión"}
             </Button>
           </form>
         </Card>
