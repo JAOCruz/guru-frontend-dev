@@ -350,6 +350,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
           {isAdmin && (
             <NavItem
+              to="/usuarios"
+              icon={<Users size={18} />}
+              label="Usuarios"
+              sidebarOpen={sidebarOpen}
+              isMobile={isMobile}
+            />
+          )}
+
+          {isAdmin && (
+            <NavItem
               to="/settings"
               icon={<Settings size={18} />}
               label="Configuración"
