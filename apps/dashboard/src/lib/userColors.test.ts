@@ -27,7 +27,7 @@ describe("resolveColor", () => {
 
 describe("resolveAvatar", () => {
   it("maps key to emoji", () => expect(resolveAvatar("owl")).toBe("🦉"));
-  it("null for unknown", () => expect(resolveAvatar("unicorn")).toBeNull());
+  it("null for unknown", () => expect(resolveAvatar("dinosaur")).toBeNull());
 });
 
 describe("initialOf", () => {
@@ -45,7 +45,7 @@ describe("findUserByColumn", () => {
 
 describe("toAppearance", () => {
   it("full user", () => {
-    expect(toAppearance(users[1])).toEqual({ color: resolveColor("green"), emoji: "🐄", name: "Hengi", initial: "H" });
+    expect(toAppearance(users[1])).toEqual({ color: resolveColor("green"), emoji: "🐮", name: "Hengi", initial: "H" });
   });
   it("no name falls back to username; no avatar → null emoji", () => {
     const a = toAppearance(users[2]);
@@ -55,5 +55,17 @@ describe("toAppearance", () => {
   });
   it("unknown user uses fallback name", () => {
     expect(toAppearance(undefined, "AUXILIAR_I")).toEqual({ color: FALLBACK_COLOR, emoji: null, name: "AUXILIAR_I", initial: "A" });
+  });
+});
+
+describe("animal faces", () => {
+  it("uses face emojis", () => {
+    expect(resolveAvatar("cat")).toBe("🐱");
+    expect(resolveAvatar("dog")).toBe("🐶");
+    expect(resolveAvatar("koala")).toBe("🐨");
+  });
+  it("no longer offers full-body animals without a face emoji", () => {
+    expect(resolveAvatar("turtle")).toBeNull();
+    expect(resolveAvatar("elephant")).toBeNull();
   });
 });

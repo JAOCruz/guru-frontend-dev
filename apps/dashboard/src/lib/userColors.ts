@@ -3,9 +3,9 @@ export type ColorKey =
   | "teal" | "cyan" | "blue" | "indigo" | "lime" | "brown";
 
 export type AvatarKey =
-  | "cow" | "cat" | "dog" | "horse" | "pig" | "sheep" | "goat" | "rooster"
-  | "duck" | "rabbit" | "turtle" | "dolphin" | "lion" | "tiger" | "bear" | "panda"
-  | "fox" | "frog" | "penguin" | "parrot" | "bee" | "butterfly" | "elephant" | "giraffe"
+  | "cow" | "cat" | "dog" | "horse" | "pig" | "rabbit" | "rooster" | "lion"
+  | "tiger" | "bear" | "panda" | "fox" | "frog" | "giraffe" | "koala" | "monkey"
+  | "hamster" | "mouse" | "wolf" | "boar" | "unicorn" | "dragon" | "raccoon" | "zebra"
   | "owl";
 
 export interface PaletteColor {
@@ -51,31 +51,33 @@ export const COLOR_PALETTE: Record<ColorKey, PaletteColor> = {
 
 export const COLOR_KEYS = Object.keys(COLOR_PALETTE) as ColorKey[];
 
+// Animal faces (must match guruweb-backend src/config/appearance.js). The owl has
+// no face emoji and is reserved for the admin.
 export const AVATARS: Record<AvatarKey, { emoji: string; label: string }> = {
-  cow: { emoji: "🐄", label: "Vaca" },
-  cat: { emoji: "🐈", label: "Gato" },
-  dog: { emoji: "🐕", label: "Perro" },
-  horse: { emoji: "🐎", label: "Caballo" },
-  pig: { emoji: "🐖", label: "Cerdo" },
-  sheep: { emoji: "🐑", label: "Oveja" },
-  goat: { emoji: "🐐", label: "Chivo" },
-  rooster: { emoji: "🐓", label: "Gallo" },
-  duck: { emoji: "🦆", label: "Pato" },
-  rabbit: { emoji: "🐇", label: "Conejo" },
-  turtle: { emoji: "🐢", label: "Tortuga" },
-  dolphin: { emoji: "🐬", label: "Delfín" },
+  cow: { emoji: "🐮", label: "Vaca" },
+  cat: { emoji: "🐱", label: "Gato" },
+  dog: { emoji: "🐶", label: "Perro" },
+  horse: { emoji: "🐴", label: "Caballo" },
+  pig: { emoji: "🐷", label: "Cerdo" },
+  rabbit: { emoji: "🐰", label: "Conejo" },
+  rooster: { emoji: "🐔", label: "Gallina" },
   lion: { emoji: "🦁", label: "León" },
   tiger: { emoji: "🐯", label: "Tigre" },
   bear: { emoji: "🐻", label: "Oso" },
   panda: { emoji: "🐼", label: "Panda" },
   fox: { emoji: "🦊", label: "Zorro" },
   frog: { emoji: "🐸", label: "Rana" },
-  penguin: { emoji: "🐧", label: "Pingüino" },
-  parrot: { emoji: "🦜", label: "Loro" },
-  bee: { emoji: "🐝", label: "Abeja" },
-  butterfly: { emoji: "🦋", label: "Mariposa" },
-  elephant: { emoji: "🐘", label: "Elefante" },
   giraffe: { emoji: "🦒", label: "Jirafa" },
+  koala: { emoji: "🐨", label: "Koala" },
+  monkey: { emoji: "🐵", label: "Mono" },
+  hamster: { emoji: "🐹", label: "Hámster" },
+  mouse: { emoji: "🐭", label: "Ratón" },
+  wolf: { emoji: "🐺", label: "Lobo" },
+  boar: { emoji: "🐗", label: "Jabalí" },
+  unicorn: { emoji: "🦄", label: "Unicornio" },
+  dragon: { emoji: "🐲", label: "Dragón" },
+  raccoon: { emoji: "🦝", label: "Mapache" },
+  zebra: { emoji: "🦓", label: "Cebra" },
   owl: { emoji: "🦉", label: "Búho" },
 };
 
