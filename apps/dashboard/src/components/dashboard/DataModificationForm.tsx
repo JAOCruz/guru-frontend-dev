@@ -1,15 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { servicesAPI } from "../../services/api";
 import { preventDecimalInput } from "../../utils";
 import { NeoCard, NeoCardHeader, NeoCardTitle, NeoCardContent, NeoCardFooter } from "@guru/ui";
 import { NeoInput } from "@guru/ui";
 import { NeoSelect } from "@guru/ui";
 import { NeoButton } from "@guru/ui";
-import { USER_COLUMNS } from "../../services/excelService";
 import { Plus, X, Loader2 } from "lucide-react";
 
 interface DataModificationFormProps {
   onServiceAdded: () => void;
+  workers: string[];
 }
 
 const SERVICE_LIST = [
@@ -36,8 +36,12 @@ const SERVICE_LIST = [
 
 const DataModificationForm: React.FC<DataModificationFormProps> = ({
   onServiceAdded,
+  workers,
 }) => {
-  const [selectedUser, setSelectedUser] = useState<string>(USER_COLUMNS[0]);
+  const [selectedUser, setSelectedUser] = useState<string>(workers[0] ?? "");
+  useEffect(() => {
+    if (!workers.includes(selectedUser)) setSelectedUser(workers[0] ?? "");
+  }, [workers, selectedUser]);
   const [serviceName, setServiceName] = useState<string>(SERVICE_LIST[0]);
   const [client, setClient] = useState<string>("");
   const [earnings, setEarnings] = useState<string>("");
@@ -120,7 +124,7 @@ const DataModificationForm: React.FC<DataModificationFormProps> = ({
                   value={selectedUser}
                   onChange={(e) => setSelectedUser(e.target.value)}
                 >
-                  {USER_COLUMNS.map((user) => (
+                  {workers.map((user) => (
                     <option key={user} value={user}>
                       {user}
                     </option>

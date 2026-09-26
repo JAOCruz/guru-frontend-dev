@@ -1,13 +1,8 @@
 import * as XLSX from "xlsx";
 
 // Define types for our Excel data
-export type WorkerKey =
-  | "HENGI"
-  | "MARLENI"
-  | "ISRAEL"
-  | "THAICAR"
-  | "AUXILIAR_I"
-  | "AUXILIAR_II";
+// Payroll employees come from the user directory (users.data_column); any string key
+export type WorkerKey = string;
 
 export interface ExcelRow {
   DETALLE?: string;
@@ -25,6 +20,7 @@ export interface ExcelRow {
   [key: string]: string | number | undefined;
 }
 
+// Legacy fixed list — only a fallback while the user directory loads (see lib/payroll.ts)
 export const USER_COLUMNS: WorkerKey[] = [
   "HENGI",
   "MARLENI",
