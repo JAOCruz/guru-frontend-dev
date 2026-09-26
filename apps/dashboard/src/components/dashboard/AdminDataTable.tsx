@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "../../utils";
 import { useUserColors } from "../../context/UserColorsContext";
+import { generateInsight } from "../../services/ai";
 
 // --- TIPOS ---
 interface AdminDataTableProps {
@@ -37,7 +38,6 @@ interface UserServiceEntry {
 
 type GroupedUserData = Record<WorkerKey, UserServiceEntry[]>;
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
 const AdminDataTable: React.FC<AdminDataTableProps> = ({
   data,
@@ -256,21 +256,7 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
     `;
 
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-        },
-      );
-      const result = await response.json();
-      setAiInsight(
-        result.candidates?.[0]?.content?.parts?.[0]?.text ||
-          "No se pudo generar análisis.",
-      );
-    } catch (e) {
-      setAiInsight("Error conectando con la IA.");
+      setAiInsight(await generateInsight(prompt));
     } finally {
       setAiLoading(false);
     }
