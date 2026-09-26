@@ -86,7 +86,7 @@ Lista fija (se guarda la clave, no el emoji):
   - `403` si pide `owl` y su rol no es `admin`.
   - `409` si otro usuario ya tiene ese color o avatar (también si la DB rechaza por el índice único — condición de carrera).
   - `200 { user }` con el usuario actualizado.
-- Contraseña: se reutiliza `PUT /api/auth/change-password` sin cambios.
+- Contraseña: se reutiliza `PUT /api/auth/change-password`, con un cambio: contraseña actual incorrecta responde **400** (antes 401), porque el frontend trata cualquier 401 como sesión vencida y cierra la sesión.
 
 Compatibilidad: todo es aditivo; el frontend de producción actual ignora `color`.
 
@@ -116,7 +116,7 @@ Compatibilidad: todo es aditivo; el frontend de producción actual ignora `color
 - Ruta `/mi-cuenta` en `Dashboard.tsx`, sin guardia de admin; ítem "Mi cuenta" en el sidebar (`DashboardLayout.tsx`) para todos los roles.
 - **Mi avatar:** grilla de animales; el actual marcado; los tomados deshabilitados con el nombre de quien lo tiene; 🦉 visible solo para admin (para los demás aparece como "Reservado para el admin"). Mismo manejo de `409`.
 - **Mi color:** grilla de la paleta; el actual marcado; los ocupados deshabilitados con el nombre de quien lo usa (tooltip); vista previa de la tarjeta con el nombre del usuario. Al guardar (avatar y color juntos): `PUT /auth/me/appearance` → `refreshUser()` + `refresh()` del contexto de colores. Error `409` → mensaje "Ese color lo acaba de tomar otro usuario" y recarga la paleta.
-- **Cambiar contraseña:** actual, nueva, confirmar. Validación en cliente: campos requeridos, mínimo 6, nueva = confirmación. Error `401` → "La contraseña actual es incorrecta". Éxito → mensaje y limpia el formulario.
+- **Cambiar contraseña:** actual, nueva, confirmar. Validación en cliente: campos requeridos, mínimo 6, nueva = confirmación. Error `400` (`WRONG_CURRENT_PASSWORD`) → "La contraseña actual es incorrecta" (sin cerrar sesión). Éxito → mensaje y limpia el formulario.
 - Estilo neo-brutalista existente (componentes `@guru/ui` / clases actuales).
 
 ## 6. Despliegue
@@ -130,6 +130,6 @@ Nota: dev y producción comparten backend y base de datos; cambiar el color o la
 
 ## 7. Pruebas
 
-- Backend (curl contra local o Railway): color/avatar válido → 200; clave inválida → 400; `owl` desde no-admin → 403; color/avatar de otro usuario → 409; `/dashboard/users` incluye `color`; contraseña actual incorrecta → 401.
+- Backend (curl contra local o Railway): color/avatar válido → 200; clave inválida → 400; `owl` desde no-admin → 403; color/avatar de otro usuario → 409; `/dashboard/users` incluye `color`; contraseña actual incorrecta → 400 y la sesión sigue activa.
 - Migración: correrla dos veces sin errores; verificar colores sembrados.
 - Frontend: `tsc && vite build` sin errores; en dev, con dos sesiones (admin y empleado), cambiar el color del empleado y confirmar que el admin lo ve en ≤ 60 s en tarjetas, tabla, gráficas, chats y cotizaciones.
