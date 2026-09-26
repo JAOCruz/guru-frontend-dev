@@ -16,7 +16,8 @@ const UserBadge: React.FC<UserBadgeProps> = ({ userId, label, size = "xs", class
   return (
     <span
       className={`inline-flex max-w-full items-center gap-1 rounded-full border-2 border-border py-0.5 pl-0.5 pr-2 text-[11px] font-bold text-black ${className}`}
-      style={{ backgroundColor: `${a.color.bg}33` }}
+      // Opaque tint so the badge stays readable on colored rows (e.g. the selected bg-main row)
+      style={{ backgroundColor: `color-mix(in srgb, ${a.color.bg} 25%, white)` }}
       title={label ? `${label}: ${a.name}` : a.name}
     >
       <UserAvatar appearance={a} size={size} />
