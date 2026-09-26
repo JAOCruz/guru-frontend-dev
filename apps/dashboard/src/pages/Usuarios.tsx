@@ -96,7 +96,7 @@ export default function Usuarios() {
         </NeoButton>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <button
             key={f.key}
@@ -113,65 +113,61 @@ export default function Usuarios() {
 
       {error && <p className="rounded-base border-2 border-red-500 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
 
-      <div className="overflow-x-auto rounded-base border-2 border-border bg-background shadow-shadow">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="bg-foreground text-background">
-            <tr>
-              <th className="px-4 py-3">Usuario</th>
-              <th className="px-4 py-3">Rol</th>
-              <th className="px-4 py-3">Ganancias</th>
-              <th className="px-4 py-3">Estado</th>
-              <th className="px-4 py-3">Última conexión</th>
-              <th className="px-4 py-3 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && users.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-foreground/60">Cargando…</td></tr>
-            ) : users.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-foreground/60">No hay usuarios en esta lista.</td></tr>
-            ) : (
-              users.map((u) => {
-                const isMe = u.id === me?.id;
-                return (
-                  <tr key={u.id} className={`border-t-2 border-border ${u.is_active ? "" : "opacity-70"}`}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar appearance={toAppearance({ name: u.name || u.username, color: u.color, avatar: u.avatar })} size="sm" />
-                        <div>
-                          <div className="font-bold">{u.name || u.username}{isMe && <span className="ml-1 text-xs text-foreground/60">(tú)</span>}</div>
-                          <div className="text-xs text-foreground/60">{u.username}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">{roleLabel(u.role)}</td>
-                    <td className="px-4 py-3">{u.in_payroll ? "Sí" : "No"}</td>
-                    <td className="px-4 py-3"><StatusPill user={u} /></td>
-                    <td className="px-4 py-3 text-foreground/70">{lastSeenLabel(u.last_seen)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap justify-end gap-1">
-                        {u.is_active ? (
-                          <>
-                            <button type="button" className={actionCls} onClick={() => setDialog({ kind: "edit", user: u })}>Editar</button>
-                            <button type="button" className={actionCls} onClick={() => setDialog({ kind: "password", user: u })}>Contraseña</button>
-                            {!isMe && (
-                              <button type="button" className={`${actionCls} bg-red-100`} onClick={() => setDialog({ kind: "deactivate", user: u })}>
-                                Desactivar
-                              </button>
-                            )}
-                          </>
-                        ) : (
-                          <button type="button" className={`${actionCls} bg-green-100`} onClick={() => reactivate(u)}>Reactivar</button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      {loading && users.length === 0 ? (
+        <p className="py-6 text-center text-foreground/60">Cargando…</p>
+      ) : users.length === 0 ? (
+        <p className="py-6 text-center text-foreground/60">No hay usuarios en esta lista.</p>
+      ) : (
+        <ul className="space-y-3">
+          {users.map((u) => {
+            const isMe = u.id === me?.id;
+            return (
+              <li
+                key={u.id}
+                className={`flex flex-wrap items-center gap-x-6 gap-y-3 rounded-base border-2 border-border bg-background p-4 shadow-shadow ${
+                  u.is_active ? "" : "opacity-70"
+                }`}
+              >
+                <div className="flex min-w-[220px] flex-1 items-center gap-3">
+                  <UserAvatar appearance={toAppearance({ name: u.name || u.username, color: u.color, avatar: u.avatar })} size="md" />
+                  <div className="min-w-0">
+                    <div className="truncate font-bold">
+                      {u.name || u.username}
+                      {isMe && <span className="ml-1 text-xs text-foreground/60">(tú)</span>}
+                    </div>
+                    <div className="truncate text-sm text-foreground/60">{u.username}</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="rounded-full border-2 border-border bg-secondary-background px-2 py-0.5 font-bold">{roleLabel(u.role)}</span>
+                  <span className="rounded-full border-2 border-border bg-secondary-background px-2 py-0.5 font-bold">
+                    {u.in_payroll ? "En ganancias" : "Sin ganancias"}
+                  </span>
+                  <StatusPill user={u} />
+                  <span className="text-foreground/60" title="Última conexión">{lastSeenLabel(u.last_seen)}</span>
+                </div>
+
+                <div className="ml-auto flex flex-wrap justify-end gap-2">
+                  {u.is_active ? (
+                    <>
+                      <button type="button" className={actionCls} onClick={() => setDialog({ kind: "edit", user: u })}>Editar</button>
+                      <button type="button" className={actionCls} onClick={() => setDialog({ kind: "password", user: u })}>Contraseña</button>
+                      {!isMe && (
+                        <button type="button" className={`${actionCls} bg-red-100`} onClick={() => setDialog({ kind: "deactivate", user: u })}>
+                          Desactivar
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <button type="button" className={`${actionCls} bg-green-100`} onClick={() => reactivate(u)}>Reactivar</button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {dialog?.kind === "create" && <UserFormModal onClose={() => setDialog(null)} onSaved={afterChange} />}
       {dialog?.kind === "edit" && <UserFormModal user={dialog.user} onClose={() => setDialog(null)} onSaved={afterChange} />}

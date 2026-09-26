@@ -27,7 +27,7 @@ const users = [
   { ...base, id: 3, name: "Marleni", username: "marleni", role: "digitador", color: "yellow", is_active: true, in_payroll: true },
 ];
 
-const row = (name: string) => screen.getByText(name, { selector: "td *, td" }).closest("tr") as HTMLElement;
+const row = (name: string) => screen.getByText(name, { selector: "li *" }).closest("li") as HTMLElement;
 
 beforeEach(() => {
   Object.values(api).forEach((f) => f.mockReset());
