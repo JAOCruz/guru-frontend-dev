@@ -156,11 +156,11 @@ export default function MiCuenta() {
           <div>
             <p className="mb-2 text-sm font-bold">Vista previa</p>
             <div
-              className="flex items-center gap-3 rounded-base border-2 border-border p-4 shadow-shadow"
+              className="flex min-w-0 items-center gap-3 overflow-hidden rounded-base border-2 border-border p-4 shadow-shadow"
               style={{ backgroundColor: preview.color.bg, color: preview.color.text }}
             >
               <UserAvatar appearance={preview} size="lg" />
-              <span className="font-heading text-2xl font-black uppercase">{preview.name}</span>
+              <span className="min-w-0 truncate font-heading text-2xl font-black uppercase">{preview.name}</span>
             </div>
           </div>
 
