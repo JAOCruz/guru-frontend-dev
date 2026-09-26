@@ -20,7 +20,12 @@ const Login: React.FC = () => {
       return true;
     }
   });
-  const [error, setError] = useState("");
+  // ?inactive=1 is set when an admin deactivated the account (see services/sessionGuard.ts)
+  const [error, setError] = useState(() =>
+    new URLSearchParams(window.location.search).get("inactive")
+      ? "Usuario desactivado. Contacta al administrador."
+      : "",
+  );
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 

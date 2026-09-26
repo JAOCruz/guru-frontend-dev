@@ -38,3 +38,12 @@ describe("Login 'Recuérdame'", () => {
     expect(localStorage.getItem("rememberMePref")).toBe("false");
   });
 });
+
+describe("Login after deactivation", () => {
+  it("explains that the user was deactivated", () => {
+    window.history.pushState({}, "", "/login?inactive=1");
+    render(<Login />);
+    expect(screen.getByText("Usuario desactivado. Contacta al administrador.")).toBeTruthy();
+    window.history.pushState({}, "", "/");
+  });
+});

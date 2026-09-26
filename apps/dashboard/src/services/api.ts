@@ -1,4 +1,5 @@
 import axios from "axios";
+import { handleInactiveSession } from "./sessionGuard";
 
 export const getAPIUrl = () => {
   if (typeof window === "undefined") return "http://localhost:3000";
@@ -44,6 +45,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (handleInactiveSession(error)) return Promise.reject(error);
     if (error.response?.status === 401) {
       // Don't wipe tokens here automatically. AuthContext decides whether to
       // clear the session after retries, otherwise a transient 401 during a

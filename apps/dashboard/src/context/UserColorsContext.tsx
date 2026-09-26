@@ -28,7 +28,8 @@ export const UserColorsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   useEffect(() => {
-    if (!user) {
+    // No directory while logged out or while a temporary password must be replaced (the API refuses it)
+    if (!user || user.mustChangePassword) {
       setUsers([]);
       return;
     }
@@ -44,7 +45,7 @@ export const UserColorsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [user?.id, refresh]);
+  }, [user?.id, user?.mustChangePassword, refresh]);
 
   const value = useMemo<UserColorsContextType>(() => {
     const byId = new Map(users.map((u) => [u.id, u]));

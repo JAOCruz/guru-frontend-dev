@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../services/api";
 import LoadingScreen from "../components/LoadingScreen";
+import ForcePasswordChange from "../components/ForcePasswordChange";
 
 type UserRole = "admin" | "digitador" | "auxiliar" | "employee";
 
@@ -200,6 +201,11 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
 
   if (!user) {
     return null;
+  }
+
+  // Admin-issued temporary password: nothing else is reachable until it's replaced
+  if (user.mustChangePassword) {
+    return <ForcePasswordChange />;
   }
 
   return <>{children}</>;

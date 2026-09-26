@@ -1,21 +1,24 @@
 // @vitest-environment jsdom
 import { useEffect } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, act } from "@testing-library/react";
+import { render, act, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 const getCurrentUser = vi.fn();
 const loginApi = vi.fn();
+const changePassword = vi.fn();
 vi.mock("../services/api", () => ({
   authAPI: {
     getCurrentUser: () => getCurrentUser(),
     login: (...args: unknown[]) => loginApi(...args),
     logout: vi.fn(),
+    changePassword: (...args: unknown[]) => changePassword(...args),
   },
 }));
 vi.mock("../components/LoadingScreen", () => ({ default: () => <div>loading</div> }));
 
-import { AuthProvider, useAuth } from "./AuthContext";
+import { AuthProvider, ProtectedRoute, useAuth } from "./AuthContext";
+import { screen, fireEvent } from "@testing-library/react";
 
 let mounts = 0;
 const LoginForm = () => {
@@ -51,6 +54,7 @@ beforeEach(() => {
   mounts = 0;
   getCurrentUser.mockReset();
   loginApi.mockReset();
+  changePassword.mockReset();
   localStorage.clear();
   sessionStorage.clear();
   vi.useFakeTimers();
@@ -58,6 +62,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -161,5 +166,57 @@ describe("sliding session", () => {
 
     expect(sessionStorage.getItem("token")).toBe("renewed");
     expect(localStorage.getItem("token")).toBeNull();
+  });
+});
+
+describe("temporary password", () => {
+  const tempUser = { ...user, mustChangePassword: true };
+  const renderProtected = () =>
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <ProtectedRoute>
+            <div>panel</div>
+          </ProtectedRoute>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+
+  it("shows only the 'Crea tu contraseña' screen", async () => {
+    localStorage.setItem("token", "t");
+    getCurrentUser.mockResolvedValue({ data: { user: tempUser } });
+    renderProtected();
+    await advance(500);
+    expect(screen.getByText("Crea tu contraseña")).toBeTruthy();
+    expect(screen.queryByText("panel")).toBeNull();
+  });
+
+  it("rejects a mismatched confirmation without calling the API", async () => {
+    localStorage.setItem("token", "t");
+    getCurrentUser.mockResolvedValue({ data: { user: tempUser } });
+    renderProtected();
+    await advance(500);
+    fireEvent.change(screen.getByLabelText(/contraseña temporal/i), { target: { value: "temp123" } });
+    fireEvent.change(screen.getByLabelText(/^nueva contraseña/i), { target: { value: "nueva123" } });
+    fireEvent.change(screen.getByLabelText(/confirmar/i), { target: { value: "otra1234" } });
+    fireEvent.click(screen.getByRole("button", { name: /guardar y entrar/i }));
+    await advance(200);
+    expect(screen.getByText("La confirmación no coincide")).toBeTruthy();
+    expect(changePassword).not.toHaveBeenCalled();
+  });
+
+  it("after saving, reloads the user and enters the dashboard", async () => {
+    localStorage.setItem("token", "t");
+    getCurrentUser.mockResolvedValueOnce({ data: { user: tempUser } }).mockResolvedValue({ data: { user } });
+    changePassword.mockResolvedValue({ data: { ok: true } });
+    renderProtected();
+    await advance(500);
+    fireEvent.change(screen.getByLabelText(/contraseña temporal/i), { target: { value: "temp123" } });
+    fireEvent.change(screen.getByLabelText(/^nueva contraseña/i), { target: { value: "nueva123" } });
+    fireEvent.change(screen.getByLabelText(/confirmar/i), { target: { value: "nueva123" } });
+    fireEvent.click(screen.getByRole("button", { name: /guardar y entrar/i }));
+    await advance(500);
+    expect(changePassword).toHaveBeenCalledWith("temp123", "nueva123");
+    expect(screen.getByText("panel")).toBeTruthy();
   });
 });
