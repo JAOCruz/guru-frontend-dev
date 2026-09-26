@@ -23,6 +23,8 @@ import {
 import api, { getAPIUrl } from "../services/api";
 import { botAPI, BotClient } from "../services/botApi";
 import { useAuth } from "../context/AuthContext";
+import { useUserColors } from "../context/UserColorsContext";
+import UserBadge from "../components/UserBadge";
 import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
 import { fetchAuthenticatedFile, preventDecimalInput } from "../utils";
 
@@ -113,7 +115,7 @@ export default function Cotizaciones() {
   const [creatorFilter, setCreatorFilter] = useState<string>("ALL");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [users, setUsers] = useState<{ id: number; name: string }[]>([]);
+  const { users } = useUserColors();
 
   // Reject / delete
   const [rejecting, setRejecting] = useState(false);
@@ -141,19 +143,6 @@ export default function Cotizaciones() {
     };
     loadClients();
   }, [showCreateModal, editingQuotation]);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    const loadUsers = async () => {
-      try {
-        const { data } = await api.get("/users");
-        setUsers(data.users || data || []);
-      } catch (err) {
-        console.error("Failed to load users", err);
-      }
-    };
-    loadUsers();
-  }, [isAdmin]);
 
   const fetchQuotations = async (): Promise<Quotation[]> => {
     try {
@@ -732,7 +721,7 @@ export default function Cotizaciones() {
                 <option value="ALL">Todos los creadores</option>
                 {users.map((u) => (
                   <option key={u.id} value={String(u.id)}>
-                    {u.name || `Usuario ${u.id}`}
+                    {u.name || u.username || `Usuario ${u.id}`}
                   </option>
                 ))}
               </select>
@@ -858,6 +847,11 @@ export default function Cotizaciones() {
                     {new Date(quote.created_at).toLocaleDateString("es-DO")}
                   </p>
                 </div>
+                {quote.created_by != null && (
+                  <div className="mt-2">
+                    <UserBadge userId={quote.created_by} label="Creado por" />
+                  </div>
+                )}
               </button>
             ))}
           </div>
@@ -889,6 +883,9 @@ export default function Cotizaciones() {
                 <p className="truncate text-base text-foreground/70">
                   {selectedQuotation.client_name}
                 </p>
+                {selectedQuotation.created_by != null && (
+                  <UserBadge userId={selectedQuotation.created_by} label="Creado por" size="sm" className="mt-1" />
+                )}
               </div>
             </div>
 

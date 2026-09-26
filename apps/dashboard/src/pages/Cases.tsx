@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import UserBadge from "../components/UserBadge";
 import { Briefcase, Search, RefreshCw, ChevronLeft, Filter, AlertCircle, Tag } from "lucide-react";
 import api from "../services/api";
 import { getAuthToken } from "../utils";
@@ -508,6 +509,11 @@ const Cases: React.FC = () => {
               >
                 <p className="font-semibold text-base truncate">{caseItem.title}</p>
                 <p className="text-base text-foreground/70 mt-1">{caseItem.case_number}</p>
+                {caseItem.user_id != null && (
+                  <div className="mt-1">
+                    <UserBadge userId={caseItem.user_id} />
+                  </div>
+                )}
               </div>
             ))
           )}

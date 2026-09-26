@@ -81,6 +81,7 @@ export interface BotClient {
   phone: string;
   joinedAt: string;
   messageCount: number;
+  assigned_to?: number | null;
 }
 
 export interface ClientDetailFull {

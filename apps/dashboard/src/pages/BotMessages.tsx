@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import UserBadge from "../components/UserBadge";
 import { botAPI, getBotApiBaseURL, catalogUnitPrice, type ServiceCatalogItem, type Invoice, type ClientMedia } from "../services/botApi";
 import { getAuthToken, fetchAuthenticatedFile, formatCurrency, preventDecimalInput } from "../utils";
 import { useAuth } from "../context/AuthContext";
@@ -274,6 +275,11 @@ const ConvItem: React.FC<ConvItemProps> = ({
         <p className={`mt-0.5 line-clamp-2 font-base text-xs leading-snug ${isSelected ? "text-main-foreground/80" : "text-foreground/60"}`}>
           {preview}
         </p>
+        {conv.client_assigned_to != null && (
+          <div className="mt-1">
+            <UserBadge userId={conv.client_assigned_to} />
+          </div>
+        )}
       </div>
 
       {/* IA toggle button */}
@@ -1640,6 +1646,10 @@ const BotMessages: React.FC = () => {
                   </span>
                 </NeoButton>
               </div>
+
+              {!isAdmin && selectedConv?.client_assigned_to != null && (
+                <UserBadge userId={selectedConv.client_assigned_to} size="sm" />
+              )}
 
               {/* Assignment (admin only) */}
               {isAdmin && (

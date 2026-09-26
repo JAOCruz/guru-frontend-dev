@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import UserBadge from "../components/UserBadge";
 import { useNavigate } from "react-router-dom";
 import {
   Users,
@@ -74,6 +75,11 @@ const ClientItem: React.FC<{
         <p className={`truncate font-base text-sm ${isSelected ? "text-main-foreground/80" : "text-foreground/60"}`}>
           {client.phone}
         </p>
+        {client.assigned_to != null && (
+          <div className="mt-1">
+            <UserBadge userId={client.assigned_to} />
+          </div>
+        )}
       </div>
     </div>
   );
