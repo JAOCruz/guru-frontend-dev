@@ -12,3 +12,24 @@ export function handleInactiveSession(
   if (!currentPath.startsWith("/login")) redirect("/login?inactive=1");
   return true;
 }
+
+let reloadRequested = false;
+
+// An admin set a temporary password while this session was open: every API call
+// now answers PASSWORD_CHANGE_REQUIRED. Reload once so /auth/me reports
+// mustChangePassword and ProtectedRoute shows "Crea tu contraseña".
+export function handlePasswordChangeRequired(
+  error: any,
+  reload: () => void = () => window.location.reload(),
+): boolean {
+  if (error?.response?.data?.code !== "PASSWORD_CHANGE_REQUIRED") return false;
+  if (!reloadRequested) {
+    reloadRequested = true;
+    reload();
+  }
+  return true;
+}
+
+export function resetSessionGuard() {
+  reloadRequested = false;
+}

@@ -35,3 +35,28 @@ describe("handleInactiveSession", () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 });
+
+import { handlePasswordChangeRequired, resetSessionGuard } from "./sessionGuard";
+
+describe("handlePasswordChangeRequired", () => {
+  beforeEach(() => resetSessionGuard());
+  it("reloads so the app shows 'Crea tu contraseña'", () => {
+    const reload = vi.fn();
+    expect(handlePasswordChangeRequired({ response: { data: { code: "PASSWORD_CHANGE_REQUIRED" } } }, reload)).toBe(true);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("reloads at most once in a burst of failing requests", () => {
+    const reload = vi.fn();
+    const err = { response: { data: { code: "PASSWORD_CHANGE_REQUIRED" } } };
+    handlePasswordChangeRequired(err, reload);
+    handlePasswordChangeRequired(err, reload);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores other errors", () => {
+    const reload = vi.fn();
+    expect(handlePasswordChangeRequired({ response: { status: 403, data: {} } }, reload)).toBe(false);
+    expect(reload).not.toHaveBeenCalled();
+  });
+});

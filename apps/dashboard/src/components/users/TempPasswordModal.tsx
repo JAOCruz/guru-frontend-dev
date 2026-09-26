@@ -46,7 +46,7 @@ const TempPasswordModal: React.FC<{ user: AdminUser; onClose: () => void; onSave
               </button>
             </div>
           </label>
-          <p className="text-sm text-foreground/70">Deberá cambiarla al entrar. Su sesión actual seguirá abierta hasta que la cambie.</p>
+          <p className="text-sm text-foreground/70">Deberá cambiarla al entrar. Si tiene el dashboard abierto, se le pedirá cambiarla de inmediato.</p>
           {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
           <NeoButton type="submit" disabled={saving}>{saving ? "Guardando…" : "Poner contraseña temporal"}</NeoButton>
         </form>
