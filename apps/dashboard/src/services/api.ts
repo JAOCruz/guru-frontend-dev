@@ -65,6 +65,12 @@ export const authAPI = {
   logout: () => api.post("/auth/logout"),
 
   getCurrentUser: () => api.get("/auth/me"),
+
+  updateAppearance: (data: { color?: string; avatar?: string | null }) =>
+    api.put("/auth/me/appearance", data),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.put("/auth/change-password", { currentPassword, newPassword }),
 };
 export const servicesAPI = {
   getServices: (startDate?: string, endDate?: string) =>

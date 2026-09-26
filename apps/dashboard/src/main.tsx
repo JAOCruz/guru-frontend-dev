@@ -6,6 +6,7 @@ import Login from "./pages/Login.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import { AuthProvider, ProtectedRoute } from "./context/AuthContext.tsx";
 import { ThemeProvider } from "./context/ThemeContext.tsx";
+import { UserColorsProvider } from "./context/UserColorsContext.tsx";
 
 import "./index.css";
 
@@ -57,7 +58,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <ThemeProvider>
           <AuthProvider>
-            {isDashboardBuild ? <DashboardRoutes /> : <DefaultRoutes />}
+            <UserColorsProvider>
+              {isDashboardBuild ? <DashboardRoutes /> : <DefaultRoutes />}
+            </UserColorsProvider>
           </AuthProvider>
         </ThemeProvider>
       </BrowserRouter>
