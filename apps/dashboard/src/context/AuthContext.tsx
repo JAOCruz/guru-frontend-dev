@@ -14,6 +14,9 @@ interface User {
   dataColumn: string | null;
   color?: string | null;
   avatar?: string | null;
+  mustChangePassword?: boolean;
+  isActive?: boolean;
+  inPayroll?: boolean;
 }
 
 interface AuthContextType {

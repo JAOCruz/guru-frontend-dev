@@ -22,6 +22,8 @@ export interface DirectoryUser {
   role: string;
   color: string | null;
   avatar: string | null;
+  is_active: boolean;
+  in_payroll: boolean;
 }
 
 export interface Appearance {

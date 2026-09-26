@@ -120,3 +120,42 @@ export const settingsAPI = {
 };
 
 export default api;
+
+export interface AdminUser {
+  id: number;
+  name: string | null;
+  username: string;
+  email: string | null;
+  role: "admin" | "digitador" | "auxiliar" | "employee";
+  data_column: string | null;
+  color: string | null;
+  avatar: string | null;
+  is_active: boolean;
+  in_payroll: boolean;
+  must_change_password: boolean;
+  last_seen: string | null;
+  created_at: string;
+  deactivated_at: string | null;
+}
+
+export interface AdminUserInput {
+  name: string;
+  username: string;
+  email?: string;
+  role: "admin" | "digitador" | "auxiliar";
+  in_payroll: boolean;
+}
+
+export const adminUsersAPI = {
+  list: (status: "active" | "inactive" | "all" = "active") =>
+    api.get<{ users: AdminUser[] }>("/admin/users", { params: { status } }),
+  create: (data: AdminUserInput & { temp_password: string }) =>
+    api.post<{ user: AdminUser }>("/admin/users", data),
+  update: (id: number, data: AdminUserInput) => api.put<{ user: AdminUser }>(`/admin/users/${id}`, data),
+  setTempPassword: (id: number, temp_password: string) =>
+    api.post(`/admin/users/${id}/temp-password`, { temp_password }),
+  assignments: (id: number) => api.get<{ clients: number; cases: number }>(`/admin/users/${id}/assignments`),
+  deactivate: (id: number, reassign_to: number | null) =>
+    api.post<{ user: AdminUser }>(`/admin/users/${id}/deactivate`, { reassign_to }),
+  reactivate: (id: number) => api.post<{ user: AdminUser }>(`/admin/users/${id}/reactivate`),
+};

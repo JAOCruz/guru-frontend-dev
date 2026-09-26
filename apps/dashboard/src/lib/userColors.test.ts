@@ -5,9 +5,9 @@ import {
 } from "./userColors";
 
 const users: DirectoryUser[] = [
-  { id: 1, name: "Admin", username: "admin", data_column: null, role: "admin", color: "teal", avatar: "owl" },
-  { id: 2, name: "Hengi", username: "hengi", data_column: "HENGI", role: "digitador", color: "green", avatar: "cow" },
-  { id: 3, name: null, username: "israel", data_column: "israel", role: "digitador", color: null, avatar: null },
+  { id: 1, name: "Admin", username: "admin", data_column: null, role: "admin", color: "teal", avatar: "owl", is_active: true, in_payroll: false },
+  { id: 2, name: "Hengi", username: "hengi", data_column: "HENGI", role: "digitador", color: "green", avatar: "cow", is_active: true, in_payroll: true },
+  { id: 3, name: null, username: "israel", data_column: "israel", role: "digitador", color: null, avatar: null, is_active: true, in_payroll: true },
 ];
 
 describe("catalog", () => {
