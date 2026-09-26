@@ -12,45 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { formatCurrency } from "../../utils";
-
-const workerButtonStyles: Record<
-  WorkerKey,
-  { active: string; inactive: string }
-> = {
-  HENGI: {
-    active: "bg-green-500 text-white border-green-600 hover:bg-green-600",
-    inactive: "bg-white text-green-600 border-green-600 hover:bg-green-50",
-  },
-  MARLENI: {
-    active: "bg-yellow-400 text-black border-yellow-500 hover:bg-yellow-500",
-    inactive: "bg-white text-yellow-600 border-yellow-500 hover:bg-yellow-50",
-  },
-  ISRAEL: {
-    active: "bg-red-500 text-white border-red-600 hover:bg-red-600",
-    inactive: "bg-white text-red-600 border-red-600 hover:bg-red-50",
-  },
-  THAICAR: {
-    active: "bg-purple-600 text-white border-purple-700 hover:bg-purple-700",
-    inactive: "bg-white text-purple-600 border-purple-700 hover:bg-purple-50",
-  },
-  AUXILIAR_I: {
-    active: "bg-orange-500 text-white border-orange-600 hover:bg-orange-600",
-    inactive: "bg-white text-orange-600 border-orange-600 hover:bg-orange-50",
-  },
-  AUXILIAR_II: {
-    active: "bg-pink-500 text-white border-pink-600 hover:bg-pink-600",
-    inactive: "bg-white text-pink-600 border-pink-600 hover:bg-pink-50",
-  },
-};
-
-const workerHeaderStyles: Record<WorkerKey, { bg: string; text: string; muted: string }> = {
-  HENGI: { bg: "bg-green-500", text: "text-white", muted: "text-white/90" },
-  MARLENI: { bg: "bg-yellow-400", text: "text-black", muted: "text-black/90" },
-  ISRAEL: { bg: "bg-red-500", text: "text-white", muted: "text-white/90" },
-  THAICAR: { bg: "bg-purple-600", text: "text-white", muted: "text-white/90" },
-  AUXILIAR_I: { bg: "bg-orange-500", text: "text-white", muted: "text-white/90" },
-  AUXILIAR_II: { bg: "bg-pink-500", text: "text-white", muted: "text-white/90" },
-};
+import { useUserColors } from "../../context/UserColorsContext";
 
 // --- TIPOS ---
 interface AdminDataTableProps {
@@ -82,6 +44,7 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
   isEmployeeView = false,
   currentEmployee,
 }) => {
+  const { appearanceOfColumn } = useUserColors();
   // --- ESTADOS ---
   const [activeUser, setActiveUser] = useState<WorkerKey | "all">(
     isEmployeeView && currentEmployee ? (currentEmployee as WorkerKey) : "all",
@@ -339,7 +302,8 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
               Todos
             </NeoButton>
             {USER_COLUMNS.map((user) => {
-              const style = workerButtonStyles[user];
+              const a = appearanceOfColumn(user);
+              const active = activeUser === user;
               return (
                 <NeoButton
                   key={user}
@@ -347,10 +311,13 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => setActiveUser(user)}
-                  className={
-                    activeUser === user ? style.active : style.inactive
+                  style={
+                    active
+                      ? { backgroundColor: a.color.bg, color: a.color.text }
+                      : { backgroundColor: "#ffffff", color: "#000000", borderColor: a.color.bg }
                   }
                 >
+                  {a.emoji && <span className="mr-1">{a.emoji}</span>}
                   {user.replace("_", " ")}
                 </NeoButton>
               );
@@ -369,28 +336,30 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
       </div>
 
       {/* 2. TABLAS / LISTAS DE SERVICIOS */}
-      {usersToRender.map((user) => (
+      {usersToRender.map((user) => {
+        const a = appearanceOfColumn(user);
+        return (
         <div
           key={user}
           className="overflow-hidden rounded-base border-2 border-border bg-background shadow-shadow"
         >
           {/* Header de la Tabla */}
-          <div className={`flex flex-col gap-3 border-b-2 border-border p-5 sm:flex-row sm:items-center sm:justify-between ${workerHeaderStyles[user].bg}`}>
-            <h3 className={`font-heading text-lg font-black uppercase tracking-wider md:text-xl ${workerHeaderStyles[user].text}`}>
+          <div
+            className="flex flex-col gap-3 border-b-2 border-border p-5 sm:flex-row sm:items-center sm:justify-between"
+            style={{ backgroundColor: a.color.bg, color: a.color.text }}
+          >
+            <h3 className="font-heading text-lg font-black uppercase tracking-wider md:text-xl">
+              {a.emoji && <span className="mr-2">{a.emoji}</span>}
               {user.replace("_", " ")}
             </h3>
             <div className="flex flex-wrap gap-4 font-mono text-sm">
-              <span className={`font-bold tracking-widest uppercase ${workerHeaderStyles[user].muted}`}>
+              <span className="font-bold uppercase tracking-widest opacity-90">
                 Total:{" "}
-                <span className={workerHeaderStyles[user].text}>
-                  {formatCurrency(userTotals[user].total)}
-                </span>
+                <span>{formatCurrency(userTotals[user].total)}</span>
               </span>
-              <span className={`font-bold tracking-widest uppercase ${workerHeaderStyles[user].muted}`}>
+              <span className="font-bold uppercase tracking-widest opacity-90">
                 Admin:{" "}
-                <span className={workerHeaderStyles[user].text}>
-                  {formatCurrency(userTotals[user].adminShare)}
-                </span>
+                <span>{formatCurrency(userTotals[user].adminShare)}</span>
               </span>
             </div>
           </div>
@@ -635,7 +604,8 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
 
       {/* MODAL IA */}
       {aiModalOpen && (

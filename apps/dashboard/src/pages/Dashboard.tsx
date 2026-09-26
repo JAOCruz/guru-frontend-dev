@@ -25,21 +25,15 @@ import { NeoButton } from "@guru/ui";
 import { NeoDateInput } from "@guru/ui";
 import { servicesAPI, settingsAPI } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useUserColors } from "../context/UserColorsContext";
 import { Zap, Eye, EyeOff } from "lucide-react";
 import { USER_COLUMNS, WorkerKey } from "../services/excelService";
 import { formatCurrency } from "../utils";
 
-const WORKER_VARIANTS: Record<WorkerKey, "success" | "warning" | "danger" | "purple" | "orange" | "pink" | "teal" | "cyan"> = {
-  HENGI: "success",
-  MARLENI: "warning",
-  ISRAEL: "danger",
-  THAICAR: "purple",
-  AUXILIAR_I: "orange",
-  AUXILIAR_II: "pink",
-};
 
 const Dashboard: React.FC = () => {
   const { isAdmin, user } = useAuth();
+  const { appearanceOfColumn } = useUserColors();
   const location = useLocation();
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -314,7 +308,8 @@ const Dashboard: React.FC = () => {
                       <StatsCard
                         key={worker}
                         label={worker.replace("_", " ")}
-                        variant={WORKER_VARIANTS[worker]}
+                        accent={appearanceOfColumn(worker).color}
+                        icon={appearanceOfColumn(worker).emoji}
                         value={formatCurrency(
                           workerServices.reduce(
                             (acc, s: any) =>

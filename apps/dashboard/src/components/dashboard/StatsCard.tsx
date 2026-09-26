@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
+import type { PaletteColor } from "../../lib/userColors";
 
 type StatsVariant =
   | "default"
@@ -22,6 +23,8 @@ interface StatsCardProps {
   delay?: number;
   sensitive?: boolean;
   visible?: boolean;
+  accent?: PaletteColor;
+  icon?: string | null;
 }
 
 const variantStyles: Record<StatsVariant, string> = {
@@ -102,6 +105,8 @@ const StatsCard: React.FC<StatsCardProps> = ({
   delay = 0,
   sensitive = false,
   visible = true,
+  accent,
+  icon,
 }) => {
   const hiddenValue = "••••••";
   const [revealed, setRevealed] = useState(visible);
@@ -112,17 +117,35 @@ const StatsCard: React.FC<StatsCardProps> = ({
 
   const isVisible = revealed;
 
+  const cls = accent
+    ? {
+        card: "",
+        subtle: "opacity-80",
+        button: "border-current/30 bg-black/10 hover:bg-black/20",
+        badge: "border-current/30 bg-black/10",
+        watermark: "opacity-10",
+      }
+    : {
+        card: variantStyles[variant],
+        subtle: variantSubtle[variant],
+        button: variantButton[variant],
+        badge: variantBadge[variant],
+        watermark: variantWatermark[variant],
+      };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className={`group relative overflow-hidden rounded-base border-2 border-border p-4 shadow-shadow transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none sm:p-5 ${variantStyles[variant]}`}
+      style={accent ? { backgroundColor: accent.bg, color: accent.text } : undefined}
+      className={`group relative overflow-hidden rounded-base border-2 border-border p-4 shadow-shadow transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none sm:p-5 ${cls.card}`}
     >
       <div className="mb-3 flex items-start justify-between">
         <p
-          className={`text-2xl font-black uppercase tracking-tight sm:text-3xl ${variantSubtle[variant]}`}
+          className={`text-2xl font-black uppercase tracking-tight sm:text-3xl ${cls.subtle}`}
         >
+          {icon && <span className="mr-2 not-italic">{icon}</span>}
           {label}
         </p>
         {sensitive && (
@@ -131,7 +154,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
               e.stopPropagation();
               setRevealed((v) => !v);
             }}
-            className={`rounded-base border-2 p-1 transition-all ${variantButton[variant]}`}
+            className={`rounded-base border-2 p-1 transition-all ${cls.button}`}
             title={isVisible ? "Ocultar monto" : "Mostrar monto"}
           >
             {isVisible ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -150,7 +173,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
       {subValue && (
         <div className="mt-2">
           <span
-            className={`inline-block rounded-base border-2 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider ${variantBadge[variant]}`}
+            className={`inline-block rounded-base border-2 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider ${cls.badge}`}
           >
             {subValue}
           </span>
@@ -158,9 +181,9 @@ const StatsCard: React.FC<StatsCardProps> = ({
       )}
 
       <div
-        className={`pointer-events-none absolute -right-2 -bottom-4 text-6xl font-black select-none ${variantWatermark[variant]}`}
+        className={`pointer-events-none absolute -right-2 -bottom-4 text-6xl font-black select-none ${cls.watermark}`}
       >
-        {label.charAt(0)}
+        {icon ?? label.charAt(0)}
       </div>
     </motion.div>
   );

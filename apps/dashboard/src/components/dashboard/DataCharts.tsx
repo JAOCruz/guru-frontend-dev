@@ -38,6 +38,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@guru/ui";
+import { useUserColors } from "../../context/UserColorsContext";
 
 interface Service {
   id: number;
@@ -103,6 +104,12 @@ export default function DataCharts({ services, isAdmin, user }: DataChartsProps)
   const [customEnd, setCustomEnd] = useState("");
   const colors = useThemeColors();
   const chartColorsList = [colors.chart1, colors.chart2, colors.chart3, colors.chart4, colors.chart5];
+  const { appearanceOfColumn } = useUserColors();
+  const colorForKey = (key: string, i: number) => {
+    const column = key === "Yo" ? user?.dataColumn : key;
+    const a = appearanceOfColumn(column);
+    return a.color.label === "Sin color" ? chartColorsList[i % chartColorsList.length] : a.color.bg;
+  };
 
   /* ── Filter services by visibility (admin vs employee) ── */
   const userDataCol = (user?.dataColumn || "").toUpperCase();
@@ -220,10 +227,10 @@ export default function DataCharts({ services, isAdmin, user }: DataChartsProps)
   const timelineConfig = useMemo(() => {
     const cfg: Record<string, { label: string; color: string }> = {};
     timelineKeys.forEach((key, i) => {
-      cfg[key] = { label: key, color: chartColorsList[i % chartColorsList.length] };
+      cfg[key] = { label: key, color: colorForKey(key, i) };
     });
     return cfg;
-  }, [timelineKeys, chartColorsList]);
+  }, [timelineKeys, chartColorsList, appearanceOfColumn]);
 
   return (
     <div className="custom-scroll flex h-full flex-col gap-6 overflow-y-auto bg-background p-6 font-base text-foreground">
@@ -386,8 +393,8 @@ export default function DataCharts({ services, isAdmin, user }: DataChartsProps)
                         label={({ name, percent }) => `${name}: ${typeof percent === "number" ? (percent * 100).toFixed(0) : "0"}%`}
                         labelLine={false}
                       >
-                        {empDist.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={chartColorsList[index % chartColorsList.length]} stroke={colors.border} strokeWidth={2} />
+                        {empDist.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={colorForKey(entry.name, index)} stroke={colors.border} strokeWidth={2} />
                         ))}
                       </Pie>
                       <Tooltip content={<CustomTooltip formatter={(v) => formatRD(Number(v))} />} />
@@ -424,9 +431,9 @@ export default function DataCharts({ services, isAdmin, user }: DataChartsProps)
                       key={key}
                       type="monotone"
                       dataKey={key}
-                      stroke={chartColorsList[i % chartColorsList.length]}
+                      stroke={colorForKey(key, i)}
                       strokeWidth={3}
-                      dot={{ r: 4, fill: chartColorsList[i % chartColorsList.length], stroke: colors.border, strokeWidth: 2 }}
+                      dot={{ r: 4, fill: colorForKey(key, i), stroke: colors.border, strokeWidth: 2 }}
                       activeDot={{ r: 7, fill: colors.main }}
                     />
                   ))}
