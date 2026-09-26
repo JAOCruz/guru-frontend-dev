@@ -6,6 +6,8 @@ import { NeoBadge } from "@guru/ui";
 import GuruAdvisor from "../GuruAdvisor";
 import { cn } from "@guru/ui";
 import api, { getAPIUrl } from "../../services/api";
+import UserAvatar from "../UserAvatar";
+import { toAppearance } from "../../lib/userColors";
 import {
   Menu,
   X,
@@ -26,6 +28,7 @@ import {
   Palette,
   Bird,
   Bell,
+  UserCircle,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -337,6 +340,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             isMobile={isMobile}
           />
 
+          <NavItem
+            to="/mi-cuenta"
+            icon={<UserCircle size={18} />}
+            label="Mi cuenta"
+            sidebarOpen={sidebarOpen}
+            isMobile={isMobile}
+          />
+
           {isAdmin && (
             <NavItem
               to="/settings"
@@ -352,9 +363,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           <div
             className={`flex items-center gap-3 ${!sidebarOpen && !isMobile ? "justify-center" : ""}`}
           >
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-base border-2 border-border bg-secondary-background text-sm font-black text-foreground shadow-button">
-              {user?.username?.charAt(0).toUpperCase()}
-            </div>
+            <UserAvatar
+              appearance={toAppearance({ name: user?.name || user?.username, color: user?.color, avatar: user?.avatar })}
+              size="md"
+              className="shadow-button"
+            />
             {(sidebarOpen || isMobile) && (
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-white">

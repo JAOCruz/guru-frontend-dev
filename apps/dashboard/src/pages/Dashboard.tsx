@@ -21,6 +21,7 @@ import ServicesCatalog from "./ServicesCatalog";
 import MotherBrain from "./MotherBrain";
 import BotSimulator from "./BotSimulator";
 import SimulatorReview from "./SimulatorReview";
+import MiCuenta from "./MiCuenta";
 import { NeoButton } from "@guru/ui";
 import { NeoDateInput } from "@guru/ui";
 import { servicesAPI, settingsAPI } from "../services/api";
@@ -377,6 +378,7 @@ const Dashboard: React.FC = () => {
           }
         />
         <Route path="/ai-guru" element={<AIGuru />} />
+        <Route path="/mi-cuenta" element={<MiCuenta />} />
         <Route
           path="/settings"
           element={isAdmin ? <Settings /> : <div className="text-center text-slate-400 py-8">No tienes acceso a esta página</div>}
