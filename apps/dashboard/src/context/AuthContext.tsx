@@ -41,8 +41,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     loadUser();
   }, []);
 
-  const loadUser = async (retries = 20) => {
+  // A 401 with a token gets only a few quick retries: a token that is genuinely
+  // expired should not keep the user waiting (or bouncing) on the login screen.
+  const AUTH_RETRIES = 3;
+
+  const loadUser = async (retries = 20, authRetries = AUTH_RETRIES) => {
     setLoading(true);
+    let retryScheduled = false;
     const isRememberMe = localStorage.getItem("rememberMe") === "true";
     const hasToken = !!(localStorage.getItem("token") || sessionStorage.getItem("token"));
     console.log(`[AuthContext] loadUser attempt (retries=${retries}, rememberMe=${isRememberMe}, hasToken=${hasToken})`);
@@ -60,17 +65,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (hasToken && retries > 0 && status !== 401) {
         const delay = Math.min(1500 + (20 - retries) * 500, 6000); // 1.5s ramping to 6s
         console.log(`[AuthContext] Backend unavailable, retrying in ${delay}ms...`);
-        setTimeout(() => loadUser(retries - 1), delay);
+        retryScheduled = true;
+        setTimeout(() => loadUser(retries - 1, authRetries), delay);
         return; // keep loading=true while retrying
       }
 
       if (status === 401) {
-        if (hasToken && retries > 0) {
+        if (hasToken && authRetries > 0) {
           // A 401 right after a redeploy can be a momentary read of a stale cookie or
-          // the backend still warming up. Retry several times before concluding the
+          // the backend still warming up. Retry a few times before concluding the
           // token is genuinely invalid.
           console.log("[AuthContext] 401 with token present, retrying in 3s...");
-          setTimeout(() => loadUser(retries - 1), 3000);
+          retryScheduled = true;
+          setTimeout(() => loadUser(retries, authRetries - 1), 3000);
           return;
         }
         // Genuine invalid token after all retries: clear session.
@@ -81,14 +88,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setUser(null);
       } else if (retries > 0 && !error.response && !hasToken) {
         // No token at all + network error: just retry quietly
-        setTimeout(() => loadUser(retries - 1), 1500);
+        retryScheduled = true;
+        setTimeout(() => loadUser(retries - 1, authRetries), 1500);
         return;
       }
       // Final non-401 failure: stay visually logged out but DON'T wipe the token —
       // a refresh once the backend is back recovers the session.
       setUser(null);
     } finally {
-      setLoading(false);
+      // Only leave the loading screen once we've decided. Toggling it between
+      // retries unmounted the login form every few seconds and erased what the
+      // user was typing.
+      if (!retryScheduled) setLoading(false);
     }
   };
 
