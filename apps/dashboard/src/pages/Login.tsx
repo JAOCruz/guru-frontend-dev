@@ -12,7 +12,14 @@ import { Button } from "@guru/ui";
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  // Checked by default; remembers the last choice made on this browser
+  const [rememberMe, setRememberMe] = useState(() => {
+    try {
+      return localStorage.getItem("rememberMePref") !== "false";
+    } catch {
+      return true;
+    }
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -21,6 +28,11 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError("");
     setLoading(true);
+    try {
+      localStorage.setItem("rememberMePref", String(rememberMe));
+    } catch {
+      // storage unavailable (private mode) — the choice just isn't remembered
+    }
 
     try {
       await login(email, password, rememberMe);
@@ -58,10 +70,11 @@ const Login: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="block text-sm font-black uppercase tracking-wider text-white/90">
+              <label htmlFor="login-username" className="block text-sm font-black uppercase tracking-wider text-white/90">
                 Usuario
               </label>
               <Input
+                id="login-username"
                 type="text"
                 name="username"
                 autoComplete="username"
@@ -74,10 +87,11 @@ const Login: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-black uppercase tracking-wider text-white/90">
+              <label htmlFor="login-password" className="block text-sm font-black uppercase tracking-wider text-white/90">
                 Contraseña
               </label>
               <Input
+                id="login-password"
                 type="password"
                 name="password"
                 autoComplete="current-password"

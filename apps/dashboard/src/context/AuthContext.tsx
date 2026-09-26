@@ -29,6 +29,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Keep the session token in exactly one place: localStorage when "recuérdame"
+// is on (survives closing the browser), sessionStorage otherwise. Every reader
+// prefers localStorage, so a leftover copy there would shadow a newer session.
+function storeToken(token: string, rememberMe: boolean) {
+  localStorage.removeItem("token");
+  sessionStorage.removeItem("token");
+  if (rememberMe) {
+    localStorage.setItem("token", token);
+    localStorage.setItem("rememberMe", "true");
+  } else {
+    sessionStorage.setItem("token", token);
+    localStorage.removeItem("rememberMe");
+  }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -54,6 +69,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await authAPI.getCurrentUser();
       console.log("[AuthContext] loadUser success");
+      // Sliding session: the backend sends a renewed token when the current one is getting old
+      if (response.data.token) {
+        storeToken(response.data.token, localStorage.getItem("rememberMe") === "true");
+      }
       setUser(response.data.user || response.data);
     } catch (error: any) {
       const status = error.response?.status;
@@ -108,15 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await authAPI.login(username, password, rememberMe);
       const { token, user } = response.data;
 
-      if (token) {
-        if (rememberMe) {
-          localStorage.setItem("token", token);
-          localStorage.setItem("rememberMe", "true");
-        } else {
-          sessionStorage.setItem("token", token);
-          localStorage.removeItem("rememberMe");
-        }
-      }
+      if (token) storeToken(token, rememberMe);
       setUser(user);
       navigate("/");
     } catch (error: any) {

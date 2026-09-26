@@ -5,16 +5,17 @@ import { render, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 const getCurrentUser = vi.fn();
+const loginApi = vi.fn();
 vi.mock("../services/api", () => ({
   authAPI: {
     getCurrentUser: () => getCurrentUser(),
-    login: vi.fn(),
+    login: (...args: unknown[]) => loginApi(...args),
     logout: vi.fn(),
   },
 }));
 vi.mock("../components/LoadingScreen", () => ({ default: () => <div>loading</div> }));
 
-import { AuthProvider } from "./AuthContext";
+import { AuthProvider, useAuth } from "./AuthContext";
 
 let mounts = 0;
 const LoginForm = () => {
@@ -49,6 +50,7 @@ const reject401 = () =>
 beforeEach(() => {
   mounts = 0;
   getCurrentUser.mockReset();
+  loginApi.mockReset();
   localStorage.clear();
   sessionStorage.clear();
   vi.useFakeTimers();
@@ -83,5 +85,81 @@ describe("AuthProvider with a stale token", () => {
     expect(getCurrentUser).toHaveBeenCalledTimes(4);
     expect(localStorage.getItem("token")).toBeNull();
     expect(mounts).toBe(1);
+  });
+});
+
+// Backend unreachable: /auth/me keeps failing without a response, the stored token is kept
+const rejectNetwork = () =>
+  new Promise((_, reject) => setTimeout(() => reject({ message: "Network Error" }), 200));
+
+const LoginTrigger = ({ remember }: { remember: boolean }) => {
+  const { login } = useAuth();
+  useEffect(() => {
+    login("hengi", "secret1", remember).catch(() => {});
+  }, []);
+  return null;
+};
+
+const renderWithLogin = (remember: boolean) =>
+  render(
+    <MemoryRouter>
+      <AuthProvider>
+        <LoginTrigger remember={remember} />
+      </AuthProvider>
+    </MemoryRouter>,
+  );
+
+const user = { id: 2, username: "hengi", role: "digitador", dataColumn: "HENGI" };
+
+describe("login stores the session in exactly one place", () => {
+  it("login without 'recuérdame' removes a stale remembered token", async () => {
+    localStorage.setItem("token", "old");
+    localStorage.setItem("rememberMe", "true");
+    getCurrentUser.mockImplementation(rejectNetwork);
+    loginApi.mockResolvedValue({ data: { token: "new", user } });
+
+    renderWithLogin(false);
+    await advance(150_000, 500);
+
+    expect(localStorage.getItem("token")).toBeNull();
+    expect(sessionStorage.getItem("token")).toBe("new");
+  });
+
+  it("login with 'recuérdame' removes a stale session token", async () => {
+    sessionStorage.setItem("token", "old");
+    getCurrentUser.mockImplementation(rejectNetwork);
+    loginApi.mockResolvedValue({ data: { token: "new", user } });
+
+    renderWithLogin(true);
+    await advance(150_000, 500);
+
+    expect(sessionStorage.getItem("token")).toBeNull();
+    expect(localStorage.getItem("token")).toBe("new");
+    expect(localStorage.getItem("rememberMe")).toBe("true");
+  });
+});
+
+describe("sliding session", () => {
+  it("a renewed token from /auth/me replaces the remembered token", async () => {
+    localStorage.setItem("token", "old");
+    localStorage.setItem("rememberMe", "true");
+    getCurrentUser.mockResolvedValue({ data: { user, token: "renewed" } });
+
+    renderApp();
+    await advance(1_000);
+
+    expect(localStorage.getItem("token")).toBe("renewed");
+    expect(sessionStorage.getItem("token")).toBeNull();
+  });
+
+  it("a renewed token for a non-remembered session stays in sessionStorage", async () => {
+    sessionStorage.setItem("token", "old");
+    getCurrentUser.mockResolvedValue({ data: { user, token: "renewed" } });
+
+    renderApp();
+    await advance(1_000);
+
+    expect(sessionStorage.getItem("token")).toBe("renewed");
+    expect(localStorage.getItem("token")).toBeNull();
   });
 });
