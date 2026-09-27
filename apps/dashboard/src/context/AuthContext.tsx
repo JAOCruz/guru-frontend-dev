@@ -18,6 +18,7 @@ interface User {
   mustChangePassword?: boolean;
   isActive?: boolean;
   inPayroll?: boolean;
+  birthDate?: string | null;
 }
 
 interface AuthContextType {

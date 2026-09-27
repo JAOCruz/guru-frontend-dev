@@ -4,6 +4,7 @@ import { NeoButton } from "@guru/ui";
 import { useAuth } from "../context/AuthContext";
 import { useUserColors } from "../context/UserColorsContext";
 import { authAPI } from "../services/api";
+import { todayISO } from "../lib/dates";
 import UserAvatar from "../components/UserAvatar";
 import {
   ADMIN_ONLY_AVATAR, AVATARS, AVATAR_KEYS, COLOR_KEYS, COLOR_PALETTE, toAppearance,
@@ -26,6 +27,27 @@ export default function MiCuenta() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const [birthDate, setBirthDate] = useState(user?.birthDate ?? "");
+  const [bdSaving, setBdSaving] = useState(false);
+  const [bdMsg, setBdMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => setBirthDate(user?.birthDate ?? ""), [user?.birthDate]);
+
+  const saveBirthDate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBdSaving(true);
+    setBdMsg(null);
+    try {
+      await authAPI.updateProfile({ birthDate: birthDate || null });
+      await refreshUser();
+      setBdMsg({ ok: true, text: birthDate ? "Fecha guardada" : "Fecha borrada" });
+    } catch (err: any) {
+      setBdMsg({ ok: false, text: err.response?.data?.error || "No se pudo guardar" });
+    } finally {
+      setBdSaving(false);
+    }
+  };
 
   useEffect(() => {
     setColor((user?.color as ColorKey) ?? null);
@@ -200,6 +222,26 @@ export default function MiCuenta() {
             </NeoButton>
             {pwMsg && (
               <span role="status" className={`basis-full text-sm font-semibold ${pwMsg.ok ? "text-green-700" : "text-red-600"}`}>{pwMsg.text}</span>
+            )}
+          </div>
+        </form>
+      </section>
+
+      <section className={card}>
+        <div className="border-b-2 border-border bg-main px-5 py-3 font-heading text-lg font-black text-main-foreground">
+          Mis datos
+        </div>
+        <form onSubmit={saveBirthDate} className="space-y-4 p-5">
+          <label className="block text-sm font-bold">
+            Fecha de nacimiento
+            <input type="date" min="1900-01-01" max={todayISO()} className={inputCls} value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <NeoButton type="submit" disabled={bdSaving || birthDate === (user?.birthDate ?? "")}>
+              {bdSaving ? "Guardando…" : "Guardar fecha"}
+            </NeoButton>
+            {bdMsg && (
+              <span role="status" className={`basis-full text-sm font-semibold ${bdMsg.ok ? "text-green-700" : "text-red-600"}`}>{bdMsg.text}</span>
             )}
           </div>
         </form>

@@ -3,6 +3,7 @@ import { NeoButton } from "@guru/ui";
 import Modal, { fieldCls, labelCls } from "./Modal";
 import { adminUsersAPI, type AdminUser, type AdminUserInput } from "../../services/api";
 import { apiError, generateTempPassword } from "../../lib/users";
+import { todayISO } from "../../lib/dates";
 
 interface Props {
   user?: AdminUser; // edit mode when present
@@ -19,6 +20,7 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
   const [email, setEmail] = useState(user?.email ?? "");
   const [role, setRole] = useState<Role>((user?.role === "employee" ? "digitador" : user?.role) ?? "digitador");
   const [inPayroll, setInPayroll] = useState(user?.in_payroll ?? true);
+  const [birthDate, setBirthDate] = useState(user?.birth_date ?? "");
   const [tempPassword, setTempPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,7 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
     if (!name.trim() || !username.trim()) return setError("Nombre y usuario son obligatorios");
     if (!editing && tempPassword.length < 8) return setError("La contraseña debe tener al menos 8 caracteres");
     setSaving(true);
-    const data: AdminUserInput = { name: name.trim(), username: username.trim(), email: email.trim(), role, in_payroll: inPayroll };
+    const data: AdminUserInput = { name: name.trim(), username: username.trim(), email: email.trim(), role, in_payroll: inPayroll, birth_date: birthDate };
     try {
       if (editing) {
         await adminUsersAPI.update(user!.id, data);
@@ -90,6 +92,10 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
             <input className={fieldCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
         </div>
+        <label className={labelCls}>
+          Fecha de nacimiento (opcional)
+          <input className={fieldCls} type="date" min="1900-01-01" max={todayISO()} value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+        </label>
         <label className={labelCls}>
           Rol
           <select className={fieldCls} value={role} onChange={(e) => changeRole(e.target.value as Role)}>

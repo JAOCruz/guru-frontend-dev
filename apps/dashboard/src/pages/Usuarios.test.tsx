@@ -84,9 +84,25 @@ describe("Usuarios page", () => {
     fireEvent.change(within(dialog).getByLabelText(/contraseña temporal/i), { target: { value: "temp1234" } });
     fireEvent.click(within(dialog).getByRole("button", { name: /crear usuario/i }));
     await waitFor(() =>
-      expect(api.create).toHaveBeenCalledWith({ name: "Pedro", username: "pedro", email: "", role: "digitador", in_payroll: true, temp_password: "temp1234" }),
+      expect(api.create).toHaveBeenCalledWith({ name: "Pedro", username: "pedro", email: "", role: "digitador", in_payroll: true, birth_date: "", temp_password: "temp1234" }),
     );
     expect(await within(dialog).findByText("temp1234")).toBeTruthy();
+  });
+});
+
+describe("Fecha de nacimiento", () => {
+  it("shows the saved birth date and sends the edited one", async () => {
+    api.list.mockResolvedValue({ data: { users: users.map((u) => (u.id === 2 ? { ...u, birth_date: "1990-05-12" } : u)) } });
+    api.update.mockResolvedValue({ data: { user: users[1] } });
+    render(<Usuarios />);
+    await screen.findByText("Hengi");
+    fireEvent.click(within(row("Hengi")).getByRole("button", { name: /editar/i }));
+    const dialog = await screen.findByRole("dialog");
+    const input = within(dialog).getByLabelText(/fecha de nacimiento/i) as HTMLInputElement;
+    expect(input.value).toBe("1990-05-12");
+    fireEvent.change(input, { target: { value: "1991-01-02" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: /guardar cambios/i }));
+    await waitFor(() => expect(api.update).toHaveBeenCalledWith(2, expect.objectContaining({ birth_date: "1991-01-02" })));
   });
 });
 

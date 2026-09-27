@@ -73,6 +73,9 @@ export const authAPI = {
   updateAppearance: (data: { color?: string; avatar?: string | null }) =>
     api.put("/auth/me/appearance", data),
 
+  // birthDate 'YYYY-MM-DD', or null to clear it
+  updateProfile: (data: { birthDate: string | null }) => api.put("/auth/me/profile", data),
+
   changePassword: (currentPassword: string, newPassword: string) =>
     api.put("/auth/change-password", { currentPassword, newPassword }),
 };
@@ -136,6 +139,7 @@ export interface AdminUser {
   avatar: string | null;
   is_active: boolean;
   in_payroll: boolean;
+  birth_date?: string | null; // 'YYYY-MM-DD'
   must_change_password: boolean;
   last_seen: string | null;
   created_at: string;
@@ -148,6 +152,7 @@ export interface AdminUserInput {
   email?: string;
   role: "admin" | "digitador" | "auxiliar";
   in_payroll: boolean;
+  birth_date?: string; // '' clears it
 }
 
 export const adminUsersAPI = {
