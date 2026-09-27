@@ -163,3 +163,39 @@ export const adminUsersAPI = {
     api.post<{ user: AdminUser }>(`/admin/users/${id}/deactivate`, { reassign_to }),
   reactivate: (id: number) => api.post<{ user: AdminUser }>(`/admin/users/${id}/reactivate`),
 };
+
+export type ActivityCategory = "usuarios" | "facturas" | "asignaciones" | "servicios" | "seguridad";
+
+export interface ActivityItem {
+  id: number;
+  created_at: string;
+  actor_id: number | null;
+  actor_name: string | null;
+  actor_display_name: string | null;
+  actor_color: string | null;
+  actor_avatar: string | null;
+  category: ActivityCategory;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  summary: string;
+  details: Record<string, unknown> | null;
+  ip: string | null;
+}
+
+export interface ActivityFilters {
+  category?: ActivityCategory | "";
+  actor_id?: number | string | "";
+  from?: string;
+  to?: string;
+  q?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export const activityAPI = {
+  list: (filters: ActivityFilters = {}) => {
+    const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== "" && v != null));
+    return api.get<{ items: ActivityItem[]; total: number; page: number; page_size: number }>("/admin/activity", { params });
+  },
+};

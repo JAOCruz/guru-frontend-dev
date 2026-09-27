@@ -33,7 +33,7 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
     e.preventDefault();
     setError(null);
     if (!name.trim() || !username.trim()) return setError("Nombre y usuario son obligatorios");
-    if (!editing && tempPassword.length < 6) return setError("La contraseña debe tener al menos 6 caracteres");
+    if (!editing && tempPassword.length < 8) return setError("La contraseña debe tener al menos 8 caracteres");
     setSaving(true);
     const data: AdminUserInput = { name: name.trim(), username: username.trim(), email: email.trim(), role, in_payroll: inPayroll };
     try {

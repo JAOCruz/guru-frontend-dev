@@ -21,3 +21,14 @@ describe("users helpers", () => {
     expect(lastSeenLabel("2026-09-23T12:00:00Z", now)).toBe("Hace 3 días");
   });
 });
+
+describe("generated temporary passwords meet the password policy", () => {
+  it("always contain at least one letter and one number (8 chars)", () => {
+    for (let i = 0; i < 300; i++) {
+      const p = generateTempPassword();
+      expect(p).toHaveLength(8);
+      expect(p).toMatch(/[A-Za-z]/);
+      expect(p).toMatch(/\d/);
+    }
+  });
+});

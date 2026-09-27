@@ -72,8 +72,8 @@ export default function MiCuenta() {
     if (!currentPassword || !newPassword || !confirmPassword) {
       return setPwMsg({ ok: false, text: "Completa todos los campos" });
     }
-    if (newPassword.length < 6) {
-      return setPwMsg({ ok: false, text: "La nueva contraseña debe tener al menos 6 caracteres" });
+    if (newPassword.length < 8) {
+      return setPwMsg({ ok: false, text: "La nueva contraseña debe tener al menos 8 caracteres" });
     }
     if (newPassword !== confirmPassword) {
       return setPwMsg({ ok: false, text: "La confirmación no coincide" });
@@ -188,7 +188,7 @@ export default function MiCuenta() {
           </label>
           <label className="block text-sm font-bold">
             Nueva contraseña
-            <input type="password" autoComplete="new-password" placeholder="Mínimo 6 caracteres" className={inputCls} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+            <input type="password" autoComplete="new-password" placeholder="Mínimo 8, con letras y números" className={inputCls} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
           </label>
           <label className="block text-sm font-bold">
             Confirmar nueva contraseña

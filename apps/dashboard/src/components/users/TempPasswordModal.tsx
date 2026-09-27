@@ -12,7 +12,7 @@ const TempPasswordModal: React.FC<{ user: AdminUser; onClose: () => void; onSave
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) return setError("La contraseña debe tener al menos 6 caracteres");
+    if (password.length < 8) return setError("La contraseña debe tener al menos 8 caracteres");
     setSaving(true);
     setError(null);
     try {

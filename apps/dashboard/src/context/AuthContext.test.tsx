@@ -220,3 +220,27 @@ describe("temporary password", () => {
     expect(screen.getByText("panel")).toBeTruthy();
   });
 });
+
+describe("password rules on the 'Crea tu contraseña' screen", () => {
+  it("asks for at least 8 characters before calling the API", async () => {
+    localStorage.setItem("token", "t");
+    getCurrentUser.mockResolvedValue({ data: { user: { ...user, mustChangePassword: true } } });
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <ProtectedRoute>
+            <div>panel</div>
+          </ProtectedRoute>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    await advance(500);
+    fireEvent.change(screen.getByLabelText(/contraseña temporal/i), { target: { value: "temp123" } });
+    fireEvent.change(screen.getByLabelText(/^nueva contraseña/i), { target: { value: "abc1234" } });
+    fireEvent.change(screen.getByLabelText(/confirmar/i), { target: { value: "abc1234" } });
+    fireEvent.click(screen.getByRole("button", { name: /guardar y entrar/i }));
+    await advance(200);
+    expect(screen.getByText("La nueva contraseña debe tener al menos 8 caracteres")).toBeTruthy();
+    expect(changePassword).not.toHaveBeenCalled();
+  });
+});

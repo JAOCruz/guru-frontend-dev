@@ -18,7 +18,7 @@ export default function ForcePasswordChange() {
     e.preventDefault();
     setError(null);
     if (!current || !next || !confirm) return setError("Completa todos los campos");
-    if (next.length < 6) return setError("La nueva contraseña debe tener al menos 6 caracteres");
+    if (next.length < 8) return setError("La nueva contraseña debe tener al menos 8 caracteres");
     if (next !== confirm) return setError("La confirmación no coincide");
     setSaving(true);
     try {
@@ -47,7 +47,7 @@ export default function ForcePasswordChange() {
           </label>
           <label className="block text-sm font-bold">
             Nueva contraseña
-            <input type="password" autoComplete="new-password" placeholder="Mínimo 6 caracteres" className={inputCls} value={next} onChange={(e) => setNext(e.target.value)} />
+            <input type="password" autoComplete="new-password" placeholder="Mínimo 8, con letras y números" className={inputCls} value={next} onChange={(e) => setNext(e.target.value)} />
           </label>
           <label className="block text-sm font-bold">
             Confirmar nueva contraseña

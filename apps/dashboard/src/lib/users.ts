@@ -1,10 +1,22 @@
 const PASSWORD_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
 
-// Easy to read aloud / type: no 0/O, 1/l/I
+const LETTERS = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz";
+const DIGITS = "23456789";
+
+// Easy to read aloud / type (no 0/O, 1/l/I) and always valid for the backend
+// policy: at least one letter and one number.
 export function generateTempPassword(length = 8): string {
-  const bytes = new Uint32Array(length);
+  const bytes = new Uint32Array(length + length);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => PASSWORD_ALPHABET[b % PASSWORD_ALPHABET.length]).join("");
+  const pick = (set: string, i: number) => set[bytes[i] % set.length];
+  const chars = [pick(LETTERS, 0), pick(DIGITS, 1)];
+  for (let i = 2; i < length; i++) chars.push(pick(PASSWORD_ALPHABET, i));
+  // Shuffle so the letter/number are not always first
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = bytes[length + i] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
 }
 
 export function roleLabel(role: string): string {
