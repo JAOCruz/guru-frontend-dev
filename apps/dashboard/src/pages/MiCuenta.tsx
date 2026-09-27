@@ -164,12 +164,12 @@ export default function MiCuenta() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <NeoButton type="button" onClick={saveAppearance} disabled={!dirty || !color || saving}>
               {saving ? "Guardando…" : "Guardar"}
             </NeoButton>
             {appearanceMsg && (
-              <span className={`text-sm font-semibold ${appearanceMsg.ok ? "text-green-700" : "text-red-600"}`}>
+              <span role="status" className={`basis-full text-sm font-semibold ${appearanceMsg.ok ? "text-green-700" : "text-red-600"}`}>
                 {appearanceMsg.text}
               </span>
             )}
@@ -194,12 +194,12 @@ export default function MiCuenta() {
             Confirmar nueva contraseña
             <input type="password" autoComplete="new-password" className={inputCls} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
           </label>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <NeoButton type="submit" disabled={pwSaving}>
               {pwSaving ? "Guardando…" : "Cambiar contraseña"}
             </NeoButton>
             {pwMsg && (
-              <span className={`text-sm font-semibold ${pwMsg.ok ? "text-green-700" : "text-red-600"}`}>{pwMsg.text}</span>
+              <span role="status" className={`basis-full text-sm font-semibold ${pwMsg.ok ? "text-green-700" : "text-red-600"}`}>{pwMsg.text}</span>
             )}
           </div>
         </form>
