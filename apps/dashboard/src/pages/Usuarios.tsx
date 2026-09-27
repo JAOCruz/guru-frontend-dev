@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { UserPlus } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { adminUsersAPI, type AdminUser } from "../services/api";
@@ -149,6 +150,9 @@ export default function Usuarios() {
                 </div>
 
                 <div className="ml-auto flex flex-wrap justify-end gap-2">
+                  <Link to={`/actividad?actor_id=${u.id}`} className={`${actionCls} bg-secondary-background`}>
+                    Ver actividad
+                  </Link>
                   {u.is_active ? (
                     <>
                       <button type="button" className={actionCls} onClick={() => setDialog({ kind: "edit", user: u })}>Editar</button>

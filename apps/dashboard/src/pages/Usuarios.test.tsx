@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, within, cleanup, waitFor } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, within, cleanup, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import type { ReactElement } from "react";
+
+const render = (ui: ReactElement) => rtlRender(<MemoryRouter>{ui}</MemoryRouter>);
 
 const { api, refresh } = vi.hoisted(() => ({
   api: {
@@ -83,5 +87,14 @@ describe("Usuarios page", () => {
       expect(api.create).toHaveBeenCalledWith({ name: "Pedro", username: "pedro", email: "", role: "digitador", in_payroll: true, temp_password: "temp1234" }),
     );
     expect(await within(dialog).findByText("temp1234")).toBeTruthy();
+  });
+});
+
+describe("Ver actividad", () => {
+  it("links each user to their activity", async () => {
+    render(<Usuarios />);
+    await screen.findByText("Marleni");
+    const link = within(row("Marleni")).getByRole("link", { name: /ver actividad/i }) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe("/actividad?actor_id=3");
   });
 });

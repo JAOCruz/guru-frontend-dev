@@ -29,6 +29,7 @@ import {
   Bird,
   Bell,
   UserCircle,
+  History,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -353,6 +354,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               to="/usuarios"
               icon={<Users size={18} />}
               label="Usuarios"
+              sidebarOpen={sidebarOpen}
+              isMobile={isMobile}
+            />
+          )}
+
+          {isAdmin && (
+            <NavItem
+              to="/actividad"
+              icon={<History size={18} />}
+              label="Actividad"
               sidebarOpen={sidebarOpen}
               isMobile={isMobile}
             />
