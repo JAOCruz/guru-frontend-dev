@@ -60,7 +60,12 @@ export default function Actividad() {
           page_size: PAGE_SIZE,
         });
         if (id !== requestId.current) return; // a newer filter change won
-        setItems((prev) => (nextPage === 1 ? data.items : [...prev, ...data.items]));
+        // New activity can shift pages between loads: skip entries already shown
+        setItems((prev) => {
+          if (nextPage === 1) return data.items;
+          const seen = new Set(prev.map((i) => i.id));
+          return [...prev, ...data.items.filter((i) => !seen.has(i.id))];
+        });
         setTotal(data.total);
         setPage(nextPage);
       } catch (err) {

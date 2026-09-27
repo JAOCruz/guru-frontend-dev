@@ -71,3 +71,15 @@ describe("Actividad page", () => {
     expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
   });
 });
+
+describe("Cargar más with new activity in between", () => {
+  it("does not show the same entry twice", async () => {
+    list.mockResolvedValueOnce({ data: { items: [item(10, "Diez"), item(9, "Nueve")], total: 4, page: 1, page_size: 2 } })
+        .mockResolvedValueOnce({ data: { items: [item(9, "Nueve"), item(8, "Ocho")], total: 5, page: 2, page_size: 2 } });
+    renderAt();
+    await screen.findByText("Diez");
+    fireEvent.click(screen.getByRole("button", { name: /cargar más/i }));
+    await screen.findByText("Ocho");
+    expect(screen.getAllByText("Nueve")).toHaveLength(1);
+  });
+});
