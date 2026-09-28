@@ -91,12 +91,12 @@ export const TIPS: Tip[] = [
     { text: "Si alguien deja el equipo, desactívalo y reasigna sus clientes: su historial se conserva.", pages: ["/usuarios"], role: "admin" },
     { text: "En «Actividad» ves quién hizo cada cambio. Úsalo para aclarar dudas sin buscar culpables.", pages: ["/actividad"], role: "admin" },
     "¿Te tapo algo? Arrástrame a cualquier parte de la pantalla.",
-    "Cierra este globo con la X; tu preferencia se recuerda. Toca al búho cuando quieras otro consejo.",
+    "Cierra este globo con la X; tu preferencia se recuerda. Tócame cuando quieras otro consejo.",
     { text: "¿Olvidaste tu contraseña? Pídele al admin una contraseña temporal desde Usuarios.", role: "employee" },
   ]),
 ];
 
-export const WELCOME_TIP = "ASISTENCIA EN LÍNEA: Toca al búho para recibir un consejo. Abajo puedes elegir el tema.";
+export const WELCOME_TIP = "ASISTENCIA EN LÍNEA: Tócame para recibir un consejo. Abajo puedes elegir el tema.";
 
 export function eligibleTips({ category, path, isAdmin }: { category: TipCategory | "all"; path: string; isAdmin: boolean }): Tip[] {
   return TIPS.filter(

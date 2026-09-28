@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { NeoCard } from "@guru/ui";
 import { X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { resolveAvatar } from "../lib/userColors";
 import { CATEGORIES, WELCOME_TIP, createTipPicker, eligibleTips, type Tip, type TipCategory } from "../lib/advisorTips";
 
 type Topic = TipCategory | "all";
@@ -23,7 +24,9 @@ interface GuruAdvisorProps {
 
 export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) {
   const { pathname } = useLocation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  // Each person's own animal gives the tips; without one, the Gurú owl
+  const advisorEmoji = resolveAvatar(user?.avatar) ?? "🦉";
   const [topic, setTopic] = useState<Topic>(readTopic);
   const [tip, setTip] = useState<Tip | null>(null); // null = welcome message
   const picker = useRef(createTipPicker());
@@ -113,7 +116,7 @@ export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) 
           </button>
           <div className="absolute top-0 left-0 h-1 w-full bg-main" />
           <div className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-main">
-            <span aria-hidden="true">{category?.emoji ?? "🦉"}</span>
+            <span aria-hidden="true">{category?.emoji ?? advisorEmoji}</span>
             {category?.label ?? "Gurú // Asesoría"}
           </div>
           <p className="text-sm font-medium leading-relaxed text-foreground">
@@ -137,7 +140,7 @@ export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) 
             ))}
           </div>
           <p className="mt-2 text-right text-[9px] font-black uppercase tracking-widest text-foreground/50">
-            Toca al búho para otro consejo
+            Tócame para otro consejo
           </p>
         </NeoCard>
       )}
@@ -151,7 +154,7 @@ export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) 
       >
         <div className="absolute inset-0 rounded-full bg-main/20 opacity-60 blur-[16px] transition-opacity group-hover:opacity-100" />
         <div className="relative z-10 select-none text-5xl drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] md:text-6xl transition-transform hover:scale-105 active:scale-95">
-          🦉
+          {advisorEmoji}
         </div>
       </div>
     </div>
