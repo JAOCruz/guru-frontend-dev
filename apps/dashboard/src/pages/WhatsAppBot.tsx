@@ -322,7 +322,7 @@ const WhatsAppBot: React.FC = () => {
       )}
 
       {/* Two-column grid */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         {/* ── LEFT: Connection status + controls ── */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -441,7 +441,7 @@ const WhatsAppBot: React.FC = () => {
               <p className="mb-3 font-base text-base font-bold uppercase tracking-widest text-foreground/60">
                 Modo de Respuesta
               </p>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3 [&>*]:min-w-[8rem]">
                 <NeoButton
                   onClick={() => handleSetMode("all")}
                   variant={currentMode === "all" ? "default" : "neutral"}
@@ -475,7 +475,7 @@ const WhatsAppBot: React.FC = () => {
               <p className="mb-3 font-base text-base font-bold uppercase tracking-widest text-foreground/60">
                 Asignación de Casos
               </p>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3 [&>*]:min-w-[8rem]">
                 <NeoButton
                   onClick={() => handleSetAssignmentMode("manual")}
                   variant={currentAssignmentMode === "manual" ? "default" : "neutral"}

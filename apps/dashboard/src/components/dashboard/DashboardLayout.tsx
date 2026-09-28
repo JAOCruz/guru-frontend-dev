@@ -170,7 +170,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   const [advisorMessageOpen, setAdvisorMessageOpen] = useState(() => {
     const saved = localStorage.getItem("guru-advisor-visible");
-    return saved === null ? true : saved === "true";
+    // First visit: open on computers, closed on phones (the bubble would cover the page)
+    if (saved === null) return typeof window === "undefined" || window.innerWidth >= 768;
+    return saved === "true";
   });
 
   const toggleAdvisor = () => {

@@ -141,9 +141,10 @@ const StatsCard: React.FC<StatsCardProps> = ({
       style={accent ? { backgroundColor: accent.bg, color: accent.text } : undefined}
       className={`group relative overflow-hidden rounded-base border-2 border-border p-4 shadow-shadow transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none sm:p-5 ${cls.card}`}
     >
-      <div className="mb-3 flex items-start justify-between">
+      <div className="mb-3 flex items-start justify-between gap-2">
         <p
-          className={`text-2xl font-black uppercase tracking-tight sm:text-3xl ${cls.subtle}`}
+          lang="es"
+          className={`min-w-0 break-words text-base font-black uppercase leading-tight tracking-tight [hyphens:auto] sm:text-3xl ${cls.subtle}`}
         >
           {icon && <span className="mr-2 not-italic">{icon}</span>}
           {label}
@@ -163,7 +164,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
       </div>
 
       <h3
-        className={`font-heading text-2xl font-black tracking-tight sm:text-3xl ${
+        className={`break-words font-heading text-xl font-black tracking-tight sm:text-3xl ${
           !isVisible && sensitive ? "tracking-widest" : ""
         }`}
       >

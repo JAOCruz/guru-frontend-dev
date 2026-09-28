@@ -91,7 +91,7 @@ export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) 
 
   return (
     <div
-      className="group fixed bottom-6 right-6 z-[100] flex items-end gap-4 md:bottom-10 md:right-10"
+      className="group fixed bottom-4 right-4 z-[100] flex flex-col items-end gap-2 md:bottom-10 md:right-10 md:flex-row md:gap-4"
       style={{
         transform: `translate(${offset.x}px, ${offset.y}px)`,
         touchAction: "none",
@@ -99,7 +99,7 @@ export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) 
     >
       {isOpen && (
         <NeoCard
-          className={`relative max-w-[280px] overflow-hidden border-2 border-border bg-background px-5 py-4 pr-10 shadow-shadow transition-all ${
+          className={`relative w-[min(300px,calc(100vw-2rem))] overflow-hidden border-2 border-border bg-background px-4 py-3 pr-10 shadow-shadow md:w-auto md:max-w-[280px] md:px-5 md:py-4 transition-all ${
             animando ? "scale-95 opacity-60" : "scale-100 opacity-100"
           }`}
         >
@@ -150,7 +150,7 @@ export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) 
         onClick={openWithNewTip}
       >
         <div className="absolute inset-0 rounded-full bg-main/20 opacity-60 blur-[16px] transition-opacity group-hover:opacity-100" />
-        <div className="relative z-10 select-none text-6xl drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] transition-transform hover:scale-105 active:scale-95">
+        <div className="relative z-10 select-none text-5xl drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] md:text-6xl transition-transform hover:scale-105 active:scale-95">
           🦉
         </div>
       </div>

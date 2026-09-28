@@ -89,7 +89,7 @@ const DataModificationForm: React.FC<DataModificationFormProps> = ({
 
   return (
     <NeoCard>
-      <NeoCardHeader className="flex-row items-center justify-between">
+      <NeoCardHeader className="flex-row flex-wrap items-center justify-between gap-2">
         <NeoCardTitle>Modificar Datos</NeoCardTitle>
         <NeoButton
           type="button"

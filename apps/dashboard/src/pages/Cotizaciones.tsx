@@ -904,8 +904,9 @@ export default function Cotizaciones() {
           } flex-1 flex-col overflow-hidden bg-background`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b-2 border-border bg-secondary-background px-4 py-3">
-            <div className="flex items-center gap-3 min-w-0">
+          {/* On phones the title gets its own row and the actions wrap below it, so nothing is squeezed */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-2 border-border bg-secondary-background px-3 py-3 md:px-4">
+            <div className="flex min-w-0 basis-full items-center gap-3 sm:basis-auto sm:flex-1">
               <NeoButton
                 variant="ghost"
                 size="icon"
@@ -921,13 +922,21 @@ export default function Cotizaciones() {
                 <p className="truncate text-base text-foreground/70">
                   {selectedQuotation.client_name}
                 </p>
-                {selectedQuotation.created_by != null && (
-                  <UserBadge userId={selectedQuotation.created_by} label="Creado por" size="sm" className="mt-1" />
-                )}
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {selectedQuotation.created_by != null && (
+                    <UserBadge userId={selectedQuotation.created_by} label="Creado por" size="sm" />
+                  )}
+                  <NeoBadge
+                    variant={statusBadgeVariant[selectedQuotation.status]}
+                    className="whitespace-nowrap text-xs sm:hidden"
+                  >
+                    {statusLabel[selectedQuotation.status]}
+                  </NeoBadge>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex w-full items-center justify-end gap-2 sm:w-auto [&>*]:shrink-0">
               {/* Toggle Details (mobile / small screens) */}
               <NeoButton
                 variant="outline"

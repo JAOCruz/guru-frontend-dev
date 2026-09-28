@@ -1463,9 +1463,9 @@ const BotMessages: React.FC = () => {
         <div className="flex-shrink-0 border-b-2 border-border bg-secondary-background px-4 py-3">
           <div className="grid grid-cols-2 gap-3">
             <NeoCard variant="neutral" className="p-2.5">
-              <div className="flex items-center gap-2 font-base text-sm text-foreground/70">
-                <Users size={14} />
-                <span>Conversaciones</span>
+              <div className="flex min-w-0 items-center gap-2 font-base text-sm text-foreground/70">
+                <Users size={14} className="shrink-0" />
+                <span className="truncate">Conversaciones</span>
               </div>
               <div className="mt-1 font-heading text-xl font-bold text-foreground md:text-2xl">
                 {totalConversations}
@@ -1489,7 +1489,7 @@ const BotMessages: React.FC = () => {
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-base border-2 border-border bg-main text-main-foreground shadow-button">
               <MessageSquare size={18} />
             </div>
-            <h2 className="min-w-0 flex-1 truncate font-heading text-2xl font-black text-foreground md:text-3xl">
+            <h2 className="min-w-0 flex-1 truncate font-heading text-xl font-black text-foreground md:text-3xl">
               Conversaciones
             </h2>
             <NeoBadge variant="neutral" className="flex-shrink-0 px-3 py-1.5 text-xs">
