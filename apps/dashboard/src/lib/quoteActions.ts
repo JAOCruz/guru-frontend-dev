@@ -10,3 +10,8 @@ export function whatsappAction({ isAdmin, isOwner, status }: { isAdmin: boolean;
   if (status === "pending_approval") return "wait";
   return "send";
 }
+
+// Employees only see the document (PDF/preview) once an admin approved it; mirrors the backend.
+export function canViewDocument({ isAdmin, status }: { isAdmin: boolean; status: string }): boolean {
+  return isAdmin || ["approved", "sent", "paid"].includes(status);
+}

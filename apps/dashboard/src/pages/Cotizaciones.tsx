@@ -18,12 +18,13 @@ import {
   Plus,
   Trash2,
   Send,
+  Lock,
   MessageSquare,
 } from "lucide-react";
 import api, { getAPIUrl } from "../services/api";
 import { botAPI, BotClient } from "../services/botApi";
 import { useAuth } from "../context/AuthContext";
-import { whatsappAction } from "../lib/quoteActions";
+import { whatsappAction, canViewDocument } from "../lib/quoteActions";
 import { useUserColors } from "../context/UserColorsContext";
 import UserBadge from "../components/UserBadge";
 import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
@@ -597,11 +598,14 @@ export default function Cotizaciones() {
     }
   };
 
+  // Employees can't see the document until an admin approves it
+  const canView = !!selectedQuotation && canViewDocument({ isAdmin, status: selectedQuotation.status });
+
   const rawPdfUrl = useMemo(() => {
-    if (!selectedQuotation?.pdf_path) return null;
+    if (!selectedQuotation?.pdf_path || !canViewDocument({ isAdmin, status: selectedQuotation.status })) return null;
     const filename = selectedQuotation.pdf_path.split("/").pop();
     return `${getAPIUrl()}/api/invoices/pdf/${filename}`;
-  }, [selectedQuotation]);
+  }, [selectedQuotation, isAdmin]);
 
   useEffect(() => {
     if (!rawPdfUrl) {
@@ -1302,7 +1306,21 @@ export default function Cotizaciones() {
 
             {/* PDF Viewer */}
             <div className="relative flex flex-1 flex-col bg-secondary-background">
-              {pdfLoading ? (
+              {!canView ? (
+                <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-foreground/50">
+                  <Lock size={44} className="mb-3 opacity-50" />
+                  <p className="text-base font-bold text-foreground">
+                    {selectedQuotation.status === "rejected" ? "Documento rechazado" : "Esperando aprobación del admin"}
+                  </p>
+                  <p className="mt-1 max-w-sm text-sm text-foreground/70">
+                    {selectedQuotation.status === "draft"
+                      ? "Pide la aprobación del admin. Podrás ver y enviar el documento cuando lo apruebe."
+                      : selectedQuotation.status === "rejected"
+                        ? "El admin lo rechazó. Revisa la nota, corrígelo o crea uno nuevo."
+                        : "Podrás ver y enviar el documento cuando el admin lo apruebe."}
+                  </p>
+                </div>
+              ) : pdfLoading ? (
                 <div className="flex flex-1 flex-col items-center justify-center text-foreground/50">
                   <div className="mb-3 h-8 w-8 animate-spin rounded-full border-2 border-border border-t-main" />
                   <p className="text-base font-medium text-foreground">

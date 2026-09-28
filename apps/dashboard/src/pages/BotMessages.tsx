@@ -1342,6 +1342,13 @@ const BotMessages: React.FC = () => {
         notes: quoteNotes.trim() || undefined,
       });
       const invoice = createRes.data.invoice;
+      // Employees don't see the document until the admin approves it: it goes straight to approval
+      if (!isAdmin) {
+        const approval = await botAPI.requestInvoiceApproval(invoice.id);
+        setQuoteInvoice(approval.data.invoice ?? { ...invoice, status: "pending_approval" });
+        setQuoteApprovalRequested(true);
+        return;
+      }
       // Generate the PDF (preview only — nothing is sent automatically)
       await botAPI.generateInvoicePdf(invoice.id);
       const blobUrl = await fetchAuthenticatedFile(botAPI.getInvoicePdfUrl(invoice.id));
@@ -2423,21 +2430,23 @@ const BotMessages: React.FC = () => {
                         {quoteType} · Total {formatCurrency(Number(quoteInvoice.total) || quoteTotals.total)}
                       </p>
                     </div>
-                    <NeoButton
-                      type="button"
-                      size="sm"
-                      variant="neutral"
-                      onClick={() => {
-                        setQuoteInvoice(null);
-                        setQuoteSent(false); setQuoteApprovalRequested(false);
-                      }}
-                    >
-                      Volver a editar
-                    </NeoButton>
+                    {isAdmin && (
+                      <NeoButton
+                        type="button"
+                        size="sm"
+                        variant="neutral"
+                        onClick={() => {
+                          setQuoteInvoice(null);
+                          setQuoteSent(false); setQuoteApprovalRequested(false);
+                        }}
+                      >
+                        Volver a editar
+                      </NeoButton>
+                    )}
                   </div>
 
-                  {/* PDF preview */}
-                  {quotePdfUrl ? (
+                  {/* PDF preview (admin only; employees see it once approved, in Cotizaciones) */}
+                  {!isAdmin ? null : quotePdfUrl ? (
                     <div className="mb-3">
                       <div className="relative">
                         <iframe
@@ -2502,7 +2511,7 @@ const BotMessages: React.FC = () => {
                     ) : (
                       <FileText size={16} />
                     )}
-                    {quoteGenerating ? "Generando..." : "Generar y previsualizar"}
+                    {quoteGenerating ? "Generando..." : isAdmin ? "Generar y previsualizar" : "Crear y pedir aprobación"}
                   </NeoButton>
                 </>
               ) : (
