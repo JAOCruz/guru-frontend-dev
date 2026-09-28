@@ -10,12 +10,12 @@ export interface NeoDateInputProps extends InputProps {
 const NeoDateInput = React.forwardRef<HTMLInputElement, NeoDateInputProps>(
   ({ className, iconClassName, ...props }, ref) => {
     return (
-      <div className="relative w-full min-w-0">
+      <div className="relative w-full min-w-[9.5rem]">
         <Input
           ref={ref}
           type="date"
           className={cn(
-            "h-12 w-full min-w-0 px-4 pr-10 text-base [color-scheme:light] dark:[color-scheme:dark]",
+            "h-12 w-full min-w-0 pl-3 pr-9 text-base [color-scheme:light] dark:[color-scheme:dark]",
             "[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0",
             "[&::-webkit-calendar-picker-indicator]:z-10 [&::-webkit-calendar-picker-indicator]:cursor-pointer",
             "[&::-webkit-calendar-picker-indicator]:bg-transparent [&::-webkit-calendar-picker-indicator]:text-transparent",

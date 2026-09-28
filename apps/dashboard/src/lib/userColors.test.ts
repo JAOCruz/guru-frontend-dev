@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  COLOR_KEYS, AVATAR_KEYS, FALLBACK_COLOR, resolveColor, resolveAvatar, themeFor,
+  COLOR_KEYS, AVATAR_KEYS, FALLBACK_COLOR, resolveColor, resolveAvatar, themeFor, applyRootTheme,
   initialOf, findUserByColumn, toAppearance, type DirectoryUser,
 } from "./userColors";
 
@@ -97,5 +97,19 @@ describe("themeFor (sidebar and top bar in the user's color)", () => {
     expect(themeFor({ isAdmin: false, color: "blue" })).toBeNull();
     expect(themeFor({ isAdmin: false, color: null })).toBeNull();
     expect(themeFor({ isAdmin: false, color: "fucsia" })).toBeNull();
+  });
+});
+
+describe("applyRootTheme", () => {
+  it("sets the employee's color on the whole page and restores the Gurú blue", () => {
+    const root = { style: new Map<string, string>() } as any;
+    root.style.setProperty = (k: string, v: string) => root.style.set(k, v);
+    root.style.removeProperty = (k: string) => root.style.delete(k);
+    applyRootTheme({ main: "#22c55e", mainForeground: "#ffffff" }, root);
+    expect(root.style.get("--main")).toBe("#22c55e");
+    expect(root.style.get("--primary")).toBe("#22c55e");
+    expect(root.style.get("--main-foreground")).toBe("#ffffff");
+    applyRootTheme(null, root);
+    expect(root.style.size).toBe(0);
   });
 });

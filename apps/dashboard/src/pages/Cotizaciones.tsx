@@ -786,7 +786,7 @@ export default function Cotizaciones() {
                   </select>
                 </label>
               )}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-2">
                 <label className="block font-base text-xs font-semibold text-foreground/70">
                   Desde
                   <input

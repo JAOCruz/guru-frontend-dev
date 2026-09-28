@@ -1,5 +1,3 @@
-import type { CSSProperties } from "react";
-
 export type ColorKey =
   | "green" | "yellow" | "red" | "purple" | "orange" | "pink"
   | "teal" | "cyan" | "blue" | "indigo" | "lime" | "brown";
@@ -207,12 +205,19 @@ export function themeFor({ isAdmin, color }: { isAdmin: boolean; color?: string 
   return { main: c.bg, mainForeground: c.text };
 }
 
-// CSS variables for an element themed with themeFor (null = inherit the Gurú blue)
-export function themeStyle(theme: ReturnType<typeof themeFor>): CSSProperties | undefined {
-  if (!theme) return undefined;
-  return {
-    "--main": theme.main,
-    "--main-foreground": theme.mainForeground,
-    "--main-dark": `color-mix(in srgb, ${theme.main} 80%, black)`,
-  } as CSSProperties;
+const THEME_VARS = ["--main", "--main-foreground", "--main-dark", "--primary", "--primary-hover"] as const;
+
+// Applies the employee's color to every place that uses the Gurú blue (buttons, cards,
+// charts, sidebar…). null restores the Gurú blue. Idempotent.
+export function applyRootTheme(theme: ReturnType<typeof themeFor>, root: HTMLElement = document.documentElement) {
+  if (!theme) {
+    THEME_VARS.forEach((v) => root.style.removeProperty(v));
+    return;
+  }
+  const dark = `color-mix(in srgb, ${theme.main} 80%, black)`;
+  root.style.setProperty("--main", theme.main);
+  root.style.setProperty("--main-foreground", theme.mainForeground);
+  root.style.setProperty("--main-dark", dark);
+  root.style.setProperty("--primary", theme.main);
+  root.style.setProperty("--primary-hover", dark);
 }

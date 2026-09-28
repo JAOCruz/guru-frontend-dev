@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -7,7 +7,7 @@ import GuruAdvisor from "../GuruAdvisor";
 import { cn } from "@guru/ui";
 import api, { getAPIUrl } from "../../services/api";
 import UserAvatar from "../UserAvatar";
-import { themeFor, themeStyle, toAppearance } from "../../lib/userColors";
+import { applyRootTheme, themeFor, toAppearance } from "../../lib/userColors";
 import {
   Menu,
   X,
@@ -38,8 +38,11 @@ interface DashboardLayoutProps {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { user, logout, isAdmin } = useAuth();
-  // Sidebar and top bar in the employee's color; the admin keeps the Gurú blue
-  const userTheme = themeStyle(themeFor({ isAdmin, color: user?.color }));
+  // Every Gurú-blue element takes the employee's color; the admin keeps the Gurú blue.
+  // Applied while rendering (before the pages below read the colors, e.g. charts).
+  const themeKey = isAdmin ? "admin" : user?.color ?? "";
+  useMemo(() => applyRootTheme(themeFor({ isAdmin, color: user?.color })), [themeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => applyRootTheme(null), []);
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -197,7 +200,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
       {/* Sidebar */}
       <aside
-        style={userTheme}
         className={`fixed top-0 left-0 z-40 flex h-full flex-col border-r-2 border-border bg-main text-main-foreground shadow-sidebar transition-all duration-300 ease-in-out ${
           isMobile
             ? sidebarOpen
@@ -420,15 +422,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         }`}
       >
         {/* Header */}
-        <header style={userTheme} className="sticky top-0 z-30 flex h-16 items-center justify-between border-b-2 border-border bg-background px-4 shadow-header md:h-20 md:px-8">
-          <div className="flex items-center gap-4">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b-2 border-border bg-background px-4 shadow-header md:h-20 md:px-8">
+          <div className="flex min-w-0 items-center gap-4">
             <button
               onClick={toggleSidebar}
               className="rounded-base border-2 border-border bg-main p-2 text-main-foreground shadow-button transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none"
             >
               <Menu size={22} />
             </button>
-            <h2 className="font-heading text-lg font-black md:text-2xl">
+            <h2 className="min-w-0 truncate whitespace-nowrap font-heading text-lg font-black md:text-2xl">
               {isAdmin ? "Panel Admin" : "Panel Usuario"}
               {!isAdmin && user?.dataColumn && (
                 <NeoBadge className="ml-3 hidden md:inline-flex">
@@ -523,7 +525,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               )}
             </div>
 
-            <span className="text-xs font-black tracking-widest uppercase text-foreground/60">
+            <span className="hidden whitespace-nowrap text-xs font-black tracking-widest uppercase text-foreground/60 lg:inline">
               Sesión: <span className="text-main">{user?.username}</span>
             </span>
           </div>

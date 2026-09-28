@@ -262,19 +262,19 @@ export default function DataCharts({ services, isAdmin, user }: DataChartsProps)
           </Button>
         ))}
         {dateRange === "custom" && (
-          <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <Input
               type="date"
               value={customStart}
               onChange={(e) => setCustomStart(e.target.value)}
-              className="h-10 flex-1 text-sm sm:w-auto"
+              className="h-10 min-w-[9.5rem] flex-1 text-sm sm:w-auto"
             />
             <span className="text-foreground">→</span>
             <Input
               type="date"
               value={customEnd}
               onChange={(e) => setCustomEnd(e.target.value)}
-              className="h-10 flex-1 text-sm sm:w-auto"
+              className="h-10 min-w-[9.5rem] flex-1 text-sm sm:w-auto"
             />
           </div>
         )}

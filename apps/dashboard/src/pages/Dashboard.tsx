@@ -207,8 +207,8 @@ const Dashboard: React.FC = () => {
                   </div>
 
                   {/* Date Filter */}
-                  <div className="flex w-full min-w-0 flex-col flex-wrap gap-2 rounded-base border-2 border-border bg-secondary-background p-3 shadow-shadow sm:flex-row sm:items-center">
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <div className="flex w-full min-w-0 flex-wrap items-center gap-2 rounded-base border-2 border-border bg-secondary-background p-3 shadow-shadow">
+                    <div className="flex min-w-[13rem] flex-1 items-center gap-2">
                       <span className="shrink-0 text-[10px] font-black tracking-widest uppercase text-foreground/60">
                         Desde
                       </span>
@@ -219,7 +219,7 @@ const Dashboard: React.FC = () => {
                         className="h-10 min-w-0 flex-1 rounded-base border-2 border-border bg-background text-sm text-foreground shadow-none"
                       />
                     </div>
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <div className="flex min-w-[13rem] flex-1 items-center gap-2">
                       <span className="shrink-0 text-[10px] font-black tracking-widest uppercase text-foreground/60">
                         Hasta
                       </span>
