@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  COLOR_KEYS, AVATAR_KEYS, FALLBACK_COLOR, resolveColor, resolveAvatar,
+  COLOR_KEYS, AVATAR_KEYS, FALLBACK_COLOR, resolveColor, resolveAvatar, themeFor,
   initialOf, findUserByColumn, toAppearance, type DirectoryUser,
 } from "./userColors";
 
@@ -83,5 +83,19 @@ describe("animal faces", () => {
     expect(resolveAvatar("turtle")).toBe("🐢");
     expect(resolveAvatar("elephant")).toBe("🐘");
     expect(resolveAvatar("dinosaurio")).toBeNull();
+  });
+});
+
+describe("themeFor (sidebar and top bar in the user's color)", () => {
+  it("employees get their own color; readable text on light colors", () => {
+    expect(themeFor({ isAdmin: false, color: "green" })).toEqual({ main: "#22c55e", mainForeground: "#ffffff" });
+    expect(themeFor({ isAdmin: false, color: "yellow" })).toEqual({ main: "#facc15", mainForeground: "#000000" });
+  });
+
+  it("admin, blue or no color keep the Gurú blue", () => {
+    expect(themeFor({ isAdmin: true, color: "teal" })).toBeNull();
+    expect(themeFor({ isAdmin: false, color: "blue" })).toBeNull();
+    expect(themeFor({ isAdmin: false, color: null })).toBeNull();
+    expect(themeFor({ isAdmin: false, color: "fucsia" })).toBeNull();
   });
 });

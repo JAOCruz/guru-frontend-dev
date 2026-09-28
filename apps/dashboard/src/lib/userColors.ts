@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 export type ColorKey =
   | "green" | "yellow" | "red" | "purple" | "orange" | "pink"
   | "teal" | "cyan" | "blue" | "indigo" | "lime" | "brown";
@@ -195,4 +197,22 @@ export function toAppearance(
     name,
     initial: initialOf(name),
   };
+}
+
+// Sidebar and top bar in the employee's own color (identity and diversity). The admin,
+// people who picked blue, and anyone without a color keep the Gurú blue.
+export function themeFor({ isAdmin, color }: { isAdmin: boolean; color?: string | null }): { main: string; mainForeground: string } | null {
+  if (isAdmin || !color || color === "blue" || !(color in COLOR_PALETTE)) return null;
+  const c = COLOR_PALETTE[color as ColorKey];
+  return { main: c.bg, mainForeground: c.text };
+}
+
+// CSS variables for an element themed with themeFor (null = inherit the Gurú blue)
+export function themeStyle(theme: ReturnType<typeof themeFor>): CSSProperties | undefined {
+  if (!theme) return undefined;
+  return {
+    "--main": theme.main,
+    "--main-foreground": theme.mainForeground,
+    "--main-dark": `color-mix(in srgb, ${theme.main} 80%, black)`,
+  } as CSSProperties;
 }

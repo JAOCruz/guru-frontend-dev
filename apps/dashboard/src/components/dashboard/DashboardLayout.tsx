@@ -7,7 +7,7 @@ import GuruAdvisor from "../GuruAdvisor";
 import { cn } from "@guru/ui";
 import api, { getAPIUrl } from "../../services/api";
 import UserAvatar from "../UserAvatar";
-import { toAppearance } from "../../lib/userColors";
+import { themeFor, themeStyle, toAppearance } from "../../lib/userColors";
 import {
   Menu,
   X,
@@ -38,6 +38,8 @@ interface DashboardLayoutProps {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { user, logout, isAdmin } = useAuth();
+  // Sidebar and top bar in the employee's color; the admin keeps the Gurú blue
+  const userTheme = themeStyle(themeFor({ isAdmin, color: user?.color }));
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -195,7 +197,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-40 flex h-full flex-col border-r-2 border-border bg-main shadow-sidebar transition-all duration-300 ease-in-out ${
+        style={userTheme}
+        className={`fixed top-0 left-0 z-40 flex h-full flex-col border-r-2 border-border bg-main text-main-foreground shadow-sidebar transition-all duration-300 ease-in-out ${
           isMobile
             ? sidebarOpen
               ? "w-64 translate-x-0"
@@ -205,20 +208,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               : "w-20"
         }`}
       >
-        <div className="flex h-16 items-center justify-between border-b-2 border-border bg-[#0000CC] p-4">
+        <div className="flex h-16 items-center justify-between border-b-2 border-border bg-[var(--main-dark)] p-4">
           {sidebarOpen || isMobile ? (
-            <h1 className="font-heading truncate text-3xl md:text-4xl font-black tracking-tight text-white">
-              Gurú<span className="text-white">Dash</span>
+            <h1 className="font-heading truncate text-3xl md:text-4xl font-black tracking-tight text-main-foreground">
+              Gurú<span className="text-main-foreground">Dash</span>
             </h1>
           ) : (
-            <div className="mx-auto font-heading text-4xl md:text-5xl font-black text-white">
+            <div className="mx-auto font-heading text-4xl md:text-5xl font-black text-main-foreground">
               G
             </div>
           )}
           {isMobile && (
             <button
               onClick={() => setSidebarOpen(false)}
-              className="rounded-base border-2 border-white/30 p-1 text-white hover:bg-white/20"
+              className="rounded-base border-2 border-main-foreground/30 p-1 text-main-foreground hover:bg-main-foreground/20"
             >
               <X size={20} />
             </button>
@@ -382,7 +385,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           )}
         </nav>
 
-        <div className="border-t-2 border-border bg-[#0000CC] p-4">
+        <div className="border-t-2 border-border bg-[var(--main-dark)] p-4">
           <div
             className={`flex items-center gap-3 ${!sidebarOpen && !isMobile ? "justify-center" : ""}`}
           >
@@ -395,12 +398,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </Link>
             {(sidebarOpen || isMobile) && (
               <div className="min-w-0">
-                <Link to="/mi-cuenta" className="block truncate text-sm font-bold text-white hover:underline">
+                <Link to="/mi-cuenta" className="block truncate text-sm font-bold text-main-foreground hover:underline">
                   {user?.username}
                 </Link>
                 <button
                   onClick={logout}
-                  className="flex cursor-pointer items-center gap-1 text-[10px] font-black uppercase tracking-wider text-white/80 hover:underline"
+                  className="flex cursor-pointer items-center gap-1 text-[10px] font-black uppercase tracking-wider text-main-foreground/80 hover:underline"
                 >
                   <LogOut size={10} /> Cerrar sesión
                 </button>
@@ -417,7 +420,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         }`}
       >
         {/* Header */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b-2 border-border bg-background px-4 shadow-header md:h-20 md:px-8">
+        <header style={userTheme} className="sticky top-0 z-30 flex h-16 items-center justify-between border-b-2 border-border bg-background px-4 shadow-header md:h-20 md:px-8">
           <div className="flex items-center gap-4">
             <button
               onClick={toggleSidebar}
@@ -546,7 +549,7 @@ const NavItem = ({ to, icon, label, sidebarOpen, isMobile, badge }: any) => (
         "group flex w-full items-center gap-3 rounded-base border-2 px-4 py-3 font-base transition-all",
         isActive
           ? "border-border bg-secondary-background text-foreground shadow-shadow"
-          : "border-transparent bg-[#0000CC] text-white hover:border-white/30",
+          : "border-transparent bg-[var(--main-dark)] text-main-foreground hover:border-main-foreground/30",
         !sidebarOpen && !isMobile && "justify-center"
       )
     }

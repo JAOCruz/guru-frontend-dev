@@ -23,6 +23,7 @@
   --main-foreground: #ffffff;
 
   --main: #0000ff;
+  --main-dark: #0000cc; /* darker band of the sidebar; follows the user's color when themed */
   --border: #000000;
   --ring: #000000;
   --overlay: rgba(0, 0, 0, 0.8);
