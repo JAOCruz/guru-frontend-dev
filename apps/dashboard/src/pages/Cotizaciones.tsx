@@ -867,13 +867,16 @@ export default function Cotizaciones() {
                       <p className="min-w-0 truncate text-sm font-bold">{quote.client_name || "Cliente sin nombre"}</p>
                       <p className="shrink-0 text-sm font-bold tabular-nums">RD$ {Number(quote.total).toLocaleString("es-DO")}</p>
                     </div>
-                    <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-foreground/70">
+                    {/* Number and creator (full name) on one line, status and date below */}
+                    <div className="mt-1 flex min-w-0 items-center justify-between gap-2 text-xs text-foreground/70">
                       <span className="shrink-0 font-semibold">{quote.doc_number}</span>
+                      {isAdmin && quote.created_by != null && <UserBadge userId={quote.created_by} className="min-w-0" />}
+                    </div>
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-foreground/70">
                       <NeoBadge variant={statusBadgeVariant[quote.status]} className="shrink-0 px-1.5 py-0 text-[10px]">
                         {statusLabel[quote.status]}
                       </NeoBadge>
-                      <span className="shrink-0">{new Date(quote.created_at).toLocaleDateString("es-DO", { day: "numeric", month: "short" })}</span>
-                      {isAdmin && quote.created_by != null && <UserBadge userId={quote.created_by} className="min-w-0" />}
+                      <span>{new Date(quote.created_at).toLocaleDateString("es-DO", { day: "numeric", month: "short" })}</span>
                     </div>
                   </button>
                   {quote.client_phone && (
