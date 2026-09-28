@@ -1,29 +1,20 @@
 import { useState, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { NeoCard } from "@guru/ui";
-import { Sparkles, X } from "lucide-react";
+import { X } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { CATEGORIES, WELCOME_TIP, createTipPicker, eligibleTips, type Tip, type TipCategory } from "../lib/advisorTips";
 
-const tips = [
-  "ASISTENCIA EN LÍNEA: Haz clic sobre mí para consultar directrices corporativas y jurídicas.",
-  "ÉTICA PROFESIONAL: El activo más valioso de Gurú Soluciones es la confianza. Jamás asumas un dato, confírmalo con el cliente.",
-  "DERECHO CIVIL 101: Un contrato con tachaduras o espacios en blanco es vulnerable a la nulidad. Perfila tus documentos.",
-  "ADMINISTRACIÓN: Recuerda, si un trámite fracasa por negligencia externa, nuestra política protege el 30% del honorario por gestión.",
-  "EFICIENCIA OPERATIVA: No garantices tiempos imposibles. Trámites institucionales exigen un mínimo de 24 a 48 horas.",
-  "LEY NOTARIAL: La Ley 140-15 es nuestra guía de honorarios. Conocerla te da autoridad frente a clientes exigentes.",
-  "ATENCIÓN AL CLIENTE: Tu rol no es solo digitar, es asesorar. Escucha el problema de fondo del cliente antes de cotizar.",
-  "SOPORTE LEGAL: Los Poderes Especiales para salida de menores tienen fecha de caducidad práctica. Vigila el itinerario de vuelo.",
-  "GESTIÓN FINANCIERA: Exige comprobantes bancarios para operaciones vehiculares altas; la Ley de Lavado de Activos (155-17) es estricta.",
-  "CONTROL DE CALIDAD: Sé meticuloso. Un error de un dígito en una cédula obliga a recomenzar todo el proceso en la Procuraduría.",
-  "DERECHO INTERNACIONAL: Antes de apostillar, valida el país de destino en la lista actualizada del Convenio de La Haya.",
-  "PROTOCOLOS: El Intérprete Judicial da fe de su traducción, pero no de la veracidad del documento original. Diferencia estos roles.",
-  "GESTIÓN DE RIESGOS: Todo acto de venta debe firmarse con ambas partes presentes o confirmadas. Evita el fraude.",
-  "SERVICIO VIP: La calidad 'Experta' de nuestras impresiones es nuestra carta de presentación física. No entregues hojas manchadas.",
-  "VISIÓN DE NEGOCIO: Cada cliente que atendemos es un potencial socio comercial a largo plazo. Cultiva la relación.",
-  "FINANZAS INTERNAS: Los cobros de mensajería están directamente atados al tabulador de distancias. No regales el trabajo logístico.",
-  "TRÁMITES AYUNTAMIENTO: Asegúrate de incluir la tasa registral (aprox RD$300) dentro de tu presupuesto inicial para actos auténticos.",
-  "DIGITALIZACIÓN: El Apostille permite el pago de impuestos en línea si el documento cuenta con código de barras validable. Aprovecha esto para ganar tiempo.",
-  "SEGURIDAD DE LA INFORMACIÓN: Una vez concluida la digitación y facturación, asegúrate de almacenar los documentos en nuestro folio. Los datos son oro.",
-  "FACTURACIÓN DE ERRORES: Si el cliente revisó el borrador, lo aprobó y luego de impreso notó un error, el costo de la reimpresión corre por él, no por la empresa.",
-];
+type Topic = TipCategory | "all";
+const TOPIC_KEY = "guru-advisor-topic";
+const readTopic = (): Topic => {
+  try {
+    const v = localStorage.getItem(TOPIC_KEY);
+    return v && (v === "all" || CATEGORIES.some((c) => c.key === v)) ? (v as Topic) : "all";
+  } catch {
+    return "all";
+  }
+};
 
 interface GuruAdvisorProps {
   isOpen: boolean;
@@ -31,7 +22,11 @@ interface GuruAdvisorProps {
 }
 
 export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) {
-  const [tipIndex, setTipIndex] = useState(0);
+  const { pathname } = useLocation();
+  const { isAdmin } = useAuth();
+  const [topic, setTopic] = useState<Topic>(readTopic);
+  const [tip, setTip] = useState<Tip | null>(null); // null = welcome message
+  const picker = useRef(createTipPicker());
   const [animando, setAnimando] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -62,22 +57,32 @@ export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) 
     (e.target as Element).releasePointerCapture(e.pointerId);
   };
 
-  const getRandomTip = (current: number) => {
-    if (tips.length <= 1) return 0;
-    let next: number;
-    do {
-      next = Math.floor(Math.random() * tips.length);
-    } while (next === current);
-    return next;
+  // Random tip of the chosen topic, including help for the page you're on
+  const showTip = (nextTopic: Topic) => {
+    let pool = eligibleTips({ category: nextTopic, path: pathname, isAdmin });
+    if (!pool.length) pool = eligibleTips({ category: "all", path: pathname, isAdmin });
+    setAnimando(true);
+    setTip(picker.current(pool));
+    onOpenChange(true);
+    setTimeout(() => setAnimando(false), 300);
   };
 
   const openWithNewTip = () => {
     if (didDrag.current) return;
-    setAnimando(true);
-    setTipIndex((prev) => getRandomTip(prev));
-    onOpenChange(true);
-    setTimeout(() => setAnimando(false), 300);
+    showTip(topic);
   };
+
+  const chooseTopic = (next: Topic) => {
+    setTopic(next);
+    try {
+      localStorage.setItem(TOPIC_KEY, next);
+    } catch {
+      /* private mode: topic just isn't remembered */
+    }
+    showTip(next);
+  };
+
+  const category = tip ? CATEGORIES.find((c) => c.key === tip.category) : null;
 
   const closeTip = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -94,7 +99,7 @@ export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) 
     >
       {isOpen && (
         <NeoCard
-          className={`relative max-w-[260px] overflow-hidden border-2 border-border bg-background px-5 py-4 pr-10 shadow-shadow transition-all ${
+          className={`relative max-w-[280px] overflow-hidden border-2 border-border bg-background px-5 py-4 pr-10 shadow-shadow transition-all ${
             animando ? "scale-95 opacity-60" : "scale-100 opacity-100"
           }`}
         >
@@ -107,15 +112,32 @@ export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) 
             <X size={14} strokeWidth={3} />
           </button>
           <div className="absolute top-0 left-0 h-1 w-full bg-main" />
-          <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-main">
-            <Sparkles size={12} />
-            Gurú // Asesoría Jurídica
+          <div className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-main">
+            <span aria-hidden="true">{category?.emoji ?? "🦉"}</span>
+            {category?.label ?? "Gurú // Asesoría"}
           </div>
           <p className="text-sm font-medium leading-relaxed text-foreground">
-            {tips[tipIndex]}
+            {tip?.text ?? WELCOME_TIP}
           </p>
-          <p className="mt-3 text-right text-[9px] font-black uppercase tracking-widest text-foreground/50">
-            Click en el búho para otro tip
+          <div role="group" aria-label="Tema de los consejos" className="mt-3 flex flex-wrap gap-1">
+            {[{ key: "all" as Topic, label: "Todos los temas", emoji: "🎲" }, ...CATEGORIES].map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => chooseTopic(c.key)}
+                title={c.label}
+                aria-label={c.label}
+                aria-pressed={topic === c.key}
+                className={`flex h-7 w-7 items-center justify-center rounded-base border-2 text-sm ${
+                  topic === c.key ? "border-border bg-main shadow-button" : "border-transparent hover:border-border"
+                }`}
+              >
+                {c.emoji}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-right text-[9px] font-black uppercase tracking-widest text-foreground/50">
+            Toca al búho para otro consejo
           </p>
         </NeoCard>
       )}
