@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { NeoBadge } from "@guru/ui";
@@ -386,16 +386,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           <div
             className={`flex items-center gap-3 ${!sidebarOpen && !isMobile ? "justify-center" : ""}`}
           >
-            <UserAvatar
-              appearance={toAppearance({ name: user?.name || user?.username, color: user?.color, avatar: user?.avatar })}
-              size="md"
-              className="shadow-button"
-            />
+            <Link to="/mi-cuenta" title="Mi cuenta" aria-label="Mi cuenta" className="shrink-0 rounded-full transition-transform hover:scale-105">
+              <UserAvatar
+                appearance={toAppearance({ name: user?.name || user?.username, color: user?.color, avatar: user?.avatar })}
+                size="md"
+                className="shadow-button"
+              />
+            </Link>
             {(sidebarOpen || isMobile) && (
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-white">
+                <Link to="/mi-cuenta" className="block truncate text-sm font-bold text-white hover:underline">
                   {user?.username}
-                </p>
+                </Link>
                 <button
                   onClick={logout}
                   className="flex cursor-pointer items-center gap-1 text-[10px] font-black uppercase tracking-wider text-white/80 hover:underline"

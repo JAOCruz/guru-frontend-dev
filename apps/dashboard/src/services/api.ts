@@ -70,7 +70,8 @@ export const authAPI = {
 
   getCurrentUser: () => api.get("/auth/me"),
 
-  updateAppearance: (data: { color?: string; avatar?: string | null }) =>
+  // force: the admin confirmed taking an animal someone else has; label: its name for the activity log
+  updateAppearance: (data: { color?: string; avatar?: string | null; force?: boolean; label?: string }) =>
     api.put("/auth/me/appearance", data),
 
   // birthDate 'YYYY-MM-DD', or null to clear it
@@ -163,6 +164,8 @@ export const avatarsAPI = {
 };
 
 export const adminUsersAPI = {
+  setAvatar: (id: number, avatar: string | null, opts: { force: boolean; label?: string }) =>
+    api.put<{ user: AdminUser }>(`/admin/users/${id}/avatar`, { avatar, ...opts }),
   list: (status: "active" | "inactive" | "all" = "active") =>
     api.get<{ users: AdminUser[] }>("/admin/users", { params: { status } }),
   create: (data: AdminUserInput & { temp_password: string }) =>

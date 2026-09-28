@@ -15,13 +15,16 @@ const { api, refresh } = vi.hoisted(() => ({
     assignments: vi.fn(),
     deactivate: vi.fn(),
     reactivate: vi.fn(),
+    setAvatar: vi.fn(),
   },
   refresh: vi.fn(),
 }));
 const { avatarsAPI } = vi.hoisted(() => ({ avatarsAPI: { getEnabled: vi.fn(), setEnabled: vi.fn() } }));
 vi.mock("../services/api", () => ({ adminUsersAPI: api, avatarsAPI }));
 vi.mock("../context/AuthContext", () => ({ useAuth: () => ({ user: { id: 1, username: "admin", role: "admin" }, isAdmin: true }) }));
-vi.mock("../context/UserColorsContext", () => ({ useUserColors: () => ({ refresh, users: [] }) }));
+vi.mock("../context/UserColorsContext", () => ({
+  useUserColors: () => ({ refresh, users: [{ id: 2, name: "Hengi", username: "hengi", avatar: "dog", color: "green" }] }),
+}));
 
 import Usuarios from "./Usuarios";
 
@@ -129,5 +132,20 @@ describe("Animales disponibles", () => {
     await waitFor(() => expect(avatarsAPI.setEnabled).toHaveBeenCalledWith("sheep", true, "Oveja"));
     await waitFor(() => expect(screen.getByRole("button", { name: /oveja/i }).getAttribute("aria-pressed")).toBe("true"));
     expect(screen.queryByRole("button", { name: /búho/i })).toBeNull(); // the owl is always the admin's
+  });
+});
+
+describe("Cambiar el animal de un empleado", () => {
+  it("the admin gives Marleni Hengi's dog after confirming", async () => {
+    api.update.mockResolvedValue({ data: { user: users[2] } });
+    api.setAvatar.mockResolvedValue({ data: { user: { ...users[2], avatar: "dog" } } });
+    render(<Usuarios />);
+    await screen.findByText("Marleni");
+    fireEvent.click(within(row("Marleni")).getByRole("button", { name: /editar/i }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByTitle(/Perro · lo tiene Hengi/));
+    fireEvent.click(await screen.findByRole("button", { name: /sí, quitárselo/i }));
+    fireEvent.click(within(dialog).getByRole("button", { name: /guardar cambios/i }));
+    await waitFor(() => expect(api.setAvatar).toHaveBeenCalledWith(3, "dog", { force: true, label: "Perro" }));
   });
 });

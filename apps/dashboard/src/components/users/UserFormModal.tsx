@@ -1,8 +1,11 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { NeoButton } from "@guru/ui";
 import Modal, { fieldCls, labelCls } from "./Modal";
 import { adminUsersAPI, type AdminUser, type AdminUserInput } from "../../services/api";
 import { apiError, generateTempPassword } from "../../lib/users";
+import { ADMIN_ONLY_AVATAR, AVATARS, AVATAR_KEYS, type AvatarKey } from "../../lib/userColors";
+import { useUserColors } from "../../context/UserColorsContext";
+import TakeAvatarDialog from "./TakeAvatarDialog";
 import { todayISO } from "../../lib/dates";
 
 interface Props {
@@ -21,6 +24,17 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
   const [role, setRole] = useState<Role>((user?.role === "employee" ? "digitador" : user?.role) ?? "digitador");
   const [inPayroll, setInPayroll] = useState(user?.in_payroll ?? true);
   const [birthDate, setBirthDate] = useState(user?.birth_date ?? "");
+  // Edit mode: the admin can change this person's animal, even taking one someone else has
+  const { users } = useUserColors();
+  const [avatarSel, setAvatarSel] = useState<AvatarKey | null>((user?.avatar as AvatarKey) ?? null);
+  const [pendingTake, setPendingTake] = useState<{ key: AvatarKey; owner: string } | null>(null);
+  const [takeConfirmed, setTakeConfirmed] = useState<AvatarKey | null>(null);
+  const owners = useMemo(() => {
+    const m = new Map<string, string>();
+    users.forEach((u) => u.id !== user?.id && u.avatar && m.set(u.avatar, u.name || u.username || ""));
+    return m;
+  }, [users, user?.id]);
+  const avatarChoices = AVATAR_KEYS.filter((k) => k !== ADMIN_ONLY_AVATAR || user?.role === "admin");
   const [tempPassword, setTempPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +55,12 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
     try {
       if (editing) {
         await adminUsersAPI.update(user!.id, data);
+        if (avatarSel !== ((user!.avatar as AvatarKey) ?? null)) {
+          await adminUsersAPI.setAvatar(user!.id, avatarSel, {
+            force: !!avatarSel && avatarSel === takeConfirmed,
+            label: avatarSel ? AVATARS[avatarSel].label : undefined,
+          });
+        }
         onSaved();
         onClose();
       } else {
@@ -96,6 +116,43 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
           Fecha de nacimiento (opcional)
           <input className={fieldCls} type="date" min="1900-01-01" max={todayISO()} value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
         </label>
+        {editing && (
+          <div>
+            <p className={labelCls}>Animal</p>
+            <div className="mt-1 grid max-h-40 grid-cols-[repeat(auto-fill,minmax(40px,1fr))] gap-1.5 overflow-y-auto rounded-base border-2 border-border bg-white p-1.5">
+              {avatarChoices.map((key) => {
+                const owner = owners.get(key);
+                const selected = avatarSel === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => (owner && !selected ? setPendingTake({ key, owner }) : setAvatarSel(selected ? null : key))}
+                    title={`${AVATARS[key].label}${owner ? ` · lo tiene ${owner}` : ""}`}
+                    aria-pressed={selected}
+                    className={`relative flex h-10 items-center justify-center rounded-base border-2 text-xl ${
+                      selected ? "border-border bg-main/20 ring-2 ring-main" : "border-transparent hover:border-border"
+                    } ${owner && !selected ? "opacity-40" : ""}`}
+                  >
+                    {AVATARS[key].emoji}
+                  </button>
+                );
+              })}
+            </div>
+            {pendingTake && (
+              <TakeAvatarDialog
+                avatarKey={pendingTake.key}
+                owner={pendingTake.owner}
+                onCancel={() => setPendingTake(null)}
+                onConfirm={() => {
+                  setAvatarSel(pendingTake.key);
+                  setTakeConfirmed(pendingTake.key);
+                  setPendingTake(null);
+                }}
+              />
+            )}
+          </div>
+        )}
         <label className={labelCls}>
           Rol
           <select className={fieldCls} value={role} onChange={(e) => changeRole(e.target.value as Role)}>

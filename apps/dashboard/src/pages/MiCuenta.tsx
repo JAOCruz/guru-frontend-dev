@@ -6,6 +6,7 @@ import { useUserColors } from "../context/UserColorsContext";
 import { authAPI, avatarsAPI } from "../services/api";
 import { todayISO } from "../lib/dates";
 import UserAvatar from "../components/UserAvatar";
+import TakeAvatarDialog from "../components/users/TakeAvatarDialog";
 import {
   ADMIN_ONLY_AVATAR, AVATARS, AVATAR_KEYS, COLOR_KEYS, COLOR_PALETTE, toAppearance,
   type AvatarKey, type ColorKey,
@@ -20,6 +21,9 @@ export default function MiCuenta() {
   const [color, setColor] = useState<ColorKey | null>((user?.color as ColorKey) ?? null);
   const [avatar, setAvatar] = useState<AvatarKey | null>((user?.avatar as AvatarKey) ?? null);
   const [saving, setSaving] = useState(false);
+  // Admin only: an animal someone else has, pending confirmation / confirmed to take
+  const [pendingTake, setPendingTake] = useState<{ key: AvatarKey; owner: string } | null>(null);
+  const [takeConfirmed, setTakeConfirmed] = useState<AvatarKey | null>(null);
   const [appearanceMsg, setAppearanceMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -89,9 +93,13 @@ export default function MiCuenta() {
     setSaving(true);
     setAppearanceMsg(null);
     try {
-      const payload: { color?: string; avatar?: string | null } = {};
+      const payload: { color?: string; avatar?: string | null; force?: boolean; label?: string } = {};
       if (color && color !== user?.color) payload.color = color;
-      if (avatar !== (user?.avatar ?? null)) payload.avatar = avatar;
+      if (avatar !== (user?.avatar ?? null)) {
+        payload.avatar = avatar;
+        if (avatar && avatar === takeConfirmed) payload.force = true;
+        if (avatar) payload.label = AVATARS[avatar].label;
+      }
       await authAPI.updateAppearance(payload);
       await Promise.all([refreshUser(), refresh()]);
       setAppearanceMsg({ ok: true, text: "Guardado. Todos verán tu nuevo color y animal." });
@@ -145,15 +153,18 @@ export default function MiCuenta() {
               {visibleAvatars.map((key) => {
                 const reserved = key === ADMIN_ONLY_AVATAR && !isAdmin;
                 const owner = takenAvatar.get(key);
-                const disabled = reserved || !!owner;
+                // The admin may take a taken animal (after confirming); employees can't
+                const disabled = reserved || (!!owner && !isAdmin);
                 const selected = avatar === key;
                 return (
                   <button
                     key={key}
                     type="button"
                     disabled={disabled}
-                    onClick={() => setAvatar(selected ? null : key)}
-                    title={reserved ? "Reservado para el admin" : owner ? `Lo tiene ${owner}` : AVATARS[key].label}
+                    onClick={() =>
+                      owner && !selected ? setPendingTake({ key, owner }) : setAvatar(selected ? null : key)
+                    }
+                    title={reserved ? "Reservado para el admin" : owner ? `${AVATARS[key].label} · lo tiene ${owner}` : AVATARS[key].label}
                     className={`relative flex h-11 items-center justify-center rounded-base border-2 border-border bg-white text-2xl transition-all ${
                       selected ? "ring-4 ring-main ring-offset-2" : ""
                     } ${disabled ? "cursor-not-allowed opacity-30" : "hover:-translate-y-0.5"}`}
@@ -165,6 +176,19 @@ export default function MiCuenta() {
               })}
             </div>
           </div>
+
+          {pendingTake && (
+            <TakeAvatarDialog
+              avatarKey={pendingTake.key}
+              owner={pendingTake.owner}
+              onCancel={() => setPendingTake(null)}
+              onConfirm={() => {
+                setAvatar(pendingTake.key);
+                setTakeConfirmed(pendingTake.key);
+                setPendingTake(null);
+              }}
+            />
+          )}
 
           <div>
             <p className="mb-2 text-sm font-bold">Elige tu color</p>
