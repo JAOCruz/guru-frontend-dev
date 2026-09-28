@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { settingsAPI } from "../services/api";
 import api from "../services/api";
 import { preventDecimalInput } from "../utils";
+import { todayISO, formatISODate } from "../lib/dates";
 import { Database, Play, CheckCircle, AlertCircle, Loader2, Info } from "lucide-react";
 import {
   NeoCard,
@@ -18,7 +19,7 @@ import { DatePicker } from "@guru/ui/retroui";
 const Settings: React.FC = () => {
   const [employeePercentage, setEmployeePercentage] = useState<number>(50);
   const [newPercentage, setNewPercentage] = useState<string>("50");
-  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState<string>(() => todayISO());
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +78,7 @@ const Settings: React.FC = () => {
       const percentageValue = parseFloat(newPercentage);
       await settingsAPI.updateEmployeePercentage(percentageValue, startDate);
       setEmployeePercentage(percentageValue);
-      setSuccessMessage("Porcentaje actualizado exitosamente desde " + new Date(startDate).toLocaleDateString('es-ES'));
+      setSuccessMessage("Porcentaje actualizado exitosamente desde " + formatISODate(startDate));
 
       // Clear success message after 3 seconds
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -209,7 +210,7 @@ const Settings: React.FC = () => {
                   </label>
                   <DatePicker
                     date={startDate ? new Date(startDate + "T00:00:00") : undefined}
-                    onSelect={(d) => setStartDate(d ? d.toISOString().split("T")[0] : "")}
+                    onSelect={(d) => setStartDate(d ? todayISO(d) : "")}
                     placeholder="Seleccionar fecha"
                     className="h-12"
                   />
@@ -266,7 +267,7 @@ const Settings: React.FC = () => {
             </p>
             <p className="text-base text-foreground/80">
               Esta acción afectará los cálculos de ganancias desde el{" "}
-              <strong>{new Date(startDate).toLocaleDateString("es-ES")}</strong>.
+              <strong>{formatISODate(startDate)}</strong>.
             </p>
           </div>
           <Dialog.Footer className="border-t-4 border-border bg-secondary-background">
