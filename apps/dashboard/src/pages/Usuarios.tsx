@@ -6,6 +6,7 @@ import { adminUsersAPI, type AdminUser } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useUserColors } from "../context/UserColorsContext";
 import UserAvatar from "../components/UserAvatar";
+import AvatarCatalogPanel from "../components/users/AvatarCatalogPanel";
 import UserFormModal from "../components/users/UserFormModal";
 import TempPasswordModal from "../components/users/TempPasswordModal";
 import DeactivateModal from "../components/users/DeactivateModal";
@@ -172,6 +173,8 @@ export default function Usuarios() {
           })}
         </ul>
       )}
+
+      <AvatarCatalogPanel />
 
       {dialog?.kind === "create" && <UserFormModal onClose={() => setDialog(null)} onSaved={afterChange} />}
       {dialog?.kind === "edit" && <UserFormModal user={dialog.user} onClose={() => setDialog(null)} onSaved={afterChange} />}

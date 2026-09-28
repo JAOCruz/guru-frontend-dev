@@ -18,7 +18,8 @@ const { api, refresh } = vi.hoisted(() => ({
   },
   refresh: vi.fn(),
 }));
-vi.mock("../services/api", () => ({ adminUsersAPI: api }));
+const { avatarsAPI } = vi.hoisted(() => ({ avatarsAPI: { getEnabled: vi.fn(), setEnabled: vi.fn() } }));
+vi.mock("../services/api", () => ({ adminUsersAPI: api, avatarsAPI }));
 vi.mock("../context/AuthContext", () => ({ useAuth: () => ({ user: { id: 1, username: "admin", role: "admin" }, isAdmin: true }) }));
 vi.mock("../context/UserColorsContext", () => ({ useUserColors: () => ({ refresh, users: [] }) }));
 
@@ -34,6 +35,8 @@ const users = [
 const row = (name: string) => screen.getByText(name, { selector: "li *" }).closest("li") as HTMLElement;
 
 beforeEach(() => {
+  avatarsAPI.getEnabled.mockReset().mockResolvedValue({ data: { enabled: ["cow"] } });
+  avatarsAPI.setEnabled.mockReset().mockResolvedValue({ data: { enabled: ["cow", "sheep"] } });
   Object.values(api).forEach((f) => f.mockReset());
   refresh.mockReset();
   api.list.mockResolvedValue({ data: { users } });
@@ -112,5 +115,19 @@ describe("Ver actividad", () => {
     await screen.findByText("Marleni");
     const link = within(row("Marleni")).getByRole("link", { name: /ver actividad/i }) as HTMLAnchorElement;
     expect(link.getAttribute("href")).toBe("/actividad?actor_id=3");
+  });
+});
+
+describe("Animales disponibles", () => {
+  it("the admin enables an animal with one tap and sees who uses each one", async () => {
+    render(<Usuarios />);
+    await screen.findByText("Marleni");
+    fireEvent.click(screen.getByRole("button", { name: /animales disponibles/i }));
+    const sheep = await screen.findByRole("button", { name: /oveja/i });
+    expect(sheep.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(sheep);
+    await waitFor(() => expect(avatarsAPI.setEnabled).toHaveBeenCalledWith("sheep", true, "Oveja"));
+    await waitFor(() => expect(screen.getByRole("button", { name: /oveja/i }).getAttribute("aria-pressed")).toBe("true"));
+    expect(screen.queryByRole("button", { name: /búho/i })).toBeNull(); // the owl is always the admin's
   });
 });

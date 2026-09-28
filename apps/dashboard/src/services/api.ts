@@ -155,6 +155,13 @@ export interface AdminUserInput {
   birth_date?: string; // '' clears it
 }
 
+// Which animals employees may pick (the admin toggles them; the owl is always the admin's)
+export const avatarsAPI = {
+  getEnabled: () => api.get<{ enabled: string[] }>("/dashboard/avatars"),
+  setEnabled: (key: string, enabled: boolean, label: string) =>
+    api.put<{ enabled: string[] }>(`/admin/avatars/${key}`, { enabled, label }),
+};
+
 export const adminUsersAPI = {
   list: (status: "active" | "inactive" | "all" = "active") =>
     api.get<{ users: AdminUser[] }>("/admin/users", { params: { status } }),

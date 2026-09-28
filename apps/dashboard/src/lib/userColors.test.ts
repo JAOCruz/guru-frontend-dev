@@ -11,9 +11,24 @@ const users: DirectoryUser[] = [
 ];
 
 describe("catalog", () => {
-  it("has 12 colors and 25 avatars", () => {
+  it("has 12 colors and the full animal catalog, in sync with the backend", () => {
     expect(COLOR_KEYS).toHaveLength(12);
-    expect(AVATAR_KEYS).toHaveLength(25);
+    // Same keys, same order as guruweb-backend src/config/appearance.js (AVATAR_KEYS)
+    expect(AVATAR_KEYS).toEqual([
+      "cow", "cat", "dog", "horse", "pig", "rabbit", "rooster", "lion", "tiger", "bear", "panda", "fox",
+      "frog", "giraffe", "koala", "monkey", "hamster", "mouse", "wolf", "boar", "unicorn", "dragon", "raccoon", "zebra",
+      "monkey_full", "gorilla", "orangutan", "dog_full", "poodle", "guide_dog", "cat_full", "tiger_full", "leopard",
+      "horse_full", "deer", "ox", "water_buffalo", "cow_full", "pig_full", "ram", "sheep", "goat", "camel",
+      "two_hump_camel", "llama", "kangaroo", "sloth", "otter", "skunk", "badger", "elephant", "rhino", "hippo",
+      "mouse_full", "rat", "rabbit_full", "chipmunk", "hedgehog", "bat",
+      "turkey", "chicken_full", "hatching_chick", "baby_chick", "front_chick", "bird", "penguin", "dove", "eagle",
+      "duck", "swan", "flamingo", "peacock", "parrot",
+      "crocodile", "turtle", "lizard", "snake", "dragon_full", "sauropod", "t_rex",
+      "spouting_whale", "whale", "dolphin", "fish", "tropical_fish", "blowfish", "shark", "octopus", "crab",
+      "lobster", "shrimp", "squid",
+      "snail", "butterfly", "caterpillar", "ant", "bee", "ladybug", "cricket", "spider", "scorpion", "mosquito",
+      "owl",
+    ]);
   });
 });
 
@@ -64,8 +79,9 @@ describe("animal faces", () => {
     expect(resolveAvatar("dog")).toBe("🐶");
     expect(resolveAvatar("koala")).toBe("🐨");
   });
-  it("no longer offers full-body animals without a face emoji", () => {
-    expect(resolveAvatar("turtle")).toBeNull();
-    expect(resolveAvatar("elephant")).toBeNull();
+  it("also offers full-body animals (the admin decides which ones employees can pick)", () => {
+    expect(resolveAvatar("turtle")).toBe("🐢");
+    expect(resolveAvatar("elephant")).toBe("🐘");
+    expect(resolveAvatar("dinosaurio")).toBeNull();
   });
 });

@@ -3,7 +3,7 @@ import { Lock } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { useAuth } from "../context/AuthContext";
 import { useUserColors } from "../context/UserColorsContext";
-import { authAPI } from "../services/api";
+import { authAPI, avatarsAPI } from "../services/api";
 import { todayISO } from "../lib/dates";
 import UserAvatar from "../components/UserAvatar";
 import {
@@ -59,6 +59,22 @@ export default function MiCuenta() {
     users.forEach((u) => u.id !== user?.id && u.color && m.set(u.color, u.name || u.username || ""));
     return m;
   }, [users, user?.id]);
+
+  // Employees see the animals the admin enabled (plus their own); the admin sees all
+  const [enabledAvatars, setEnabledAvatars] = useState<string[] | null>(null);
+  useEffect(() => {
+    avatarsAPI
+      .getEnabled()
+      .then(({ data }) => setEnabledAvatars(data.enabled))
+      .catch(() => setEnabledAvatars(null));
+  }, []);
+  const visibleAvatars = useMemo(
+    () =>
+      isAdmin || !enabledAvatars
+        ? AVATAR_KEYS
+        : AVATAR_KEYS.filter((k) => k === ADMIN_ONLY_AVATAR || k === user?.avatar || enabledAvatars.includes(k)),
+    [isAdmin, enabledAvatars, user?.avatar],
+  );
 
   const takenAvatar = useMemo(() => {
     const m = new Map<string, string>();
@@ -125,8 +141,8 @@ export default function MiCuenta() {
         <div className="space-y-5 p-5">
           <div>
             <p className="mb-2 text-sm font-bold">Elige tu animal</p>
-            <div className="grid grid-cols-5 gap-2 sm:grid-cols-7">
-              {AVATAR_KEYS.map((key) => {
+            <div className="grid max-h-80 grid-cols-[repeat(auto-fill,minmax(46px,1fr))] gap-2 overflow-y-auto p-1 pr-2">
+              {visibleAvatars.map((key) => {
                 const reserved = key === ADMIN_ONLY_AVATAR && !isAdmin;
                 const owner = takenAvatar.get(key);
                 const disabled = reserved || !!owner;
