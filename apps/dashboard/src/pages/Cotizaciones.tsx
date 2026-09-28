@@ -20,6 +20,8 @@ import {
   Send,
   Lock,
   MessageSquare,
+  Search,
+  SlidersHorizontal,
 } from "lucide-react";
 import api, { getAPIUrl } from "../services/api";
 import { botAPI, BotClient } from "../services/botApi";
@@ -69,6 +71,17 @@ interface Quotation {
   payment_reference?: string | null;
 }
 
+// Status tabs, most actionable first
+const STATUS_TABS = [
+  ["ALL", "Todas"],
+  ["pending_approval", "Por aprobar"],
+  ["draft", "Borrador"],
+  ["approved", "Aprobadas"],
+  ["sent", "Enviadas"],
+  ["paid", "Pagadas"],
+  ["rejected", "Rechazadas"],
+] as const;
+
 export default function Cotizaciones() {
   const { isAdmin, user } = useAuth();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
@@ -117,6 +130,7 @@ export default function Cotizaciones() {
   const [creatorFilter, setCreatorFilter] = useState<string>("ALL");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const { users } = useUserColors();
 
   // Reject / delete
@@ -151,7 +165,6 @@ export default function Cotizaciones() {
       setLoading(true);
       const params: Record<string, string> = {};
       if (typeFilter !== "ALL") params.type = typeFilter;
-      if (statusFilter !== "ALL") params.status = statusFilter;
       if (searchQuery.trim()) params.q = searchQuery.trim();
       if (creatorFilter !== "ALL") params.created_by = creatorFilter;
       if (dateFrom) params.from = dateFrom;
@@ -176,7 +189,7 @@ export default function Cotizaciones() {
     }, 300);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeFilter, statusFilter, searchQuery, creatorFilter, dateFrom, dateTo]);
+  }, [typeFilter, searchQuery, creatorFilter, dateFrom, dateTo]);
 
   const resetCreateForm = () => {
     setCreateType("COTIZACIÓN");
@@ -652,6 +665,30 @@ export default function Cotizaciones() {
     rejected: "Rechazada",
   };
 
+  const statusCounts = quotations.reduce<Record<string, number>>((acc, q) => {
+    acc[q.status] = (acc[q.status] || 0) + 1;
+    return acc;
+  }, {});
+  const visibleQuotations = statusFilter === "ALL" ? quotations : quotations.filter((q) => q.status === statusFilter);
+
+  const creatorName = (id: string) => {
+    const u = users.find((x) => String(x.id) === id);
+    return u?.name || u?.username || `Usuario ${id}`;
+  };
+  const fmtDate = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString("es-DO", { day: "numeric", month: "short" });
+  const activeFilters = [
+    typeFilter !== "ALL" && { key: "type", label: typeFilter === "FACTURA" ? "Facturas" : "Cotizaciones", clear: () => setTypeFilter("ALL") },
+    creatorFilter !== "ALL" && { key: "creator", label: creatorName(creatorFilter), clear: () => setCreatorFilter("ALL") },
+    dateFrom && { key: "from", label: `Desde ${fmtDate(dateFrom)}`, clear: () => setDateFrom("") },
+    dateTo && { key: "to", label: `Hasta ${fmtDate(dateTo)}`, clear: () => setDateTo("") },
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
+  const clearFilters = () => {
+    setTypeFilter("ALL");
+    setCreatorFilter("ALL");
+    setDateFrom("");
+    setDateTo("");
+  };
+
   return (
     <div
       className="-m-3 md:-m-8 flex overflow-hidden bg-background text-foreground"
@@ -663,157 +700,144 @@ export default function Cotizaciones() {
           showRightPanel ? "hidden md:flex" : "flex"
         } w-full md:w-80 flex-shrink-0 flex-col overflow-hidden border-r-2 border-border bg-secondary-background`}
       >
-        <div className="border-b-2 border-border bg-secondary-background p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-base border-2 border-border bg-main text-main-foreground shadow-button">
-              <FileText size={20} />
-            </div>
-            <h2 className="font-heading text-4xl md:text-5xl font-black">Cotizaciones</h2>
+        <div className="border-b-2 border-border bg-secondary-background px-3 pb-2 pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-heading text-2xl font-black">Cotizaciones</h2>
+            <NeoButton onClick={openCreateModal} size="sm" title="Nueva cotización / factura">
+              <Plus size={16} />
+              Nueva
+            </NeoButton>
           </div>
-          <p className="mt-2 text-base text-foreground/70">
-            {quotations.length} documento{quotations.length !== 1 && "s"}
-            {isAdmin && quotations.filter((q) => q.status === "pending_approval").length > 0 && (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-base border-2 border-orange-500 bg-orange-500/10 px-2 py-0.5 text-sm font-black text-orange-600">
-                {quotations.filter((q) => q.status === "pending_approval").length} por aprobar
-              </span>
-            )}
-          </p>
 
           {/* Search */}
-          <div className="mt-3">
+          <div className="relative mt-2">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por número, cliente o teléfono..."
-              className="w-full rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground shadow-none outline-none focus:border-main"
+              placeholder="Buscar cliente, teléfono o número…"
+              aria-label="Buscar"
+              className="w-full rounded-base border-2 border-border bg-background py-2 pl-9 pr-3 font-base text-sm text-foreground outline-none focus:border-main"
             />
           </div>
 
-          {/* Type filter */}
-          <div className="mt-3 flex gap-1">
-            {(
-              [
-                ["ALL", "Todos"],
-                ["COTIZACIÓN", "Cotizaciones"],
-                ["FACTURA", "Facturas"],
-              ] as const
-            ).map(([val, label]) => (
-              <NeoButton
-                key={val}
-                onClick={() => setTypeFilter(val)}
-                variant={typeFilter === val ? "default" : "neutral"}
-                size="sm"
-                className="flex-1 text-xs"
-              >
-                {label}
-              </NeoButton>
-            ))}
-          </div>
-
-          {/* Status filter */}
-          <div className="mt-3">
-            <label className="mb-1 block font-base text-xs font-semibold text-foreground/70">
-              Estado
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as Quotation["status"] | "ALL")}
-              className="w-full rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground outline-none focus:border-main"
+          {/* Advanced filters, folded by default */}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              aria-expanded={showFilters}
+              className={`inline-flex items-center gap-1.5 rounded-base border-2 border-border px-2.5 py-1 text-xs font-bold ${
+                showFilters || activeFilters.length ? "bg-main text-main-foreground" : "bg-background"
+              }`}
             >
-              <option value="ALL">Todos los estados</option>
-              <option value="draft">Borrador</option>
-              <option value="pending_approval">Por aprobar</option>
-              <option value="approved">Aprobada</option>
-              <option value="sent">Enviada</option>
-              <option value="paid">Pagada</option>
-              <option value="rejected">Rechazada</option>
-            </select>
+              <SlidersHorizontal size={14} />
+              {activeFilters.length ? `Filtros · ${activeFilters.length}` : "Filtros"}
+            </button>
+            {activeFilters.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={f.clear}
+                aria-label={`Quitar filtro: ${f.label}`}
+                className="inline-flex max-w-[11rem] items-center gap-1 rounded-full border-2 border-border bg-background px-2 py-0.5 text-xs font-semibold"
+              >
+                <span className="truncate">{f.label}</span>
+                <X size={12} className="shrink-0" />
+              </button>
+            ))}
+            {activeFilters.length > 1 && (
+              <button type="button" onClick={clearFilters} className="text-xs font-semibold underline">
+                Limpiar
+              </button>
+            )}
           </div>
 
-          {/* Creator filter (admin only) */}
-          {isAdmin && users.length > 0 && (
-            <div className="mt-3">
-              <label className="mb-1 block font-base text-xs font-semibold text-foreground/70">
-                Creador
+          {showFilters && (
+            <div className="mt-2 space-y-2 rounded-base border-2 border-border bg-background p-2.5">
+              <label className="block font-base text-xs font-semibold text-foreground/70">
+                Tipo
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+                  className="mt-1 w-full rounded-base border-2 border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-main"
+                >
+                  <option value="ALL">Cotizaciones y facturas</option>
+                  <option value="COTIZACIÓN">Cotizaciones</option>
+                  <option value="FACTURA">Facturas</option>
+                </select>
               </label>
-              <select
-                value={creatorFilter}
-                onChange={(e) => setCreatorFilter(e.target.value)}
-                className="w-full rounded-base border-2 border-border bg-background px-3 py-2 font-base text-sm text-foreground outline-none focus:border-main"
-              >
-                <option value="ALL">Todos los creadores</option>
-                {users.map((u) => (
-                  <option key={u.id} value={String(u.id)}>
-                    {u.name || u.username || `Usuario ${u.id}`}
-                  </option>
-                ))}
-              </select>
+              {isAdmin && users.length > 0 && (
+                <label className="block font-base text-xs font-semibold text-foreground/70">
+                  Creado por
+                  <select
+                    value={creatorFilter}
+                    onChange={(e) => setCreatorFilter(e.target.value)}
+                    className="mt-1 w-full rounded-base border-2 border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-main"
+                  >
+                    <option value="ALL">Todos</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={String(u.id)}>
+                        {u.name || u.username || `Usuario ${u.id}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block font-base text-xs font-semibold text-foreground/70">
+                  Desde
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="mt-1 w-full rounded-base border-2 border-border bg-background px-1.5 py-1.5 text-sm text-foreground outline-none focus:border-main"
+                  />
+                </label>
+                <label className="block font-base text-xs font-semibold text-foreground/70">
+                  Hasta
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="mt-1 w-full rounded-base border-2 border-border bg-background px-1.5 py-1.5 text-sm text-foreground outline-none focus:border-main"
+                  />
+                </label>
+              </div>
             </div>
           )}
 
-          {/* Date range */}
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div>
-              <label className="mb-1 block font-base text-xs font-semibold text-foreground/70">
-                Desde
-              </label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full rounded-base border-2 border-border bg-background px-2 py-2 font-base text-sm text-foreground outline-none focus:border-main"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block font-base text-xs font-semibold text-foreground/70">
-                Hasta
-              </label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full rounded-base border-2 border-border bg-background px-2 py-2 font-base text-sm text-foreground outline-none focus:border-main"
-              />
-            </div>
+          {/* Status tabs with counts */}
+          <div role="tablist" aria-label="Estado" className="custom-scroll -mx-3 mt-2 flex gap-1 overflow-x-auto px-3 pb-1">
+            {STATUS_TABS.map(([val, label]) => {
+              const count = val === "ALL" ? quotations.length : statusCounts[val] || 0;
+              const active = statusFilter === val;
+              const urgent = val === "pending_approval" && count > 0 && isAdmin;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setStatusFilter(val)}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-base border-2 px-2 py-1 text-xs font-bold ${
+                    active
+                      ? "border-border bg-main text-main-foreground shadow-button"
+                      : urgent
+                        ? "border-orange-500 bg-orange-500/10 text-orange-700"
+                        : "border-transparent hover:border-border"
+                  }`}
+                >
+                  {label}
+                  <span className={`rounded-full px-1.5 text-[11px] ${active ? "bg-main-foreground/15" : "bg-foreground/10"}`}>{count}</span>
+                </button>
+              );
+            })}
           </div>
-
-          {(typeFilter !== "ALL" ||
-            statusFilter !== "ALL" ||
-            searchQuery ||
-            creatorFilter !== "ALL" ||
-            dateFrom ||
-            dateTo) && (
-            <div className="mt-3">
-              <NeoButton
-                variant="outline"
-                size="sm"
-                className="w-full text-xs"
-                onClick={() => {
-                  setTypeFilter("ALL");
-                  setStatusFilter("ALL");
-                  setSearchQuery("");
-                  setCreatorFilter("ALL");
-                  setDateFrom("");
-                  setDateTo("");
-                }}
-              >
-                Limpiar filtros
-              </NeoButton>
-            </div>
-          )}
-
-          <NeoButton
-            onClick={openCreateModal}
-            className="mt-3 w-full"
-            size="sm"
-          >
-            <Plus size={16} />
-            Nueva cotización / factura
-          </NeoButton>
         </div>
 
-        {loading ? (
+        {loading && quotations.length === 0 ? (
           <div className="flex flex-1 items-center justify-center text-foreground/50">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-main" />
           </div>
@@ -821,64 +845,51 @@ export default function Cotizaciones() {
           <div className="flex flex-1 items-center justify-center p-4 text-center text-foreground">
             <NeoBadge variant="outline" className="text-base">{error}</NeoBadge>
           </div>
-        ) : quotations.length === 0 ? (
+        ) : visibleQuotations.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center p-4 text-center text-foreground/50">
             <FileText size={40} className="mb-3 opacity-40" />
             <p className="text-base font-medium">No hay documentos</p>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto custom-scroll p-3 space-y-2">
-            {quotations.map((quote) => (
-              <button
-                key={quote.id}
-                onClick={() => handleSelectQuotation(quote)}
-                className={`relative w-full text-left rounded-base border-2 p-4 transition-all ${
-                  selectedQuotation?.id === quote.id
-                    ? "border-border bg-secondary-background shadow-shadow"
-                    : "border-transparent hover:border-border hover:bg-secondary-background"
-                }`}
-              >
-                <div className="absolute right-2 top-2">
-                  <NeoBadge variant={statusBadgeVariant[quote.status]} className="text-xs">
-                    {statusLabel[quote.status]}
-                  </NeoBadge>
-                </div>
-                <div className="flex items-center justify-between gap-2 pr-20">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-semibold">
-                      {quote.doc_number}
-                    </p>
-                    <p className="truncate text-base text-foreground/70">
-                      {quote.client_name}
-                    </p>
-                  </div>
+          <ul className="flex-1 divide-y-2 divide-border/15 overflow-y-auto custom-scroll">
+            {visibleQuotations.map((quote) => {
+              const selected = selectedQuotation?.id === quote.id;
+              return (
+                <li key={quote.id} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectQuotation(quote)}
+                    className={`w-full px-3 py-2.5 pr-11 text-left transition-colors ${
+                      selected ? "bg-main/15 shadow-[inset_4px_0_0_0_var(--main)]" : "hover:bg-background"
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="min-w-0 truncate text-sm font-bold">{quote.client_name || "Cliente sin nombre"}</p>
+                      <p className="shrink-0 text-sm font-bold tabular-nums">RD$ {Number(quote.total).toLocaleString("es-DO")}</p>
+                    </div>
+                    <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-foreground/70">
+                      <span className="shrink-0 font-semibold">{quote.doc_number}</span>
+                      <NeoBadge variant={statusBadgeVariant[quote.status]} className="shrink-0 px-1.5 py-0 text-[10px]">
+                        {statusLabel[quote.status]}
+                      </NeoBadge>
+                      <span className="shrink-0">{new Date(quote.created_at).toLocaleDateString("es-DO", { day: "numeric", month: "short" })}</span>
+                      {isAdmin && quote.created_by != null && <UserBadge userId={quote.created_by} className="min-w-0" />}
+                    </div>
+                  </button>
                   {quote.client_phone && (
                     <Link
                       to={`/bot-messages?phone=${encodeURIComponent(quote.client_phone)}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-base border-2 border-border bg-main text-main-foreground shadow-button transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none"
+                      className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-base border-2 border-border bg-background text-foreground hover:bg-main hover:text-main-foreground"
                       title="Ver chat"
+                      aria-label={`Ver chat de ${quote.client_name || quote.client_phone}`}
                     >
-                      <MessageSquare size={16} />
+                      <MessageSquare size={14} />
                     </Link>
                   )}
-                </div>
-                <div className="mt-2 flex items-center justify-between text-base">
-                  <p className="font-medium text-foreground/90">
-                    RD$ {quote.total.toLocaleString("es-DO")}
-                  </p>
-                  <p className="text-foreground/50">
-                    {new Date(quote.created_at).toLocaleDateString("es-DO")}
-                  </p>
-                </div>
-                {quote.created_by != null && (
-                  <div className="mt-2">
-                    <UserBadge userId={quote.created_by} label="Creado por" />
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
 
