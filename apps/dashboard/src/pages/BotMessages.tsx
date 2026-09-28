@@ -36,6 +36,7 @@ import {
   Image as ImageIcon,
   Paperclip,
 } from "lucide-react";
+import { notify } from "../lib/dialogs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1001,7 +1002,7 @@ const BotMessages: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 16 * 1024 * 1024) {
-      alert("El archivo es muy grande (máximo 16MB).");
+      notify("El archivo es muy grande (máximo 16MB).");
       return;
     }
     setAttachFile(file);
@@ -1031,7 +1032,7 @@ const BotMessages: React.FC = () => {
       cancelAttach();
       await fetchMessages(selectedPhone);
     } catch (err) {
-      alert("No se pudo enviar el archivo. Verifica que el bot esté conectado.");
+      notify("No se pudo enviar el archivo. Verifica que el bot esté conectado.");
     } finally {
       setSendingMedia(false);
     }

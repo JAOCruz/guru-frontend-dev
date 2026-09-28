@@ -9,6 +9,7 @@ import { ThemeProvider } from "./context/ThemeContext.tsx";
 import { UserColorsProvider } from "./context/UserColorsContext.tsx";
 
 import "./index.css";
+import DialogHost from "./components/DialogHost";
 
 // Initialize Sentry if DSN is provided
 if (import.meta.env.VITE_SENTRY_DSN) {
@@ -60,6 +61,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <AuthProvider>
             <UserColorsProvider>
               {isDashboardBuild ? <DashboardRoutes /> : <DefaultRoutes />}
+              <DialogHost />
             </UserColorsProvider>
           </AuthProvider>
         </ThemeProvider>

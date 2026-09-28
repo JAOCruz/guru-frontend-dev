@@ -31,6 +31,7 @@ import { useUserColors } from "../context/UserColorsContext";
 import UserBadge from "../components/UserBadge";
 import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
 import { fetchAuthenticatedFile, preventDecimalInput } from "../utils";
+import { notify } from "../lib/dialogs";
 
 interface QuotationItem {
   desc?: string;
@@ -393,7 +394,7 @@ export default function Cotizaciones() {
       else setSelectedQuotation((prev) => (prev ? { ...prev, status: "paid" } : prev));
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.error || "Error confirmando pago");
+      notify(err?.response?.data?.error || "Error confirmando pago");
     } finally {
       setConfirmingPayment(false);
     }
@@ -533,7 +534,7 @@ export default function Cotizaciones() {
       if (refreshed) setSelectedQuotation(refreshed);
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.error || "Error rechazando documento");
+      notify(err?.response?.data?.error || "Error rechazando documento");
     } finally {
       setRejecting(false);
     }
@@ -550,7 +551,7 @@ export default function Cotizaciones() {
       await fetchQuotations();
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.error || "Error eliminando documento");
+      notify(err?.response?.data?.error || "Error eliminando documento");
     } finally {
       setDeleting(false);
     }
@@ -570,7 +571,7 @@ export default function Cotizaciones() {
       if (refreshed) setSelectedQuotation(refreshed);
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.error || "Error generando el PDF");
+      notify(err?.response?.data?.error || "Error generando el PDF");
     } finally {
       setGeneratingPdf(false);
     }
@@ -585,10 +586,10 @@ export default function Cotizaciones() {
       const list = await fetchQuotations();
       const refreshed = list.find((q) => q.id === selectedQuotation.id);
       if (refreshed) setSelectedQuotation(refreshed);
-      alert("Documento enviado al cliente por WhatsApp.");
+      notify("Documento enviado al cliente por WhatsApp.", "success");
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.error || "No se pudo enviar por WhatsApp. Verifica que el bot esté conectado.");
+      notify(err?.response?.data?.error || "No se pudo enviar por WhatsApp. Verifica que el bot esté conectado.");
     } finally {
       setSendingWhatsapp(false);
     }
@@ -602,10 +603,10 @@ export default function Cotizaciones() {
       const list = await fetchQuotations();
       const refreshed = list.find((q) => q.id === selectedQuotation.id);
       if (refreshed) setSelectedQuotation(refreshed);
-      alert("Documento enviado y PDF generado.");
+      notify("Documento enviado y PDF generado.", "success");
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.error || "Error enviando documento");
+      notify(err?.response?.data?.error || "Error enviando documento");
     } finally {
       setSending(false);
     }

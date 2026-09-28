@@ -22,6 +22,7 @@ import {
 import { NeoButton } from "@guru/ui";
 import { NeoInput } from "@guru/ui";
 import { NeoBadge } from "@guru/ui";
+import { notify } from "../lib/dialogs";
 
 interface DocCategory {
   id: number;
@@ -276,7 +277,7 @@ export default function MotherBrain() {
         err.response?.data?.details ||
         err.message ||
         "Error desconocido";
-      alert(`Error generando documento: ${msg}`);
+      notify(`Error generando documento: ${msg}`);
     } finally {
       setGenerating(false);
     }
@@ -298,7 +299,7 @@ export default function MotherBrain() {
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error("Download failed:", err);
-      alert("Error descargando documento. Revisa la consola.");
+      notify("Error descargando documento. Revisa la consola.");
     }
   };
 

@@ -15,6 +15,7 @@ import { NeoButton } from "@guru/ui";
 import { NeoInput } from "@guru/ui";
 import { Dialog } from "@guru/ui/retroui";
 import { DatePicker } from "@guru/ui/retroui";
+import { confirmDialog } from "../lib/dialogs";
 
 const Settings: React.FC = () => {
   const [employeePercentage, setEmployeePercentage] = useState<number>(50);
@@ -92,7 +93,7 @@ const Settings: React.FC = () => {
   const adminPercentage = 100 - parseFloat(newPercentage || "0");
 
   const handleRunMigrations = async () => {
-    if (!window.confirm("¿Ejecutar migraciones pendientes en la base de datos?")) return;
+    if (!await confirmDialog("Se ejecutarán las migraciones pendientes en la base de datos.", { title: "¿Ejecutar migraciones?", confirmLabel: "Ejecutar" })) return;
     setMigrating(true);
     setMigrationResult(null);
     try {
@@ -114,7 +115,7 @@ const Settings: React.FC = () => {
   };
 
   const handleFixTimestamps = async () => {
-    if (!window.confirm("¿Corregir timestamps en servicios sin fecha?")) return;
+    if (!await confirmDialog("Se corregirá la fecha de los servicios que no la tienen.", { title: "¿Corregir timestamps?", confirmLabel: "Corregir" })) return;
     setMigrating(true);
     setMigrationResult(null);
     try {

@@ -26,6 +26,7 @@ import { NeoButton } from "@guru/ui";
 import { NeoInput } from "@guru/ui";
 import { NeoSelect } from "@guru/ui";
 import { NeoBadge } from "@guru/ui";
+import { notify } from "../lib/dialogs";
 
 interface StoredMessage {
   id: number;
@@ -247,7 +248,7 @@ const BotSimulator: React.FC = () => {
         setRecordingTime((t) => t + 1);
       }, 1000);
     } catch (err) {
-      alert("No se pudo acceder al micrófono. Verifica los permisos.");
+      notify("No se pudo acceder al micrófono. Verifica los permisos.");
       console.error(err);
     }
   };
@@ -279,7 +280,7 @@ const BotSimulator: React.FC = () => {
       setTimeout(() => setMetaSaved(false), 2000);
     } catch (err) {
       console.error("Failed to save meta", err);
-      alert("No se pudieron guardar las notas");
+      notify("No se pudieron guardar las notas");
     } finally {
       setSavingMeta(false);
     }

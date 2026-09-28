@@ -18,6 +18,7 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import botApi, { botAPI, BotStatus, BotMode } from "../services/botApi";
 import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
+import { confirmDialog } from "../lib/dialogs";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 const StatusBadge: React.FC<{ status: BotStatus["status"]; paused?: boolean }> = ({
@@ -263,9 +264,10 @@ const WhatsAppBot: React.FC = () => {
     // "selected" with no enabled chats mutes the bot for everyone — confirm first
     if (
       mode === "selected" &&
-      !window.confirm(
-        "¿Seguro? En modo 'Seleccionados' el bot SOLO responde en los chats que actives uno por uno. Si no activas ninguno, el bot queda mudo para todos."
-      )
+      !(await confirmDialog(
+        "En modo 'Seleccionados' el bot SOLO responde en los chats que actives uno por uno. Si no activas ninguno, el bot queda mudo para todos.",
+        { title: "¿Cambiar a modo Seleccionados?", confirmLabel: "Sí, cambiar" },
+      ))
     ) {
       return;
     }

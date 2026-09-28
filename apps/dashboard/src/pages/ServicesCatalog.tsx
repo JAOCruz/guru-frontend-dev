@@ -8,6 +8,7 @@ import { serviceCatalogAPI } from "../services/api";
 import { preventDecimalInput } from "../utils";
 import { useAuth } from "../context/AuthContext";
 import { NeoCard, NeoButton, NeoInput, NeoSelect, NeoBadge } from "@guru/ui";
+import { confirmDialog, notify } from "../lib/dialogs";
 
 interface PriceTier { min: number; max: number | null; label: string; price: number; }
 interface Service {
@@ -205,7 +206,7 @@ export default function ServicesCatalog() {
     setShowModal(true);
   };
   const handleSave = async () => {
-    if (!form.name || form.digitacion_price === undefined) { alert("Nombre y precio son requeridos."); return; }
+    if (!form.name || form.digitacion_price === undefined) { notify("Nombre y precio son requeridos."); return; }
     try {
       setSaving(true);
       const category = categories.find((c) => c.id === Number(form.category_id));
@@ -241,12 +242,12 @@ export default function ServicesCatalog() {
 
       await fetchData();
       setShowModal(false);
-    } catch (err) { alert((err as any)?.response?.data?.error || "Error guardando."); }
+    } catch (err) { notify((err as any)?.response?.data?.error || "Error guardando."); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("¿Eliminar?")) return;
+    if (!await confirmDialog("Se eliminará este servicio del catálogo de precios.", { title: "¿Eliminar servicio?", confirmLabel: "Eliminar", danger: true })) return;
     try {
       try {
         await serviceCatalogAPI.delete(id);
@@ -258,7 +259,7 @@ export default function ServicesCatalog() {
         });
       }
       await fetchData();
-    } catch { alert("Error eliminando."); }
+    } catch { notify("Error eliminando."); }
   };
   const addTier = () => setForm((p) => ({ ...p, price_tiers: [...(p.price_tiers || []), { ...DEFAULT_TIER }] }));
   const removeTier = (idx: number) => setForm((p) => ({ ...p, price_tiers: (p.price_tiers || []).filter((_, i) => i !== idx) }));

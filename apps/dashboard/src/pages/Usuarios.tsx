@@ -12,6 +12,7 @@ import TempPasswordModal from "../components/users/TempPasswordModal";
 import DeactivateModal from "../components/users/DeactivateModal";
 import { toAppearance } from "../lib/userColors";
 import { apiError, lastSeenLabel, roleLabel } from "../lib/users";
+import { confirmDialog } from "../lib/dialogs";
 
 type Filter = "active" | "inactive" | "all";
 type Dialog =
@@ -77,7 +78,7 @@ export default function Usuarios() {
   };
 
   const reactivate = async (u: AdminUser) => {
-    if (!window.confirm(`¿Reactivar a ${u.name || u.username}? Podrá volver a entrar.`)) return;
+    if (!await confirmDialog(`${u.name || u.username} podrá volver a entrar al dashboard.`, { title: `¿Reactivar a ${u.name || u.username}?`, confirmLabel: "Reactivar" })) return;
     try {
       await adminUsersAPI.reactivate(u.id);
       afterChange();

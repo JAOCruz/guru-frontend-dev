@@ -27,6 +27,7 @@ vi.mock("../context/UserColorsContext", () => ({
 }));
 
 import Usuarios from "./Usuarios";
+import DialogHost from "../components/DialogHost";
 
 const base = { email: null, data_column: null, avatar: null, must_change_password: false, last_seen: null, created_at: "2026-01-01", deactivated_at: null };
 const users = [
@@ -147,5 +148,18 @@ describe("Cambiar el animal de un empleado", () => {
     fireEvent.click(await screen.findByRole("button", { name: /sí, quitárselo/i }));
     fireEvent.click(within(dialog).getByRole("button", { name: /guardar cambios/i }));
     await waitFor(() => expect(api.setAvatar).toHaveBeenCalledWith(3, "dog", { force: true, label: "Perro" }));
+  });
+});
+
+describe("Reactivar usuario", () => {
+  it("asks with the page's own dialog (not the browser's) before reactivating", async () => {
+    api.list.mockResolvedValue({ data: { users: [...users, { ...base, id: 4, name: "Israel", username: "israel", role: "digitador", color: null, is_active: false, in_payroll: true }] } });
+    api.reactivate.mockResolvedValue({ data: { user: {} } });
+    render(<><Usuarios /><DialogHost /></>);
+    await screen.findByText("Israel");
+    fireEvent.click(within(row("Israel")).getByRole("button", { name: /reactivar/i }));
+    const dialog = await screen.findByRole("dialog", { name: /¿Reactivar a Israel\?/ });
+    fireEvent.click(within(dialog).getByRole("button", { name: /^reactivar$/i }));
+    await waitFor(() => expect(api.reactivate).toHaveBeenCalledWith(4));
   });
 });

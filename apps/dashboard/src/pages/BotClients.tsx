@@ -19,6 +19,7 @@ import { botAPI, BotClient, ClientDetailFull, ClientMedia } from "../services/bo
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { NeoCard, NeoButton, NeoInput, NeoBadge } from "@guru/ui";
+import { notify } from "../lib/dialogs";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -463,7 +464,7 @@ const BotClients: React.FC = () => {
       await fetchClients();
     } catch (err: any) {
       console.error("Assign client error:", err);
-      alert(err?.response?.data?.error || "Error asignando cliente");
+      notify(err?.response?.data?.error || "Error asignando cliente");
     } finally {
       setAssigning(false);
     }

@@ -5,6 +5,7 @@ import api from "../services/api";
 import { getAuthToken } from "../utils";
 import { useAuth } from "../context/AuthContext";
 import { NeoCard, NeoButton, NeoInput, NeoBadge } from "@guru/ui";
+import { notify } from "../lib/dialogs";
 
 const getAPIUrl = () => {
   if (typeof window === "undefined") return "http://localhost:3000";
@@ -276,7 +277,7 @@ const Cases: React.FC = () => {
       await fetchCases();
     } catch (err: any) {
       console.error("Assign case error:", err);
-      alert(err?.response?.data?.error || "Error asignando caso");
+      notify(err?.response?.data?.error || "Error asignando caso");
     } finally {
       setAssigning(false);
     }
@@ -291,7 +292,7 @@ const Cases: React.FC = () => {
       await fetchCases();
     } catch (err: any) {
       console.error("Close case error:", err);
-      alert(err?.response?.data?.error || "Error cerrando caso");
+      notify(err?.response?.data?.error || "Error cerrando caso");
     } finally {
       setClosing(false);
     }
@@ -570,11 +571,11 @@ const Cases: React.FC = () => {
                         setSelectedCase(data.case);
                       } else {
                         console.error('Error resolving case:', response.status, data);
-                        alert(`Error: ${data.error || response.statusText} (${response.status})`);
+                        notify(`Error: ${data.error || response.statusText} (${response.status})`);
                       }
                     } catch (err: any) {
                       console.error('Error resolving case:', err);
-                      alert(`Error: ${err.message}`);
+                      notify(`Error: ${err.message}`);
                     }
                   }}
                 >
@@ -597,11 +598,11 @@ const Cases: React.FC = () => {
                         setSelectedCase(data.case);
                       } else {
                         console.error('Error reopening case:', response.status, data);
-                        alert(`Error: ${data.error || response.statusText} (${response.status})`);
+                        notify(`Error: ${data.error || response.statusText} (${response.status})`);
                       }
                     } catch (err: any) {
                       console.error('Error reopening case:', err);
-                      alert(`Error: ${err.message}`);
+                      notify(`Error: ${err.message}`);
                     }
                   }}
                 >

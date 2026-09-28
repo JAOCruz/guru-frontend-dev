@@ -14,6 +14,7 @@ import {
 import { formatCurrency } from "../../utils";
 import { useUserColors } from "../../context/UserColorsContext";
 import { generateInsight } from "../../services/ai";
+import { confirmDialog, notify } from "../../lib/dialogs";
 
 // --- TIPOS ---
 interface AdminDataTableProps {
@@ -189,14 +190,14 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
   // --- HANDLERS ---
   const handleDelete = async (serviceId: number | undefined) => {
     if (!serviceId) return;
-    if (!window.confirm("¿Eliminar servicio?")) return;
+    if (!await confirmDialog("Se eliminará este servicio de los datos.", { title: "¿Eliminar servicio?", confirmLabel: "Eliminar", danger: true })) return;
     try {
       setDeletingId(serviceId);
       await servicesAPI.deleteService(serviceId);
       onServiceDeleted?.();
     } catch (error) {
       console.error(error);
-      alert("Error al eliminar");
+      notify("Error al eliminar");
     } finally {
       setDeletingId(null);
     }
