@@ -23,6 +23,7 @@ import {
 import api, { getAPIUrl } from "../services/api";
 import { botAPI, BotClient } from "../services/botApi";
 import { useAuth } from "../context/AuthContext";
+import { whatsappAction } from "../lib/quoteActions";
 import { useUserColors } from "../context/UserColorsContext";
 import UserBadge from "../components/UserBadge";
 import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
@@ -560,6 +561,25 @@ export default function Cotizaciones() {
       setGeneratingPdf(false);
     }
   };
+  // Delivers the PDF to the client's WhatsApp (admin, or the employee once approved)
+  const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
+  const handleSendWhatsapp = async () => {
+    if (!selectedQuotation) return;
+    setSendingWhatsapp(true);
+    try {
+      await botAPI.sendInvoiceWhatsapp(selectedQuotation.id);
+      const list = await fetchQuotations();
+      const refreshed = list.find((q) => q.id === selectedQuotation.id);
+      if (refreshed) setSelectedQuotation(refreshed);
+      alert("Documento enviado al cliente por WhatsApp.");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.response?.data?.error || "No se pudo enviar por WhatsApp. Verifica que el bot esté conectado.");
+    } finally {
+      setSendingWhatsapp(false);
+    }
+  };
+
   const handleSendInvoice = async () => {
     if (!selectedQuotation) return;
     setSending(true);
@@ -1233,6 +1253,31 @@ export default function Cotizaciones() {
                         <Send size={16} />
                       )}
                       Enviar documento
+                    </NeoButton>
+                  </div>
+                )}
+
+              {selectedQuotation.client_phone &&
+                whatsappAction({
+                  isAdmin,
+                  isOwner: selectedQuotation.created_by === user?.id,
+                  status: selectedQuotation.status,
+                }) === "send" && (
+                  <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
+                    <NeoButton
+                      onClick={handleSendWhatsapp}
+                      disabled={sendingWhatsapp}
+                      variant="neutral"
+                      className="flex-1"
+                    >
+                      {sendingWhatsapp ? (
+                        <RefreshCw size={16} className="mr-1 animate-spin" />
+                      ) : (
+                        <Send size={16} />
+                      )}
+                      {isAdmin && selectedQuotation.status === "pending_approval"
+                        ? "Aprobar y enviar por WhatsApp"
+                        : "Enviar por WhatsApp"}
                     </NeoButton>
                   </div>
                 )}

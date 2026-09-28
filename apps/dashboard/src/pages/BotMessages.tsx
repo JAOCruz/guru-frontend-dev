@@ -3,6 +3,7 @@ import UserBadge from "../components/UserBadge";
 import { botAPI, getBotApiBaseURL, catalogUnitPrice, type ServiceCatalogItem, type Invoice, type ClientMedia } from "../services/botApi";
 import { getAuthToken, fetchAuthenticatedFile, formatCurrency, preventDecimalInput } from "../utils";
 import { useAuth } from "../context/AuthContext";
+import { whatsappAction } from "../lib/quoteActions";
 import { NeoCard, NeoButton, NeoInput, NeoBadge } from "@guru/ui";
 import {
   MessageSquare,
@@ -701,6 +702,7 @@ const BotMessages: React.FC = () => {
   const [quotePdfFullscreen, setQuotePdfFullscreen] = useState(false);
   const [quoteSending, setQuoteSending] = useState(false);
   const [quoteSent, setQuoteSent] = useState(false);
+  const [quoteApprovalRequested, setQuoteApprovalRequested] = useState(false);
   const [catalogQuery, setCatalogQuery] = useState("");
   const [catalogResults, setCatalogResults] = useState<ServiceCatalogItem[]>([]);
   const [catalogSearching, setCatalogSearching] = useState(false);
@@ -1247,7 +1249,7 @@ const BotMessages: React.FC = () => {
     setQuoteNotes("");
     setQuoteError(null);
     setQuoteInvoice(null);
-    setQuoteSent(false);
+    setQuoteSent(false); setQuoteApprovalRequested(false);
     setQuoteSending(false);
     setQuotePdfFullscreen(false);
     setCatalogQuery("");
@@ -1321,7 +1323,7 @@ const BotMessages: React.FC = () => {
     }
     setQuoteGenerating(true);
     setQuoteError(null);
-    setQuoteSent(false);
+    setQuoteSent(false); setQuoteApprovalRequested(false);
     try {
       const waName = selectedConv?.client_name;
       const clientName =
@@ -1354,6 +1356,21 @@ const BotMessages: React.FC = () => {
       );
     } finally {
       setQuoteGenerating(false);
+    }
+  };
+
+  // Employees can't send straight to the client: the quote goes to the admin first
+  const handleRequestQuoteApproval = async () => {
+    if (!quoteInvoice || quoteSending || quoteApprovalRequested) return;
+    setQuoteSending(true);
+    setQuoteError(null);
+    try {
+      await botAPI.requestInvoiceApproval(quoteInvoice.id);
+      setQuoteApprovalRequested(true);
+    } catch (err: any) {
+      setQuoteError(err?.response?.data?.error || "No se pudo enviar al admin. Inténtalo de nuevo.");
+    } finally {
+      setQuoteSending(false);
     }
   };
 
@@ -2412,7 +2429,7 @@ const BotMessages: React.FC = () => {
                       variant="neutral"
                       onClick={() => {
                         setQuoteInvoice(null);
-                        setQuoteSent(false);
+                        setQuoteSent(false); setQuoteApprovalRequested(false);
                       }}
                     >
                       Volver a editar
@@ -2452,6 +2469,12 @@ const BotMessages: React.FC = () => {
                   )}
 
                   {/* Sent confirmation */}
+                  {quoteApprovalRequested && (
+                    <p className="mb-3 rounded-base border-2 border-border bg-main px-3 py-2 font-base text-sm font-semibold text-main-foreground">
+                      ✓ Enviada al admin para aprobación. Cuando la apruebe, se envía al cliente desde Cotizaciones.
+                    </p>
+                  )}
+
                   {quoteSent && (
                     <p className="mb-3 rounded-base border-2 border-border bg-main px-3 py-2 font-base text-sm font-semibold text-main-foreground">
                       ✓ {quoteType === "FACTURA" ? "Factura" : "Cotización"} enviada al cliente por
@@ -2487,18 +2510,33 @@ const BotMessages: React.FC = () => {
                   <NeoButton type="button" variant="neutral" onClick={closeQuoteModal}>
                     Cerrar
                   </NeoButton>
-                  <NeoButton
-                    type="button"
-                    onClick={handleSendQuoteWhatsapp}
-                    disabled={quoteSending || quoteSent || !quotePdfUrl}
-                  >
-                    {quoteSending ? (
-                      <RefreshCw size={16} className="animate-spin" />
-                    ) : (
-                      <Send size={16} />
-                    )}
-                    {quoteSent ? "Enviada" : quoteSending ? "Enviando..." : "Enviar por WhatsApp"}
-                  </NeoButton>
+                  {whatsappAction({ isAdmin, isOwner: true, status: quoteInvoice.status }) === "send" ? (
+                    <NeoButton
+                      type="button"
+                      onClick={handleSendQuoteWhatsapp}
+                      disabled={quoteSending || quoteSent || !quotePdfUrl}
+                    >
+                      {quoteSending ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <Send size={16} />
+                      )}
+                      {quoteSent ? "Enviada" : quoteSending ? "Enviando..." : "Enviar por WhatsApp"}
+                    </NeoButton>
+                  ) : (
+                    <NeoButton
+                      type="button"
+                      onClick={handleRequestQuoteApproval}
+                      disabled={quoteSending || quoteApprovalRequested}
+                    >
+                      {quoteSending ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <Send size={16} />
+                      )}
+                      {quoteApprovalRequested ? "Enviada al admin" : quoteSending ? "Enviando..." : "Pedir aprobación al admin"}
+                    </NeoButton>
+                  )}
                 </>
               )}
             </div>

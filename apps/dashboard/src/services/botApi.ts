@@ -472,6 +472,10 @@ export const botAPI = {
   sendInvoiceWhatsapp: (id: number | string) =>
     botApi.post<{ invoice: Invoice; message: string }>(`/invoices/${id}/send-whatsapp`),
 
+  /** POST /api/invoices/:id/request-approval — employee draft -> pending_approval (admin must approve before sending) */
+  requestInvoiceApproval: (id: number | string) =>
+    botApi.post<{ invoice: Invoice; message: string }>(`/invoices/${id}/request-approval`),
+
   /** GET /api/invoices/:id/pdf — full URL; download via fetchAuthenticatedFile (Bearer + blob) */
   getInvoicePdfUrl: (id: number | string): string =>
     `${BOT_API_URL}/invoices/${id}/pdf`,
