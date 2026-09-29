@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Center, ContactShadows, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { dprRange, hasWebGL } from "../three/owl/webgl";
 
 export interface ModelStageProps {
   url: string;
@@ -93,9 +94,11 @@ export default function ModelStage(props: ModelStageProps) {
   const [near, setNear] = useState(false);
   const [visible, setVisible] = useState(false);
 
+  const [canRender] = useState(hasWebGL);
+
   useEffect(() => {
     bindPointer();
-    if (!wrap.current) return;
+    if (!wrap.current || !canRender) return;
     const io = new IntersectionObserver(
       ([e]) => {
         setVisible(e.isIntersecting);
@@ -105,14 +108,14 @@ export default function ModelStage(props: ModelStageProps) {
     );
     io.observe(wrap.current);
     return () => io.disconnect();
-  }, []);
+  }, [canRender]);
 
   return (
     <div ref={wrap} className="absolute inset-0">
-      {near && (
+      {near && canRender && (
         <Canvas
           frameloop={visible ? "always" : "never"}
-          dpr={[1, 1.75]}
+          dpr={dprRange()}
           camera={{ position: [0, 0.4, props.cameraZ ?? 5], fov: 35 }}
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         >

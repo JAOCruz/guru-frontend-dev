@@ -80,3 +80,9 @@ body {
 /* The 3D typewriter shakes a little while it "types" */
 @keyframes type-jitter { 0% { transform: translate(0, 0); } 100% { transform: translate(0.5px, -1px); } }
 @media (prefers-reduced-motion: reduce) { [class*="type-jitter"] { animation: none !important; } }
+
+/* Lenis smooth scroll (see src/lib/smoothScroll.ts): it replaces the native smooth behaviour */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
