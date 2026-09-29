@@ -15,6 +15,7 @@ const CATEGORIES: { key: ActivityCategory; label: string; cls: string }[] = [
   { key: "asignaciones", label: "Asignaciones", cls: "bg-purple-100" },
   { key: "servicios", label: "Servicios", cls: "bg-green-100" },
   { key: "seguridad", label: "Seguridad", cls: "bg-red-100" },
+  { key: "documentos", label: "Documentos", cls: "bg-teal-100" },
 ];
 const categoryInfo = (key: string) => CATEGORIES.find((c) => c.key === key) ?? { key, label: key, cls: "bg-gray-100" };
 

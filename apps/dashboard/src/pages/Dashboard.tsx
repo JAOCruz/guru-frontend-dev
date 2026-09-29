@@ -32,6 +32,7 @@ import { useUserColors } from "../context/UserColorsContext";
 import { Zap, Eye, EyeOff } from "lucide-react";
 import { payrollColumns } from "../lib/payroll";
 import { formatCurrency } from "../utils";
+import Documentos from "./Documentos";
 
 
 const Dashboard: React.FC = () => {
@@ -419,7 +420,8 @@ const Dashboard: React.FC = () => {
           path="/ai-insights"
           element={isAdmin ? <AIInsights /> : <AIGuru />}
         />
-        <Route path="/documents" element={<DocumentManagement />} />
+        <Route path="/documents" element={<Documentos />} />
+        <Route path="/documents/anterior" element={<DocumentManagement />} />
         <Route path="/laws" element={<Laws />} />
         <Route
           path="/motherbrain"

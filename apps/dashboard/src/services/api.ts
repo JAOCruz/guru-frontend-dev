@@ -179,7 +179,7 @@ export const adminUsersAPI = {
   reactivate: (id: number) => api.post<{ user: AdminUser }>(`/admin/users/${id}/reactivate`),
 };
 
-export type ActivityCategory = "usuarios" | "facturas" | "asignaciones" | "servicios" | "seguridad";
+export type ActivityCategory = "usuarios" | "facturas" | "asignaciones" | "servicios" | "seguridad" | "documentos";
 
 export interface ActivityItem {
   id: number;
