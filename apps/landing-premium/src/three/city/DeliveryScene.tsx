@@ -66,11 +66,16 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
       }
     });
     d.visible = false;
-    caseLid.current = d.getObjectByName("Lid") ?? null;
-    caseSheet.current = d.getObjectByName("CaseDocument") ?? null;
-    caseSheetY.current = caseSheet.current?.position.y ?? 0;
     return d;
   }, [gltf]);
+  // resolve the lid / sheet from the mounted clone (not inside useMemo: StrictMode runs the factory twice)
+  const caseParts = (fd: THREE.Object3D) => {
+    if (caseLid.current?.parent !== fd) {
+      caseLid.current = fd.getObjectByName("Lid") ?? null;
+      caseSheet.current = fd.getObjectByName("CaseDocument") ?? null;
+      caseSheetY.current = caseSheet.current?.position.y ?? 0;
+    }
+  };
 
   useEffect(() => {
     scene.fog = new THREE.Fog("#0b1466", 45, 150);
@@ -162,6 +167,7 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
     // ---- the briefcase is set down on the mat: gentle descent, small bounce, then the lid opens and the sheet peeks
     const fd = fallingDoc.current;
     if (fd) {
+      caseParts(fd);
       if (drop <= 0) {
         fd.visible = false;
         if (owl.current) owl.current.caseWorld(dropFrom.current, dropQuat.current);
