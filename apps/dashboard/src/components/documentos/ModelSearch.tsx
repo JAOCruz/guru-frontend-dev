@@ -99,8 +99,18 @@ export default function ModelSearch() {
               <NeoButton size="sm" variant="neutral" onClick={() => download(m, "pdf")} aria-label={`Descargar PDF de ${m.name}`}>
                 <FileDown size={14} /> PDF
               </NeoButton>
-              <NeoButton size="sm" variant="neutral" disabled title="Próximamente: Generación (Fase 2)">
-                <UserPlus size={14} /> Personalizar
+              <NeoButton
+                size="sm"
+                variant="neutral"
+                title="Próximamente: Generación (Fase 2)"
+                onClick={() =>
+                  notify(
+                    "Próximamente: personalizar este modelo con los datos de un cliente (fotos, audios, datos) llegará con Generación, la siguiente fase.",
+                    "info",
+                  )
+                }
+              >
+                <UserPlus size={14} /> Personalizar <span className="rounded-full bg-foreground/10 px-1.5 text-[10px]">pronto</span>
               </NeoButton>
             </div>
           </li>
