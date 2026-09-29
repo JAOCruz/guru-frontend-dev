@@ -30,7 +30,7 @@ export const ROUTE_POINTS = [
   new THREE.Vector3(4, 9.2, -17),
   new THREE.Vector3(12, 8.0, -10),
   new THREE.Vector3(18, 6.0, -3),
-  new THREE.Vector3(DOOR.x, 3.9, DOOR.z + 2.4),
+  new THREE.Vector3(DOOR.x, 3.5, DOOR.z + 2.4),
 ];
 
 export const route = new THREE.CatmullRomCurve3(ROUTE_POINTS, false, "centripetal", 0.4);

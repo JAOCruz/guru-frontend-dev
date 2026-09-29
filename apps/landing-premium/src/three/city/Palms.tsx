@@ -14,18 +14,39 @@ export default function Palms({ count }: { count: number }) {
     return g;
   }, []);
   const crownGeo = useMemo(() => {
-    const leaves: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 7; i++) {
-      const leaf = new THREE.ConeGeometry(0.42, 2.6, 4, 1);
-      leaf.scale(1, 1, 0.3);
-      leaf.translate(0, 1.3, 0);
-      leaf.rotateX(Math.PI / 2 + 0.7); // droop outward
-      leaf.rotateY((i / 7) * Math.PI * 2);
-      leaves.push(leaf);
+    // each frond is a strip that rises a little then droops in a smooth arc, tapering to the tip
+    const frond = (len: number, droop: number) => {
+      const N = 9;
+      const pos: number[] = [];
+      const idx: number[] = [];
+      for (let i = 0; i <= N; i++) {
+        const t = i / N;
+        const z = t * len;
+        const y = 0.45 * Math.sin(t * Math.PI * 0.5) - droop * t * t;
+        const w = 0.34 * Math.sin(Math.PI * Math.pow(t, 0.6)) + 0.03;
+        pos.push(-w, y, z, w, y, z);
+        if (i < N) {
+          const a = i * 2;
+          idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      return g;
+    };
+    const parts: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 9; i++) {
+      const f = frond(2.4 + (i % 3) * 0.35, 1.0 + (i % 2) * 0.35);
+      f.rotateX(-0.15 - (i % 2) * 0.2);
+      f.rotateY((i / 9) * Math.PI * 2 + (i % 2) * 0.2);
+      parts.push(f);
     }
-    const nut = new THREE.SphereGeometry(0.28, 6, 5);
-    leaves.push(nut);
-    return mergeGeometries(leaves, false)!;
+    const nut = new THREE.SphereGeometry(0.3, 8, 6);
+    nut.deleteAttribute("uv");
+    parts.push(nut);
+    return mergeGeometries(parts, false)!;
   }, []);
 
   const spots = useMemo(() => {
@@ -65,7 +86,7 @@ export default function Palms({ count }: { count: number }) {
         <meshStandardMaterial color="#3d2a1a" roughness={0.9} />
       </instancedMesh>
       <instancedMesh ref={crownRef} args={[crownGeo, undefined, spots.length]} frustumCulled={false}>
-        <meshStandardMaterial color="#0f6b3f" roughness={0.8} emissive="#00c853" emissiveIntensity={0.12} flatShading />
+        <meshStandardMaterial color="#0f6b3f" roughness={0.8} emissive="#00c853" emissiveIntensity={0.12} side={THREE.DoubleSide} />
       </instancedMesh>
     </>
   );

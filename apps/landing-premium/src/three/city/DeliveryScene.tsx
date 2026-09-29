@@ -117,7 +117,9 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
       const hoverY = landing * (0.4 + 0.15 * Math.sin(performance.now() * 0.004));
       g.position.set(_p.x, _p.y + hoverY, _p.z);
       // face the route while flying; face the camera (door front) when landing
-      const faceYaw = landing > 0 ? THREE.MathUtils.lerp(yaw, 0.35, easeInOut(landing)) : yaw;
+      // faces the camera on the roof, turns into the route as it lifts off, faces the door when landing
+      const flyYaw = THREE.MathUtils.lerp(0.2, yaw, easeInOut(clamp01(fly / 0.06)));
+      const faceYaw = landing > 0 ? THREE.MathUtils.lerp(yaw, 0.35, easeInOut(landing)) : flyYaw;
       g.rotation.y = faceYaw;
     }
 
@@ -139,13 +141,13 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
     }
 
     // ---- camera
-    const back = mobile ? 13 : 11.5, up = mobile ? 6.5 : 5.5, side = mobile ? 1.5 : 3.5;
+    const back = mobile ? 11.5 : 9.5, up = mobile ? 5.5 : 4.4, side = mobile ? 1.2 : 3.0;
     if (p < TAKEOFF_END + 0.02 && fly < 0.02) {
-      _camT.set(OFFICE.x + 3, 9, OFFICE.z + (mobile ? 16 : 13));
-      _lookT.set(OFFICE.x, 3.6 + (mobile ? 1.4 : 0), OFFICE.z);
+      _camT.set(OFFICE.x + 2.5, 6.6, OFFICE.z + (mobile ? 11 : 8.5));
+      _lookT.set(OFFICE.x, 4.0 + (mobile ? 1.2 : 0), OFFICE.z);
     } else if (landing > 0) {
-      _camT.set(DOOR.x + (mobile ? 1 : 6.5), 5.5, DOOR.z + (mobile ? 17 : 14));
-      _lookT.set(DOOR.x, 2.0 + (mobile ? 1.6 : 0.2), DOOR.z + 1.5);
+      _camT.set(DOOR.x + (mobile ? 0.8 : 4.5), 5.4, DOOR.z + (mobile ? 13 : 10.5));
+      _lookT.set(DOOR.x, 2.9 + (mobile ? 1.4 : 0.2), DOOR.z + 1.5);
       _side.crossVectors(_tan, UP).normalize();
       _p2.copy(_p).addScaledVector(_tan, -back).addScaledVector(UP, up).addScaledVector(_side, side);
       _camT.lerp(_p2, 1 - easeInOut(landing));
@@ -174,7 +176,7 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
       <Palms count={mobile ? 10 : 24} />
       <Office />
       <DoorHouse delivered={delivered} />
-      <Pin position={[OFFICE.x, OFFICE.h + 1.2, OFFICE.z]} color="#1f3dff" text="Gurú · La Feria" bg="#1f3dff" fg="#ffffff" />
+      <Pin position={[OFFICE.x - 0.4, OFFICE.h + 3.0, OFFICE.z - 2.2]} color="#1f3dff" text="Gurú · La Feria" bg="#1f3dff" fg="#ffffff" />
       <Pin position={[DOOR.x, DOOR.h + 1.6, DOOR.z]} color="#00c853" text="Tu puerta" bg="#00c853" fg="#0b0b0c" pulse />
       <Route progress={routeT} />
       <group ref={owlGroup} position={[OFFICE.x, OFFICE.h, OFFICE.z]}>

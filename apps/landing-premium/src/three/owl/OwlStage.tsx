@@ -58,9 +58,9 @@ export default function OwlStage({ progress, fallbackSrc }: OwlStageProps) {
             gl.toneMapping = 3; // ACESFilmic
           }}
         >
-          <StageEnv intensity={0.22} />
+          <StageEnv intensity={0.18} />
           <hemisphereLight args={["#cfdcff", "#120c24", 0.35]} />
-          <directionalLight position={[3.5, 5, 4]} intensity={1.7} color="#fff1dc" />
+          <directionalLight position={[3.5, 5, 4]} intensity={1.35} color="#fff1dc" />
           <directionalLight position={[-4, 1.5, 2]} intensity={0.6} color="#1f3dff" />
           <spotLight position={[-2.5, 3, -3]} intensity={14} color="#00c853" angle={0.6} penumbra={0.8} />
           <Suspense fallback={null}>

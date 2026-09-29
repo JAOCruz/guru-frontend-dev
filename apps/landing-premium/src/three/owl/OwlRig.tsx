@@ -82,17 +82,53 @@ export function useOwlClone() {
         g.color.set("#9fc2ff");
         m.material = g;
         m.renderOrder = 2;
-      } else if (m.name.startsWith("Sclera")) {
-        const g = mat.clone();
-        g.roughness = 0.2;
-        g.emissive.set("#2a2a28");
+      } else if (m.name.startsWith("Sclera") || m.name.startsWith("Iris") || m.name.startsWith("Pupil")) {
+        // wet, glossy eyes
+        const g = new THREE.MeshPhysicalMaterial({
+          color: mat.color,
+          roughness: m.name.startsWith("Sclera") ? 0.12 : 0.2,
+          metalness: 0,
+          clearcoat: 1,
+          clearcoatRoughness: 0.08,
+          envMapIntensity: 1.2,
+        });
+        if (m.name.startsWith("Sclera")) g.emissive.set("#26262a");
         m.material = g;
       } else if (m.name.startsWith("Shine")) {
         const g = mat.clone();
         g.emissive.set("#ffffff");
-        g.emissiveIntensity = 1.4;
+        g.emissiveIntensity = 1.6;
         m.material = g;
         m.renderOrder = 3;
+      } else if (mat.name.startsWith("V_") && !(mat as unknown as { __feather?: boolean }).__feather) {
+        (mat as unknown as { __feather?: boolean }).__feather = true;
+        mat.vertexColors = true;
+        mat.roughness = 0.85;
+        mat.onBeforeCompile = (shader) => {
+          shader.vertexShader = shader.vertexShader
+            .replace("#include <common>", "#include <common>\nvarying vec3 vFp;")
+            .replace("#include <begin_vertex>", "#include <begin_vertex>\nvFp = position;");
+          shader.fragmentShader = shader.fragmentShader
+            .replace("#include <common>", "#include <common>\nvarying vec3 vFp;")
+            .replace(
+              "#include <normal_fragment_maps>",
+              `#include <normal_fragment_maps>
+              {
+                // fine feather barbs: scalloped ridges running down the body, jittered per column
+                float col = floor(vFp.x * 40.0 + sin(vFp.y * 11.0) * 0.6);
+                float ph = fract(sin(col * 12.9898) * 43758.5453) * 6.283;
+                float barb = sin(vFp.y * 90.0 + ph + vFp.z * 8.0);
+                vec3 bump = vec3(0.0, barb, 0.0) * 0.045;
+                normal = normalize(normal + bump);
+              }`,
+            )
+            .replace(
+              "#include <roughnessmap_fragment>",
+              `#include <roughnessmap_fragment>
+              roughnessFactor = clamp(roughnessFactor + 0.05 * sin(vFp.y * 90.0 + vFp.x * 40.0), 0.6, 1.0);`,
+            );
+        };
+        mat.needsUpdate = true;
       } else if (m.name.startsWith("Paper")) {
         const g = mat.clone();
         g.side = THREE.DoubleSide;
@@ -286,7 +322,6 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     const lidX = THREE.MathUtils.lerp(rest.lidOpen, LID_CLOSED, s.blink);
     rig.lidL.rotation.x = lidX;
     rig.lidR.rotation.x = lidX;
-    rig.lidL.visible = rig.lidR.visible = s.blink > 0.03;
 
     // ---- glasses glint + push-up nudge
     if (!staticPose) {
