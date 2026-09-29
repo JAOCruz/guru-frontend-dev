@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -26,6 +26,17 @@ export interface OwlRigProps {
   scale?: number;
   position?: [number, number, number];
   rotation?: [number, number, number];
+  drive?: RefObject<OwlDrive>;
+}
+
+/** Per-frame steering without React re-renders (values here override the props of the same name). */
+export interface OwlDrive {
+  flight?: number;
+  bank?: number;
+  pitch?: number;
+  docRaise?: number;
+  document?: "auto" | "hidden";
+  flapHz?: number;
 }
 
 export interface OwlRigHandle {
@@ -103,17 +114,18 @@ function node(root: THREE.Object3D, name: string): THREE.Object3D {
 
 const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
   {
-    flight = 0,
-    flapHz = 3.2,
-    bank = 0,
-    pitch = 0,
+    flight: flightProp = 0,
+    flapHz: flapHzProp = 3.2,
+    bank: bankProp = 0,
+    pitch: pitchProp = 0,
     followPointer = true,
-    docRaise = 0,
-    document = "auto",
+    docRaise: docRaiseProp = 0,
+    document: documentProp = "auto",
     animate = true,
     scale = 1,
     position,
     rotation,
+    drive,
   },
   ref,
 ) {
@@ -142,9 +154,6 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     const lensL = node(owl, "LensL");
     const lensR = node(owl, "LensR");
 
-    // wing-plane feathers: rotate the fan so it lies in the wing's plane and sweeps backward
-    feathersL.rotation.set(0, Math.PI / 2, 0);
-    feathersR.rotation.set(0, -Math.PI / 2, 0);
 
     // glasses glint: a thin white streak that sweeps across each lens
     const glintGeo = new THREE.PlaneGeometry(0.05, 0.3);
@@ -181,7 +190,7 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
   // ---- animation state (mutable, no re-renders)
   const st = useRef({
     t: Math.random() * 10,
-    flight: flight,
+    flight: drive?.current?.flight ?? flightProp,
     yaw: 0, pitch: 0, eyeYaw: 0, eyePitch: 0,
     blink: 0, nextBlink: 1.5 + Math.random() * 3, blinkT: -1, doubleBlink: false,
     glint: -1, nextGlint: 2 + Math.random() * 4, glintSide: 0,
@@ -207,6 +216,13 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
   const applyPose = (dt: number, staticPose: boolean) => {
     const s = st.current;
     const { rest } = rig;
+    const d = drive?.current;
+    const flight = d?.flight ?? flightProp;
+    const bank = d?.bank ?? bankProp;
+    const pitch = d?.pitch ?? pitchProp;
+    const docRaise = d?.docRaise ?? docRaiseProp;
+    const document = d?.document ?? documentProp;
+    const flapHz = d?.flapHz ?? flapHzProp;
     if (!staticPose) s.t += dt;
     const t = s.t;
     s.flight = staticPose ? flight : smooth(s.flight, flight, 4, dt);
@@ -328,7 +344,7 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
       _q.multiply(_q3);
       wing.quaternion.copy(_q2).slerp(_q, f);
       const feathers = side > 0 ? rig.feathersL : rig.feathersR;
-      const fs = Math.max(0.001, f);
+      const fs = Math.max(0.001, f * 1.35);
       feathers.scale.setScalar(fs);
       feathers.rotation.z = -side * 0.22 * Math.sin(t * flapHz * Math.PI * 2 - 0.9) * f;
     }

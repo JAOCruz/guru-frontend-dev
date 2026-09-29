@@ -27,6 +27,8 @@ function Presenter({ progress, animate }: { progress?: MotionValue<number>; anim
       setRaise(q);
     }
   });
+  const debugFlight = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("owl") === "flight";
+  if (debugFlight) return <OwlRig position={[0, -0.6, 0]} scale={0.9} rotation={[0, 0.6, 0]} flight={1} animate={animate} followPointer={false} />;
   return <OwlRig position={[0, -1.22, 0]} scale={1.02} docRaise={raise} animate={animate} followPointer />;
 }
 

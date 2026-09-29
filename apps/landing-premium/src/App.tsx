@@ -6,6 +6,7 @@ import About from "./components/About";
 import VideoBlock from "./components/VideoBlock";
 import GuruOwl from "./components/GuruOwl";
 import BriefcaseServices from "./components/BriefcaseServices";
+import Delivery from "./components/Delivery";
 import Testimonials from "./components/Testimonials";
 import Dominican from "./components/Dominican";
 import CtaBand from "./components/CtaBand";
@@ -22,6 +23,7 @@ export default function App() {
       <main>
         <Hero />
         <BriefcaseServices />
+        <Delivery />
         <VideoBlock />
         <GuruOwl />
         <Marquee />
