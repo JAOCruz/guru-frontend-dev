@@ -81,6 +81,7 @@ export default function Delivery() {
   const [reduced, setReduced] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [delivered, setDelivered] = useState(false);
+  const done = useMotionValue(1);
 
   useEffect(() => {
     setGl(hasWebGL());
@@ -120,7 +121,7 @@ export default function Delivery() {
         </div>
         {/* readability scrim behind the panel side */}
         <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[520px] bg-[linear-gradient(90deg,rgb(6_10_43/0.55),transparent)] md:block" />
-        <Panel progress={progress} />
+        <Panel progress={reduced ? done : progress} />
         <Badge show={delivered || reduced} />
         {!reduced && (
           <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 items-center gap-2 rounded-full border-2 border-ink bg-paper px-3 py-1 text-xs font-bold uppercase tracking-wider text-ink md:flex">
