@@ -17,10 +17,10 @@ export interface OwlRigProps {
   pitch?: number;
   /** Head + eyes follow the pointer (presenter mode) */
   followPointer?: boolean;
-  /** 0..1 lifts the document to read it; the head tilts down */
-  docRaise?: number;
-  /** Where the document is. `auto` = hands/talons by flight amount; `hidden` = not rendered */
-  document?: "auto" | "hidden";
+  /** 0..1 "proud show": lifts and tilts the briefcase toward the camera; the lid peeks open around the middle */
+  show?: number;
+  /** Where the briefcase is. `auto` = hands/talons by flight amount; `hidden` = not rendered (the scene animates its own) */
+  briefcase?: "auto" | "hidden";
   /** false = one static pose (reduced motion) */
   animate?: boolean;
   scale?: number;
@@ -34,8 +34,8 @@ export interface OwlDrive {
   flight?: number;
   bank?: number;
   pitch?: number;
-  docRaise?: number;
-  document?: "auto" | "hidden";
+  show?: number;
+  briefcase?: "auto" | "hidden";
   flapHz?: number;
   /** 0..1 flap strength. Omitted = the owl alternates flapping bursts and glides on its own. */
   flapPower?: number;
@@ -45,8 +45,10 @@ export interface OwlDrive {
 
 export interface OwlRigHandle {
   root: THREE.Group | null;
-  /** World-space position of the talons' grip (where the document hangs in flight) */
+  /** World-space position of the talons' grip (where the briefcase handle hangs in flight) */
   gripWorld: (out: THREE.Vector3) => THREE.Vector3;
+  /** World-space pose of the carried briefcase (to hand it over to the scene seamlessly) */
+  caseWorld: (pos: THREE.Vector3, quat: THREE.Quaternion) => void;
 }
 
 const DEG = Math.PI / 180;
@@ -54,6 +56,10 @@ const LID_CLOSED = 0; // rotation.x of LidL/LidR when closed (the file's rest po
 const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 const _q3 = new THREE.Quaternion();
+const _qh = new THREE.Quaternion();
+const _eh = new THREE.Euler();
+const _v = new THREE.Vector3();
+const _v2 = new THREE.Vector3();
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -138,8 +144,8 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     bank: bankProp = 0,
     pitch: pitchProp = 0,
     followPointer = true,
-    docRaise: docRaiseProp = 0,
-    document: documentProp = "auto",
+    show: showProp = 0,
+    briefcase: briefcaseProp = "auto",
     animate = true,
     scale = 1,
     position,
@@ -161,7 +167,9 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     const feathersR = node(owl, "FeathersR");
     const talonL = node(owl, "TalonL");
     const talonR = node(owl, "TalonR");
-    const doc = node(owl, "Document");
+    const doc = node(owl, "Briefcase");
+    const lid = node(owl, "Lid");
+    const caseDoc = node(owl, "CaseDocument");
     const body = node(owl, "Body");
     const eyeL = node(owl, "EyeL");
     const eyeR = node(owl, "EyeR");
@@ -186,7 +194,7 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     });
 
     return {
-      head, wingL, wingR, feathersL, feathersR, talonL, talonR, doc, body, eyeL, eyeR, lidL, lidR, tuftL, tuftR, glasses, glints,
+      head, wingL, wingR, feathersL, feathersR, talonL, talonR, doc, lid, caseDoc, body, eyeL, eyeR, lidL, lidR, tuftL, tuftR, glasses, glints,
       rest: {
         head: head.rotation.clone(),
         headPos: head.position.clone(),
@@ -196,6 +204,7 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
         talonR: talonR.rotation.clone(),
         docPos: doc.position.clone(),
         docRot: doc.rotation.clone(),
+        caseDocPos: caseDoc.position.clone(),
         lidOpen: lidL.rotation.x,
         tuftL: tuftL.rotation.clone(),
         tuftR: tuftR.rotation.clone(),
@@ -217,6 +226,9 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     nudge: -1, nextNudge: 14 + Math.random() * 10,
     raise: 0,
     phase: Math.random(), power: 1, flare: 0,
+    // briefcase pendulum (fore-aft, lateral) + world motion tracking
+    swX: 0, swZ: 0, swVX: 0, swVZ: 0,
+    wp: new THREE.Vector3(), wv: new THREE.Vector3(), wa: new THREE.Vector3(), wq: new THREE.Quaternion(), wInit: false,
     rectCheck: 0, cx: 0.5, cy: 0.5,
   });
 
@@ -232,6 +244,10 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
       out.set(0, -0.02, 0.15);
       return rootRef.current ? rootRef.current.localToWorld(out) : out;
     },
+    caseWorld: (pos: THREE.Vector3, quat: THREE.Quaternion) => {
+      rig.doc.getWorldPosition(pos);
+      rig.doc.getWorldQuaternion(quat);
+    },
   }));
 
   const applyPose = (dt: number, staticPose: boolean) => {
@@ -241,8 +257,8 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     const flight = d?.flight ?? flightProp;
     const bank = d?.bank ?? bankProp;
     const pitch = d?.pitch ?? pitchProp;
-    const docRaise = d?.docRaise ?? docRaiseProp;
-    const document = d?.document ?? documentProp;
+    const show = d?.show ?? showProp;
+    const briefcase = d?.briefcase ?? briefcaseProp;
     const flapHz = d?.flapHz ?? flapHzProp;
     const flareT = d?.flare ?? 0;
     if (!staticPose) s.t += dt;
@@ -389,7 +405,7 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     rig.tuftR.rotation.z = rest.tuftR.z - Math.sin(t * 2.6 + 0.9) * flut;
 
     // ---- wings: rest (holding the paper) ⟷ flapping / gliding / flaring
-    s.raise = staticPose ? docRaise : damp(s.raise, docRaise, 3, dt);
+    s.raise = staticPose ? show : damp(s.raise, show, 3, dt);
     const glide = 1 - s.power;
     const spreadBase = 88 * DEG + 6 * DEG * glide + 22 * DEG * s.flare;
     const amp = (34 * DEG + 14 * DEG * s.flare) * s.power + 3 * DEG * glide;
@@ -410,25 +426,69 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     }
 
     // ---- talons: tucked back when flying, reaching down in the flare
-    const talonX = 1.35 * f - 0.9 * s.flare * f;
+    const talonX = 1.5 * f - 0.6 * s.flare * f;
     rig.talonL.rotation.x = rest.talonL.x + talonX;
     rig.talonR.rotation.x = rest.talonR.x + talonX;
 
-    // ---- document: in the hands (raised on scroll) or hanging from the talons
-    if (document === "hidden") {
+    // ---- briefcase: held in front (proud show on scroll) or hanging by the handle from the talons
+    const root = rootRef.current;
+    if (briefcase === "hidden") {
       rig.doc.visible = false;
     } else {
       rig.doc.visible = true;
       const r = s.raise;
-      const hx = rest.docPos.x, hy = rest.docPos.y + 0.34 * r, hz = rest.docPos.z + 0.08 * r;
-      const hrx = rest.docRot.x - 0.5 * r;
-      const swing = Math.sin(t * 1.9) * 0.05 * f + s.bank * 0.3 * f;
-      rig.doc.position.set(THREE.MathUtils.lerp(hx, 0, f), THREE.MathUtils.lerp(hy, -0.16, f), THREE.MathUtils.lerp(hz, 0.16, f));
-      rig.doc.rotation.set(THREE.MathUtils.lerp(hrx, -Math.PI / 2 + 0.55, f), 0, swing);
+      // lid peeks open around the middle of the show, then closes again
+      const peek = Math.sin(Math.PI * clamp01((r - 0.35) / 0.6)) * (1 - f);
+      rig.lid.rotation.x = -1.25 * ease(peek);
+      rig.caseDoc.position.y = rest.caseDocPos.y + 0.24 * ease(peek);
+      if (f < 0.02) {
+        rig.doc.position.set(rest.docPos.x, rest.docPos.y + 0.24 * r, rest.docPos.z + 0.10 * r);
+        rig.doc.rotation.set(rest.docRot.x + 0.32 * r, 0, 0);
+      } else if (root) {
+        // world motion of the owl → inertial pendulum on the handle (small-angle, spring + damping)
+        root.getWorldPosition(_v);
+        root.getWorldQuaternion(s.wq);
+        if (!s.wInit || staticPose) {
+          s.wInit = true;
+          s.wp.copy(_v);
+          s.wv.set(0, 0, 0);
+          s.wa.set(0, 0, 0);
+        } else {
+          _v2.copy(_v).sub(s.wp).divideScalar(Math.max(dt, 1e-3));
+          s.wa.copy(_v2).sub(s.wv).divideScalar(Math.max(dt, 1e-3));
+          s.wv.copy(_v2);
+          s.wp.copy(_v);
+        }
+        // acceleration in the owl's heading frame (yaw only)
+        const yawW = Math.atan2(2 * (s.wq.w * s.wq.y + s.wq.x * s.wq.z), 1 - 2 * (s.wq.y * s.wq.y + s.wq.x * s.wq.x));
+        const ax = Math.cos(yawW) * s.wa.x - Math.sin(yawW) * s.wa.z; // lateral
+        const az = Math.sin(yawW) * s.wa.x + Math.cos(yawW) * s.wa.z; // along the heading
+        const L = 0.55, g = 9.8, c = 1.6;
+        const drvX = THREE.MathUtils.clamp(-az / L * 0.06, -6, 6) + 0.6 * stroke * s.power; // fore-aft, plus the flap jerk
+        const drvZ = THREE.MathUtils.clamp(ax / L * 0.06, -6, 6) - 3.0 * s.bank;
+        if (!staticPose) {
+          s.swVX += (-(g / L) * s.swX - c * s.swVX + drvX) * dt;
+          s.swVZ += (-(g / L) * s.swZ - c * s.swVZ + drvZ) * dt;
+          s.swX = THREE.MathUtils.clamp(s.swX + s.swVX * dt, -0.6, 0.6);
+          s.swZ = THREE.MathUtils.clamp(s.swZ + s.swVZ * dt, -0.6, 0.6);
+        }
+        // hang vertically in world space (counter the body's pitch/bank), yawed with the heading, then swing
+        _q.setFromAxisAngle(Y_AXIS, yawW);
+        _q2.setFromAxisAngle(X_AXIS, s.swX).multiply(_q3.setFromAxisAngle(Z_AXIS, s.swZ));
+        _q.multiply(_q2); // world orientation of the hanging case
+        _q3.copy(s.wq).invert();
+        _q3.multiply(_q); // → local (root) orientation
+        // blend from the held pose during take-off
+        _qh.setFromEuler(_eh.set(rest.docRot.x, 0, 0));
+        rig.doc.quaternion.copy(_qh).slerp(_q3, f);
+        // the handle top (case-local +0.43 up) sits at the talons' grip
+        _v.set(0, 0.43, 0).applyQuaternion(rig.doc.quaternion);
+        _v2.set(0, -0.02, 0.15).sub(_v);
+        rig.doc.position.set(THREE.MathUtils.lerp(rest.docPos.x, _v2.x, f), THREE.MathUtils.lerp(rest.docPos.y + 0.24 * r, _v2.y, f), THREE.MathUtils.lerp(rest.docPos.z + 0.10 * r, _v2.z, f));
+      }
     }
 
     // ---- whole-body bob / bank / pitch
-    const root = rootRef.current;
     if (root) {
       root.rotation.set((rotation?.[0] ?? 0) + s.pitch * f, rotation?.[1] ?? 0, (rotation?.[2] ?? 0) + s.bank * f);
       root.position.set(position?.[0] ?? 0, (position?.[1] ?? 0) + flightBob + Math.sin(t * 1.1) * 0.012 * idle, position?.[2] ?? 0);

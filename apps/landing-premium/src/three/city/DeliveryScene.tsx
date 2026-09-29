@@ -35,29 +35,40 @@ const _tan = new THREE.Vector3();
 const _side = new THREE.Vector3();
 const _camT = new THREE.Vector3();
 const _lookT = new THREE.Vector3();
-const MAT_POS = new THREE.Vector3(DOOR.x, 0.07, DOOR.z + DOOR.d / 2 + 1.0);
+const MAT_POS = new THREE.Vector3(DOOR.x, 0.47, DOOR.z + DOOR.d / 2 + 1.0); // case centre when standing on the mat
+const _qTarget = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0));
 
 export default function DeliveryScene({ progress, mobile, instant }: Props) {
   const { camera, invalidate, scene } = useThree();
   const owlGroup = useRef<THREE.Group>(null);
   const owl = useRef<OwlRigHandle>(null);
-  const drive = useRef<OwlDrive>({ flight: 0, bank: 0, pitch: 0, flapHz: 3.2, document: "auto" });
+  const drive = useRef<OwlDrive>({ flight: 0, bank: 0, pitch: 0, flapHz: 3.0, briefcase: "auto" });
   const routeT = useRef(0);
   const delivered = useRef(0);
   const look = useRef(new THREE.Vector3(OFFICE.x, 3, OFFICE.z));
   const camInit = useRef(false);
   const fallingDoc = useRef<THREE.Object3D>(null);
   const dropFrom = useRef(new THREE.Vector3());
-  const dropRot = useRef(0);
+  const dropQuat = useRef(new THREE.Quaternion());
+  const caseLid = useRef<THREE.Object3D | null>(null);
+  const caseSheet = useRef<THREE.Object3D | null>(null);
+  const caseSheetY = useRef(0);
 
   const { scene: gltf } = useGLTF(OWL_URL, false, true);
   const docClone = useMemo(() => {
-    const d = gltf.getObjectByName("Document")?.clone(true) ?? new THREE.Group();
+    const d = gltf.getObjectByName("Briefcase")?.clone(true) ?? new THREE.Group();
     d.traverse((o) => {
       const m = o as THREE.Mesh;
-      if (m.isMesh && m.name.startsWith("Paper")) (m.material as THREE.MeshStandardMaterial).side = THREE.DoubleSide;
+      if (m.isMesh && (m.material as THREE.MeshStandardMaterial)?.name?.startsWith("V_")) {
+        const mat = m.material as THREE.MeshStandardMaterial;
+        mat.vertexColors = true;
+        mat.needsUpdate = true;
+      }
     });
     d.visible = false;
+    caseLid.current = d.getObjectByName("Lid") ?? null;
+    caseSheet.current = d.getObjectByName("CaseDocument") ?? null;
+    caseSheetY.current = caseSheet.current?.position.y ?? 0;
     return d;
   }, [gltf]);
 
@@ -119,43 +130,54 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
       (1.0 - Math.asin(THREE.MathUtils.clamp(_tan.y, -1, 1)) * 0.6) * (1 - landing) * easeInOut(clamp01(fly / 0.06)) +
       (0.2 - 0.35 * flare) * landing;
 
-    d.flight = easeInOut(clamp01((takeoff - 0.4) / 0.6));
+    // lands beside the case after letting go (wings fold, back to the standing pose)
+    const aside = easeInOut(drop);
+    d.flight = easeInOut(clamp01((takeoff - 0.4) / 0.6)) * (1 - aside);
     d.bank = bank;
     d.pitch = lean;
     d.flapHz = 3.0;
     d.flare = flare;
     // driven strokes on take-off and landing; the owl chooses bursts/glides on its own while cruising
     d.flapPower = takeoff < 1 ? 1 : landing > 0 ? 1 : fly > 0.97 ? 1 : undefined;
-    d.document = drop > 0 ? "hidden" : "auto";
+    d.briefcase = drop > 0 ? "hidden" : "auto";
 
     const g = owlGroup.current;
     if (g) {
       const hoverY = landing * (0.45 + 0.12 * Math.sin(performance.now() * 0.003)) + settle * 0.35 - crouch * 0.12 + push * 0.18;
-      g.position.set(_p.x, _p.y + hoverY, _p.z);
+      // after letting go, the owl comes down and lands beside the case
+      const lx = DOOR.x + (mobile ? 1.15 : 2.4), ly = 0.02, lz = DOOR.z + (mobile ? 1.3 : 2.4);
+      g.position.set(
+        THREE.MathUtils.lerp(_p.x, lx, aside),
+        THREE.MathUtils.lerp(_p.y + hoverY, ly, aside) + Math.sin(aside * Math.PI) * 0.3,
+        THREE.MathUtils.lerp(_p.z, lz, aside),
+      );
       // squash on the crouch, stretch on the push
       g.scale.set(1 + crouch * 0.05 - push * 0.03, 1 - crouch * 0.09 + push * 0.06, 1 + crouch * 0.05 - push * 0.03);
       // faces the camera on the roof, turns into the route as it lifts off, faces the door when landing
       const flyYaw = THREE.MathUtils.lerp(0.2, yaw, easeInOut(clamp01(fly / 0.06)));
-      const faceYaw = landing > 0 ? THREE.MathUtils.lerp(yaw, 0.35, easeInOut(landing)) : flyYaw;
+      const faceYaw = landing > 0 ? THREE.MathUtils.lerp(yaw, 0.35 - 0.25 * aside, easeInOut(landing)) : flyYaw;
       g.rotation.y = faceYaw;
     }
 
-    // ---- the document leaves the talons in an arc, spins a little and settles on the mat
+    // ---- the briefcase is set down on the mat: gentle descent, small bounce, then the lid opens and the sheet peeks
     const fd = fallingDoc.current;
     if (fd) {
       if (drop <= 0) {
         fd.visible = false;
-        if (owl.current) owl.current.gripWorld(dropFrom.current);
-        dropRot.current = g ? g.rotation.y : 0;
+        if (owl.current) owl.current.caseWorld(dropFrom.current, dropQuat.current);
+        if (caseLid.current) caseLid.current.rotation.x = 0;
+        if (caseSheet.current) caseSheet.current.position.y = caseSheetY.current;
       } else {
         fd.visible = true;
-        const eh = 1 - Math.pow(1 - drop, 2.2); // horizontal ease-out
-        const ev = Math.pow(drop, 1.7); // gravity
-        fd.position.x = THREE.MathUtils.lerp(dropFrom.current.x, MAT_POS.x, eh) + Math.sin(drop * 6) * 0.25 * (1 - drop);
-        fd.position.z = THREE.MathUtils.lerp(dropFrom.current.z, MAT_POS.z, eh);
-        fd.position.y = THREE.MathUtils.lerp(dropFrom.current.y, MAT_POS.y, ev) + Math.sin(drop * Math.PI) * 0.5 + (drop > 0.86 ? Math.sin(((drop - 0.86) / 0.14) * Math.PI) * 0.06 : 0);
-        const spin = dropRot.current + 3.2 * (1 - Math.pow(1 - drop, 3));
-        fd.rotation.set(THREE.MathUtils.lerp(-0.6, -Math.PI / 2, easeInOut(drop)), spin, Math.sin(drop * 5) * 0.45 * (1 - drop));
+        const land = clamp01(drop / 0.6); // descent
+        const eL = easeInOut(land);
+        fd.position.lerpVectors(dropFrom.current, MAT_POS, eL);
+        // small lob on the way and a soft bounce on touch-down
+        fd.position.y += Math.sin(land * Math.PI) * 0.25 + (drop > 0.6 && drop < 0.8 ? Math.sin(((drop - 0.6) / 0.2) * Math.PI) * 0.05 : 0);
+        fd.quaternion.copy(dropQuat.current).slerp(_qTarget, eL);
+        const open = easeInOut(clamp01((drop - 0.62) / 0.38));
+        if (caseLid.current) caseLid.current.rotation.x = -1.5 * open;
+        if (caseSheet.current) caseSheet.current.position.y = caseSheetY.current + 0.26 * easeInOut(clamp01((drop - 0.75) / 0.25));
       }
     }
 
@@ -174,6 +196,12 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
       _camT.lerp(_p2, approach);
       _p2.set(DOOR.x, 2.9 + (mobile ? 1.4 : 0.2), DOOR.z + 1.5);
       _lookT.lerp(_p2, approach);
+      // dolly in on the mat while the case is set down, so the open lid and the sheet read
+      const closeUp = easeInOut(drop);
+      _p2.set(DOOR.x + (mobile ? 0.6 : 3.2), 3.2, DOOR.z + (mobile ? 9.5 : 7.2));
+      _camT.lerp(_p2, closeUp);
+      _p2.set(DOOR.x + 0.3, 1.5 + (mobile ? 1.0 : 0), DOOR.z + 1.6);
+      _lookT.lerp(_p2, closeUp);
     }
     if (!camInit.current) {
       camInit.current = true;

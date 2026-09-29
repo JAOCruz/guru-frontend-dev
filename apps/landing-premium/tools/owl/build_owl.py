@@ -62,6 +62,12 @@ COL = {
     "seal": (0.72, 0.10, 0.12),
     "lens": (0.55, 0.70, 1.0),
     "gold": (0.95, 0.78, 0.25),
+    "leather": (0.21, 0.055, 0.015),
+    "leatherDark": (0.085, 0.022, 0.006),
+    "brass": (0.72, 0.46, 0.11),
+    "brassLight": (0.90, 0.70, 0.30),
+    "lining": (0.008, 0.016, 0.16),
+    "plate": (0.89, 0.72, 0.33),
 }
 MATS = {}
 
@@ -404,7 +410,7 @@ cylinder_between("Bridge", (-0.03, 0.0, 0.03), (0.03, 0.0, 0.03), 0.02, mat("bla
 # ================================================================ WINGS (arms)
 for s, nm in ((1, "L"), (-1, "R")):
     shoulder = Vector((s * 0.60, -0.02, 1.16))
-    hand_target = Vector((s * 0.24, -0.62, 0.42))
+    hand_target = Vector((s * 0.46, -0.60, 0.46))
     d = hand_target - shoulder
     w = empty("Wing" + nm, shoulder, root)
     w.rotation_mode = "QUATERNION"
@@ -440,37 +446,77 @@ for s, nm in ((1, "L"), (-1, "R")):
         cone(f"Claw{nm}{i}", (tx, ty - 0.12, -0.14), 0.022, 0.0, 0.07, mat("black", 0.4), t, rot=Euler((math.radians(100), 0, 0)), verts=5)
     sphere(f"ToeBack{nm}", (0, 0.10, -0.12), (0.04, 0.07, 0.03), mat("orange", 0.5), t, seg=8, rings=4)
 
-# ================================================================ DOCUMENT
-DOC_C = Vector((0, -0.66, 0.54))
-DOC_W, DOC_H = 0.54, 0.66
-doc = empty("Document", DOC_C, root)
-doc.rotation_euler = Euler((math.radians(-18), 0, 0))
-bm = bmesh.new()
-NX, NZ = 5, 6
-grid = []
-for iz in range(NZ + 1):
-    row = []
-    for ix in range(NX + 1):
-        x = -DOC_W / 2 + DOC_W * ix / NX
-        z = -DOC_H / 2 + DOC_H * iz / NZ
-        y = -0.03 * math.cos(x / DOC_W * math.pi) * (0.5 + 0.5 * math.cos(z / DOC_H * math.pi))
-        y += 0.02 * math.sin(x / DOC_W * math.pi * 2) * (z / DOC_H)
-        row.append(bm.verts.new((x, y, z)))
-    grid.append(row)
-for iz in range(NZ):
-    for ix in range(NX):
-        bm.faces.new((grid[iz][ix], grid[iz][ix + 1], grid[iz + 1][ix + 1], grid[iz + 1][ix]))
-paper = new_obj("Paper", bm, mat("paper", 0.9), doc, smooth=True)
-so = paper.modifiers.new("solid", "SOLIDIFY")
-so.thickness = 0.012
-so.offset = 1
-lines = [(0.34, 0.24, 0.022), (0.20, 0.17, 0.012), (0.44, 0.11, 0.012), (0.40, 0.06, 0.012), (0.44, 0.01, 0.012),
-         (0.36, -0.04, 0.012), (0.44, -0.09, 0.012), (0.30, -0.14, 0.012), (0.24, -0.26, 0.012)]
-for i, (w_, z, h) in enumerate(lines):
-    x0 = -DOC_W / 2 + 0.07 + w_ / 2 if i else 0.0
-    box(f"Line{i}", (x0, -0.045, z), (w_, 0.006, h), mat("inkLine", 0.8), doc)
-cylinder("Seal", (0.15, -0.048, -0.23), 0.058, 0.006, mat("seal", 0.6), doc, rot=Euler((math.radians(90), 0, 0)), verts=12, smooth=False)
-box("Signature", (-0.06, -0.048, -0.27), (0.15, 0.006, 0.012), mat("inkLine", 0.8), doc, rot=Euler((0, math.radians(-8), 0)))
+# ================================================================ BRIEFCASE (replaces the paper)
+def colored_boxes(name, parts, parent, bevel=0.0):
+    """One vertex-coloured mesh out of several boxes: parts = [(center, size, color[, rot_euler])] (local)."""
+    bm = bmesh.new()
+    col = bm.verts.layers.float_color.new("Col")
+    for part in parts:
+        c, sz, color = part[:3]
+        rot = Euler(part[3]) if len(part) > 3 else None
+        geom = bmesh.ops.create_cube(bm, size=1.0)
+        verts = geom["verts"]
+        M = Matrix.Translation(Vector(c)) @ (rot.to_matrix().to_4x4() if rot else Matrix.Identity(4)) @ Matrix.Diagonal((sz[0], sz[1], sz[2], 1.0))
+        for v in verts:
+            v.co = M @ v.co
+            v[col] = (*color, 1.0)
+        if bevel > 0 and len(part) < 5:
+            edges = [e for e in bm.edges if e.verts[0] in verts and e.verts[1] in verts]
+            bmesh.ops.bevel(bm, geom=edges, offset=bevel, segments=1, affect="EDGES")
+    bm.normal_update()
+    return new_obj(name, bm, FEATHER, parent, smooth=False)
+
+CASE_C = Vector((0, -0.70, 0.50))
+CW, CH, CD = 0.92, 0.42, 0.24      # body: width, height (below the hinge), depth
+LID_H = 0.16
+case = empty("Briefcase", CASE_C, root)
+case.rotation_euler = Euler((math.radians(-10), 0, 0))
+# body: leather box with a slightly darker bottom band, front plate, corner protectors, clasps, handle
+parts = [
+    ((0, 0, -CH / 2), (CW, CD, CH), COL["leather"]),
+    ((0, 0, -CH + 0.03), (CW + 0.004, CD + 0.004, 0.06), COL["leatherDark"], (0, 0, 0), "nobevel"),
+    # brass plate with a dark engraved line ("GURÚ SOLUCIONES")
+    ((0, -CD / 2 - 0.006, -CH * 0.42), (0.34, 0.012, 0.09), COL["plate"], (0, 0, 0), "nobevel"),
+    ((0, -CD / 2 - 0.013, -CH * 0.42), (0.26, 0.004, 0.022), COL["black"], (0, 0, 0), "nobevel"),
+]
+# corner protectors (bottom front/back corners)
+for sx in (-1, 1):
+    for sy in (-1, 1):
+        parts.append(((sx * (CW / 2 - 0.035), sy * (CD / 2 - 0.02), -CH + 0.045), (0.07, 0.05, 0.09), COL["brass"], (0, 0, 0), "nobevel"))
+# clasps on the front top edge of the body
+for sx in (-1, 1):
+    parts.append(((sx * 0.30, -CD / 2 - 0.012, -0.03), (0.09, 0.025, 0.06), COL["brassLight"], (0, 0, 0), "nobevel"))
+# handle: five short segments along an arc above the lid, each aligned with the arc tangent
+for i in range(5):
+    a0 = math.pi * (0.12 + 0.76 * i / 5)
+    a1 = math.pi * (0.12 + 0.76 * (i + 1) / 5)
+    am = (a0 + a1) / 2
+    r = 0.19
+    cx, cz = math.cos(am) * r, LID_H + 0.015 + math.sin(am) * r * 0.6
+    tx, tz = -math.sin(am) * r, math.cos(am) * r * 0.6
+    seg = math.hypot(tx, tz) * (a1 - a0) * 1.08
+    parts.append(((cx, 0, cz), (seg, 0.035, 0.035), COL["leatherDark"], (0, -math.atan2(tz, tx), 0), "nobevel"))
+for sx in (-1, 1):
+    parts.append(((sx * 0.19, 0, LID_H + 0.01), (0.05, 0.05, 0.04), COL["brass"], (0, 0, 0), "nobevel"))
+colored_boxes("CaseBody", parts, case, bevel=0.015)
+# blue lining at the open top of the body
+colored_boxes("CaseLining", [((0, 0, -0.012), (CW - 0.03, CD - 0.03, 0.02), COL["lining"], (0, 0, 0), "nobevel")], case)
+# lid, hinged at the back-top edge of the body (local +y is the back)
+lid = empty("Lid", (0, CD / 2, 0), case)
+colored_boxes("LidMesh", [
+    ((0, -CD / 2, LID_H / 2), (CW, CD, LID_H), COL["leather"]),
+    ((0, -CD / 2, 0.006), (CW - 0.03, CD - 0.03, 0.012), COL["lining"], (0, 0, 0), "nobevel"),
+    ((0, -CD - 0.006, LID_H * 0.5), (0.36, 0.012, 0.05), COL["brass"], (0, 0, 0), "nobevel"),
+], lid, bevel=0.015)
+# document inside: a parchment sheet that rises out of the case
+cdoc = empty("CaseDocument", (0, 0.02, -CH + 0.03), case)
+colored_boxes("CaseSheet", [
+    ((0, 0, 0.17), (0.62, 0.012, 0.34), COL["paper"], (0, 0, 0), "nobevel"),
+    ((-0.08, -0.009, 0.29), (0.30, 0.004, 0.02), COL["inkLine"], (0, 0, 0), "nobevel"),
+    ((0.0, -0.009, 0.24), (0.46, 0.004, 0.012), COL["inkLine"], (0, 0, 0), "nobevel"),
+    ((0.0, -0.009, 0.20), (0.46, 0.004, 0.012), COL["inkLine"], (0, 0, 0), "nobevel"),
+    ((0.18, -0.009, 0.12), (0.09, 0.004, 0.09), COL["seal"], (0, 0, 0), "nobevel"),
+], cdoc)
 
 # ---------------------------------------------------------------- finish
 bpy.ops.object.select_all(action="DESELECT")
@@ -485,6 +531,8 @@ for o in scene.objects:
     tris += sum(len(p.vertices) - 2 for p in ev.data.polygons)
     if o.name.startswith("FeatherFan"):
         continue
+    if o.name.startswith("Case") or o.name == "LidMesh":
+        print("  case part", o.name, sum(len(p.vertices) - 2 for p in ev.data.polygons))
     for v in ev.data.vertices:
         p = ev.matrix_world @ v.co
         lo.x, lo.y, lo.z = min(lo.x, p.x), min(lo.y, p.y), min(lo.z, p.z)

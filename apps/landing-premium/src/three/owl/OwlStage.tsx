@@ -8,7 +8,7 @@ import { useStageVisibility } from "./useStageVisibility";
 import { dprRange, hasWebGL, prefersReducedMotion } from "./webgl";
 
 interface OwlStageProps {
-  /** 0..1 section progress: raises the document to read it */
+  /** 0..1 section progress: the owl proudly lifts and shows the briefcase (lid peek in the middle) */
   progress?: MotionValue<number>;
   /** Static image shown when WebGL is unavailable */
   fallbackSrc: string;
@@ -20,7 +20,7 @@ function Presenter({ progress, animate }: { progress?: MotionValue<number>; anim
   useFrame(() => {
     if (!progress) return;
     const p = progress.get();
-    const r = Math.max(0, Math.min(1, (p - 0.25) / 0.5));
+    const r = Math.max(0, Math.min(1, (p - 0.2) / 0.6));
     const q = Math.round(r * 40) / 40;
     if (q !== last.current) {
       last.current = q;
@@ -29,7 +29,7 @@ function Presenter({ progress, animate }: { progress?: MotionValue<number>; anim
   });
   const debugFlight = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("owl") === "flight";
   if (debugFlight) return <OwlRig position={[0, -0.6, 0]} scale={0.9} rotation={[0, 0.6, 0]} flight={1} animate={animate} followPointer={false} />;
-  return <OwlRig position={[0, -1.22, 0]} scale={1.02} docRaise={raise} animate={animate} followPointer />;
+  return <OwlRig position={[0, -1.22, 0]} scale={1.02} show={raise} animate={animate} followPointer />;
 }
 
 /** The Gurú owl as a live presenter inside a stage; renders only while visible. */

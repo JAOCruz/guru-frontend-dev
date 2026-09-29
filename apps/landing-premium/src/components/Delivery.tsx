@@ -59,13 +59,13 @@ function Panel({ progress }: { progress: MotionValue<number> }) {
   );
 }
 
-// No WebGL: the same composition as a still (mascot + route line + badge)
+// No WebGL: the same composition as a still (mascot + badge)
 function StaticStage() {
   const done = useMotionValue(1);
   return (
     <div className="relative h-[calc(100svh-4rem)] overflow-hidden bg-[#060a2b] md:h-[calc(100svh-5rem)]">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_60%,rgb(31_61_255/0.6),rgb(6_10_43)_65%)]" />
-      <img src="/img/mascot_1.webp" alt="El Búho de Gurú lleva tu documento" className="absolute bottom-0 right-[6%] h-[70%] w-auto rounded-t-[28px] border-2 border-b-0 border-ink object-cover md:right-[12%]" />
+      <img src="/img/mascot_1.webp" alt="El Búho de Gurú entrega tu maletín de documentos" className="absolute bottom-0 right-[6%] h-[70%] w-auto rounded-t-[28px] border-2 border-b-0 border-ink object-cover md:right-[12%]" />
       <Panel progress={done} />
       <Badge show />
     </div>
