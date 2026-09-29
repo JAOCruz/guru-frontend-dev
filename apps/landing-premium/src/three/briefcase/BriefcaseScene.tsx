@@ -47,11 +47,15 @@ const DESKTOP_KEYS: Key[] = [
   { p: 0.66, pos: [0.0, 1.0, 2.7], look: [0, 0.52, 0.1] },
   { p: 0.9, pos: [0.0, 0.85, 3.0], look: [0, 0.6, 0.1] },
 ];
-const MOBILE_KEYS: Key[] = DESKTOP_KEYS.map((k) => ({
-  p: k.p,
-  look: k.look,
-  pos: [k.look[0] + (k.pos[0] - k.look[0]) * 1.55, k.look[1] + (k.pos[1] - k.look[1]) * 1.55, k.look[2] + (k.pos[2] - k.look[2]) * 1.55],
-}));
+// portrait screens: farther back (more so while the case is closed, so it fits the narrow frame)
+const MOBILE_KEYS: Key[] = DESKTOP_KEYS.map((k) => {
+  const f = k.p < 0.3 ? 1.95 : 1.55;
+  return {
+    p: k.p,
+    look: k.look,
+    pos: [k.look[0] + (k.pos[0] - k.look[0]) * f, k.look[1] + (k.pos[1] - k.look[1]) * f, k.look[2] + (k.pos[2] - k.look[2]) * f],
+  };
+});
 
 const pointer = { x: 0, y: 0 };
 let pointerBound = false;
