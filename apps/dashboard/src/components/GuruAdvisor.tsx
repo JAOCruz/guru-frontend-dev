@@ -94,7 +94,7 @@ export default function GuruAdvisor({ isOpen, onOpenChange }: GuruAdvisorProps) 
 
   return (
     <div
-      className="group fixed bottom-4 right-4 z-[100] flex flex-col items-end gap-2 md:bottom-10 md:right-10 md:flex-row md:gap-4"
+      className="group fixed bottom-4 right-4 z-[45] flex flex-col items-end gap-2 md:bottom-10 md:right-10 md:flex-row md:gap-4"
       style={{
         transform: `translate(${offset.x}px, ${offset.y}px)`,
         touchAction: "none",

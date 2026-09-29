@@ -193,7 +193,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       {/* Mobile overlay */}
       {isMobile && sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-overlay"
+          className="fixed inset-0 z-[35] bg-overlay"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -417,7 +417,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
       {/* Main content */}
       <div
-        className={`relative z-10 flex min-h-screen min-w-0 flex-1 flex-col overflow-x-hidden transition-all duration-300 ease-in-out ${
+        // No z-index here: it would trap every page's popups (previews, dialogs) below the sidebar
+        className={`relative flex min-h-screen min-w-0 flex-1 flex-col overflow-x-hidden transition-all duration-300 ease-in-out ${
           isMobile ? "ml-0" : sidebarOpen ? "ml-64" : "ml-20"
         }`}
       >
