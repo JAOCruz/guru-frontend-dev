@@ -79,9 +79,16 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
     };
   }, [instant, invalidate]);
 
-  useFrame((_, dt) => {
-    const p = instant ? 1 : clamp01(progress.get()); // reduced motion = the delivered end state
-    const k = instant ? 1 : 1 - Math.exp(-3.2 * Math.min(dt, 0.05)); // damping factor
+  const pSmooth = useRef(-1);
+
+  useFrame((_, rawDt) => {
+    const dt = Math.min(rawDt, 0.05);
+    const target = instant ? 1 : clamp01(progress.get()); // reduced motion = the delivered end state
+    // damped follow of the scroll so fast scrolling / stopping never jitters the owl
+    if (pSmooth.current < 0 || instant) pSmooth.current = target;
+    else pSmooth.current = THREE.MathUtils.damp(pSmooth.current, target, 6, dt);
+    const p = pSmooth.current;
+    const k = instant ? 1 : 1 - Math.exp(-3.2 * dt); // camera damping factor
     const d = drive.current;
 
     // ---- phases
@@ -97,33 +104,43 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
     route.getPointAt(t, _p);
     route.getTangentAt(t, _tan).normalize();
     const yaw = Math.atan2(_tan.x, _tan.z);
-    // bank from the turn rate (compare the heading a little ahead)
+    // bank from the turn rate (compare the heading a little ahead); the rig lags behind it
     route.getTangentAt(Math.min(0.999, t + 0.015), _p2).normalize();
     let dyaw = Math.atan2(_p2.x, _p2.z) - yaw;
     if (dyaw > Math.PI) dyaw -= Math.PI * 2;
     if (dyaw < -Math.PI) dyaw += Math.PI * 2;
-    const bank = THREE.MathUtils.clamp(-dyaw * 9, -0.55, 0.55) * (1 - landing);
-    const lean = (1.0 - Math.asin(THREE.MathUtils.clamp(_tan.y, -1, 1)) * 0.6) * (1 - landing) * clamp01(fly / 0.05) + 0.25 * landing;
+    const bank = THREE.MathUtils.clamp(-dyaw * 7, -0.45, 0.45) * (1 - landing);
+    // anticipation: crouch, then push off; flare + settle when landing
+    const crouch = takeoff < 0.45 ? Math.sin((takeoff / 0.45) * Math.PI) : 0;
+    const push = takeoff >= 0.45 ? Math.sin(clamp01((takeoff - 0.45) / 0.55) * Math.PI) : 0;
+    const flare = Math.sin(clamp01(landing * 1.25) * Math.PI) * 0.9 + landing * 0.1;
+    const settle = landing > 0 ? Math.exp(-3.5 * landing) * Math.cos(6.5 * landing) : 0;
+    const lean =
+      (1.0 - Math.asin(THREE.MathUtils.clamp(_tan.y, -1, 1)) * 0.6) * (1 - landing) * easeInOut(clamp01(fly / 0.06)) +
+      (0.2 - 0.35 * flare) * landing;
 
-    d.flight = easeInOut(takeoff);
+    d.flight = easeInOut(clamp01((takeoff - 0.4) / 0.6));
     d.bank = bank;
     d.pitch = lean;
-    d.flapHz = 3.2 - 1.1 * landing;
+    d.flapHz = 3.0;
+    d.flare = flare;
+    // driven strokes on take-off and landing; the owl chooses bursts/glides on its own while cruising
+    d.flapPower = takeoff < 1 ? 1 : landing > 0 ? 1 : fly > 0.97 ? 1 : undefined;
     d.document = drop > 0 ? "hidden" : "auto";
 
     const g = owlGroup.current;
     if (g) {
-      // hover a touch higher over the door while dropping, then settle
-      const hoverY = landing * (0.4 + 0.15 * Math.sin(performance.now() * 0.004));
+      const hoverY = landing * (0.45 + 0.12 * Math.sin(performance.now() * 0.003)) + settle * 0.35 - crouch * 0.12 + push * 0.18;
       g.position.set(_p.x, _p.y + hoverY, _p.z);
-      // face the route while flying; face the camera (door front) when landing
+      // squash on the crouch, stretch on the push
+      g.scale.set(1 + crouch * 0.05 - push * 0.03, 1 - crouch * 0.09 + push * 0.06, 1 + crouch * 0.05 - push * 0.03);
       // faces the camera on the roof, turns into the route as it lifts off, faces the door when landing
       const flyYaw = THREE.MathUtils.lerp(0.2, yaw, easeInOut(clamp01(fly / 0.06)));
       const faceYaw = landing > 0 ? THREE.MathUtils.lerp(yaw, 0.35, easeInOut(landing)) : flyYaw;
       g.rotation.y = faceYaw;
     }
 
-    // ---- the document falls from the talons onto the mat
+    // ---- the document leaves the talons in an arc, spins a little and settles on the mat
     const fd = fallingDoc.current;
     if (fd) {
       if (drop <= 0) {
@@ -132,11 +149,13 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
         dropRot.current = g ? g.rotation.y : 0;
       } else {
         fd.visible = true;
-        const e = drop * drop; // gravity
-        fd.position.lerpVectors(dropFrom.current, MAT_POS, e);
-        fd.position.x += Math.sin(drop * 9) * 0.35 * (1 - drop);
-        fd.position.z += Math.cos(drop * 7) * 0.2 * (1 - drop);
-        fd.rotation.set(THREE.MathUtils.lerp(-0.6, -Math.PI / 2, drop), THREE.MathUtils.lerp(dropRot.current, 0.25, drop), Math.sin(drop * 6) * 0.5 * (1 - drop));
+        const eh = 1 - Math.pow(1 - drop, 2.2); // horizontal ease-out
+        const ev = Math.pow(drop, 1.7); // gravity
+        fd.position.x = THREE.MathUtils.lerp(dropFrom.current.x, MAT_POS.x, eh) + Math.sin(drop * 6) * 0.25 * (1 - drop);
+        fd.position.z = THREE.MathUtils.lerp(dropFrom.current.z, MAT_POS.z, eh);
+        fd.position.y = THREE.MathUtils.lerp(dropFrom.current.y, MAT_POS.y, ev) + Math.sin(drop * Math.PI) * 0.5 + (drop > 0.86 ? Math.sin(((drop - 0.86) / 0.14) * Math.PI) * 0.06 : 0);
+        const spin = dropRot.current + 3.2 * (1 - Math.pow(1 - drop, 3));
+        fd.rotation.set(THREE.MathUtils.lerp(-0.6, -Math.PI / 2, easeInOut(drop)), spin, Math.sin(drop * 5) * 0.45 * (1 - drop));
       }
     }
 
@@ -145,16 +164,16 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
     if (p < TAKEOFF_END + 0.02 && fly < 0.02) {
       _camT.set(OFFICE.x + 2.5, 6.6, OFFICE.z + (mobile ? 11 : 8.5));
       _lookT.set(OFFICE.x, 4.0 + (mobile ? 1.2 : 0), OFFICE.z);
-    } else if (landing > 0) {
-      _camT.set(DOOR.x + (mobile ? 0.8 : 4.5), 5.4, DOOR.z + (mobile ? 13 : 10.5));
-      _lookT.set(DOOR.x, 2.9 + (mobile ? 1.4 : 0.2), DOOR.z + 1.5);
-      _side.crossVectors(_tan, UP).normalize();
-      _p2.copy(_p).addScaledVector(_tan, -back).addScaledVector(UP, up).addScaledVector(_side, side);
-      _camT.lerp(_p2, 1 - easeInOut(landing));
     } else {
+      // follow cam, blending into the door view during the final approach (before the flare starts)
       _side.crossVectors(_tan, UP).normalize();
       _camT.copy(_p).addScaledVector(_tan, -back).addScaledVector(UP, up).addScaledVector(_side, side);
       _lookT.copy(_p).addScaledVector(_tan, 4).addScaledVector(UP, mobile ? 1.8 : 0.4).addScaledVector(_side, mobile ? 0 : -1.5);
+      const approach = easeInOut(clamp01((fly - 0.8) / 0.2));
+      _p2.set(DOOR.x + (mobile ? 0.8 : 4.5), 5.4, DOOR.z + (mobile ? 13 : 10.5));
+      _camT.lerp(_p2, approach);
+      _p2.set(DOOR.x, 2.9 + (mobile ? 1.4 : 0.2), DOOR.z + 1.5);
+      _lookT.lerp(_p2, approach);
     }
     if (!camInit.current) {
       camInit.current = true;

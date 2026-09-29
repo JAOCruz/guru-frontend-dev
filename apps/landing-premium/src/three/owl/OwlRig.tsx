@@ -12,7 +12,7 @@ export interface OwlRigProps {
   flight?: number;
   /** Flap frequency in cycles per second while flying */
   flapHz?: number;
-  /** Roll / pitch of the whole owl (radians), e.g. banking along a route */
+  /** Roll / pitch of the whole owl (radians); the rig lags behind them (overlapping action) */
   bank?: number;
   pitch?: number;
   /** Head + eyes follow the pointer (presenter mode) */
@@ -37,6 +37,10 @@ export interface OwlDrive {
   docRaise?: number;
   document?: "auto" | "hidden";
   flapHz?: number;
+  /** 0..1 flap strength. Omitted = the owl alternates flapping bursts and glides on its own. */
+  flapPower?: number;
+  /** 0..1 landing flare: wings held high, slow deep strokes */
+  flare?: number;
 }
 
 export interface OwlRigHandle {
@@ -46,7 +50,7 @@ export interface OwlRigHandle {
 }
 
 const DEG = Math.PI / 180;
-const LID_CLOSED = 0; // rotation.x of LidL/LidR when closed (file rest pose is open)
+const LID_CLOSED = 0; // rotation.x of LidL/LidR when closed (the file's rest pose is half-open)
 const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 const _q3 = new THREE.Quaternion();
@@ -54,8 +58,13 @@ const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
-const smooth = (a: number, b: number, k: number, dt: number) => THREE.MathUtils.damp(a, b, k, dt);
+const damp = (a: number, b: number, k: number, dt: number) => THREE.MathUtils.damp(a, b, k, dt);
+const clamp01 = (v: number) => THREE.MathUtils.clamp(v, 0, 1);
 const ease = (t: number) => t * t * (3 - 2 * t);
+const easeOutBack = (t: number) => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
+/** Asymmetric wing cycle: +1 wings up → fast downstroke → -1 → slow upstroke → +1 (zero velocity at both turns). */
+const flapCycle = (u: number) => (u < 0.38 ? Math.cos((Math.PI * u) / 0.38) : -Math.cos((Math.PI * (u - 0.38)) / 0.62));
+const fract = (v: number) => v - Math.floor(v);
 
 /** A cloned, material-tuned copy of the owl. Returned nodes are looked up once. */
 export function useOwlClone() {
@@ -70,7 +79,6 @@ export function useOwlClone() {
       const mat = m.material as THREE.MeshStandardMaterial;
       if (!mat) return;
       if (m.name.startsWith("Lens")) {
-        // glasses: real transparency, a touch of sky in the glass
         const g = mat.clone();
         g.transparent = true;
         g.opacity = 0.13;
@@ -83,7 +91,6 @@ export function useOwlClone() {
         m.material = g;
         m.renderOrder = 2;
       } else if (m.name.startsWith("Sclera") || m.name.startsWith("Iris") || m.name.startsWith("Pupil")) {
-        // wet, glossy eyes
         const g = new THREE.MeshPhysicalMaterial({
           color: mat.color,
           roughness: m.name.startsWith("Sclera") ? 0.12 : 0.2,
@@ -100,34 +107,10 @@ export function useOwlClone() {
         g.emissiveIntensity = 1.6;
         m.material = g;
         m.renderOrder = 3;
-      } else if (mat.name.startsWith("V_") && !(mat as unknown as { __feather?: boolean }).__feather) {
-        (mat as unknown as { __feather?: boolean }).__feather = true;
+      } else if (mat.name.startsWith("V_")) {
+        // flat vertex-colour painting (low-poly look): no procedural detail
         mat.vertexColors = true;
         mat.roughness = 0.85;
-        mat.onBeforeCompile = (shader) => {
-          shader.vertexShader = shader.vertexShader
-            .replace("#include <common>", "#include <common>\nvarying vec3 vFp;")
-            .replace("#include <begin_vertex>", "#include <begin_vertex>\nvFp = position;");
-          shader.fragmentShader = shader.fragmentShader
-            .replace("#include <common>", "#include <common>\nvarying vec3 vFp;")
-            .replace(
-              "#include <normal_fragment_maps>",
-              `#include <normal_fragment_maps>
-              {
-                // fine feather barbs: scalloped ridges running down the body, jittered per column
-                float col = floor(vFp.x * 40.0 + sin(vFp.y * 11.0) * 0.6);
-                float ph = fract(sin(col * 12.9898) * 43758.5453) * 6.283;
-                float barb = sin(vFp.y * 90.0 + ph + vFp.z * 8.0);
-                vec3 bump = vec3(0.0, barb, 0.0) * 0.045;
-                normal = normalize(normal + bump);
-              }`,
-            )
-            .replace(
-              "#include <roughnessmap_fragment>",
-              `#include <roughnessmap_fragment>
-              roughnessFactor = clamp(roughnessFactor + 0.05 * sin(vFp.y * 90.0 + vFp.x * 40.0), 0.6, 1.0);`,
-            );
-        };
         mat.needsUpdate = true;
       } else if (m.name.startsWith("Paper")) {
         const g = mat.clone();
@@ -151,7 +134,7 @@ function node(root: THREE.Object3D, name: string): THREE.Object3D {
 const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
   {
     flight: flightProp = 0,
-    flapHz: flapHzProp = 3.2,
+    flapHz: flapHzProp = 3.0,
     bank: bankProp = 0,
     pitch: pitchProp = 0,
     followPointer = true,
@@ -190,7 +173,6 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     const lensL = node(owl, "LensL");
     const lensR = node(owl, "LensR");
 
-
     // glasses glint: a thin white streak that sweeps across each lens
     const glintGeo = new THREE.PlaneGeometry(0.05, 0.3);
     const glintMat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0, depthWrite: false, toneMapped: false });
@@ -227,11 +209,14 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
   const st = useRef({
     t: Math.random() * 10,
     flight: drive?.current?.flight ?? flightProp,
-    yaw: 0, pitch: 0, eyeYaw: 0, eyePitch: 0,
-    blink: 0, nextBlink: 1.5 + Math.random() * 3, blinkT: -1, doubleBlink: false,
-    glint: -1, nextGlint: 2 + Math.random() * 4, glintSide: 0,
-    nudge: -1, nextNudge: 6 + Math.random() * 6,
+    bank: 0, pitch: 0,
+    yaw: 0, hpitch: 0, eyeYaw: 0, eyePitch: 0,
+    away: -1, nextAway: 5 + Math.random() * 6, awayYaw: 0, awayPitch: 0,
+    blink: 0, nextBlink: 2 + Math.random() * 3, blinkT: -1, doubleBlink: false,
+    glint: -1, nextGlint: 3 + Math.random() * 5, glintSide: 0,
+    nudge: -1, nextNudge: 14 + Math.random() * 10,
     raise: 0,
+    phase: Math.random(), power: 1, flare: 0,
     rectCheck: 0, cx: 0.5, cy: 0.5,
   });
 
@@ -259,14 +244,51 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
     const docRaise = d?.docRaise ?? docRaiseProp;
     const document = d?.document ?? documentProp;
     const flapHz = d?.flapHz ?? flapHzProp;
+    const flareT = d?.flare ?? 0;
     if (!staticPose) s.t += dt;
     const t = s.t;
-    s.flight = staticPose ? flight : smooth(s.flight, flight, 4, dt);
-    const f = ease(THREE.MathUtils.clamp(s.flight, 0, 1));
+    s.flight = staticPose ? flight : damp(s.flight, flight, 4, dt);
+    const f = ease(clamp01(s.flight));
     const idle = 1 - f;
+    // overlapping action: the body lags behind the requested bank / pitch
+    s.bank = staticPose ? bank : damp(s.bank, bank, 2.6, dt);
+    s.pitch = staticPose ? pitch : damp(s.pitch, pitch, 3.2, dt);
+    s.flare = staticPose ? flareT : damp(s.flare, flareT, 4, dt);
 
-    // ---- head + eyes follow the pointer (presenter) / look ahead (flight)
+    // ---- wing cycle: bursts of asymmetric strokes with glides in between (or driven power)
+    let power = d?.flapPower;
+    if (power === undefined) {
+      const env = 0.5 + 0.5 * Math.sin(t * 0.5) + 0.25 * Math.sin(t * 1.7 + 1.3);
+      power = THREE.MathUtils.smoothstep(env, 0.3, 0.7);
+    }
+    power = Math.max(power, s.flare);
+    s.power = staticPose ? power : damp(s.power, power, 5, dt);
+    const hz = flapHz * (1 - 0.35 * s.flare);
+    if (!staticPose) s.phase += hz * s.power * dt;
+    const u = fract(s.phase);
+    const stroke = flapCycle(u); // +1 up, -1 down
+    const strokeLag = flapCycle(fract(s.phase - 0.1));
+    // body rises on the downstroke; lighter in a glide
+    const flightBob = f * (-stroke * 0.05 * s.power + 0.015 * Math.sin(t * 1.3));
+
+    // ---- head + eyes: pointer tracking with damping, occasional look-away (presenter)
     let ty = 0, tp = 0;
+    if (!staticPose && idle > 0.5) {
+      s.nextAway -= dt;
+      if (s.nextAway <= 0 && s.away < 0) {
+        s.away = 0;
+        s.awayYaw = (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.2);
+        s.awayPitch = (Math.random() - 0.5) * 0.16;
+      }
+      if (s.away >= 0) {
+        s.away += dt;
+        if (s.away > 1.8) {
+          s.away = -1;
+          s.nextAway = 7 + Math.random() * 8;
+        }
+      }
+    }
+    const awayK = s.away >= 0 ? Math.sin(Math.min(1, s.away / 1.8) * Math.PI) : 0;
     if (followPointer && pointer.active && idle > 0.05) {
       s.rectCheck -= dt;
       if (s.rectCheck <= 0) {
@@ -277,53 +299,56 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
       }
       const dx = (pointer.cx - s.cx) / window.innerWidth;
       const dy = (pointer.cy - s.cy) / window.innerHeight;
-      ty = THREE.MathUtils.clamp(dx * 1.6, -0.55, 0.55);
-      tp = THREE.MathUtils.clamp(dy * 1.2, -0.28, 0.4);
+      ty = THREE.MathUtils.clamp(dx * 1.1, -0.38, 0.38) * (1 - awayK);
+      tp = THREE.MathUtils.clamp(dy * 0.8, -0.2, 0.28) * (1 - awayK);
     }
-    // idle sway + reading tilt
-    ty += Math.sin(t * 0.45) * 0.06 * idle;
-    tp += 0.32 * s.raise * idle;
-    s.yaw = staticPose ? ty : smooth(s.yaw, ty, 5, dt);
-    s.pitch = staticPose ? tp : smooth(s.pitch, tp, 5, dt);
-    s.eyeYaw = staticPose ? ty : smooth(s.eyeYaw, ty, 12, dt);
-    s.eyePitch = staticPose ? tp : smooth(s.eyePitch, tp, 12, dt);
-    const flightBob = f * Math.sin(t * flapHz * Math.PI * 2 - 0.4);
-    rig.head.rotation.set(rest.head.x + s.pitch + f * (-0.12 + 0.05 * flightBob), rest.head.y + s.yaw, rest.head.z + Math.sin(t * 0.7) * 0.03 * idle);
-    rig.head.position.y = rest.headPos.y + Math.sin(t * 1.4) * 0.012 * idle;
+    ty += s.awayYaw * awayK + Math.sin(t * 0.35) * 0.04 * idle;
+    tp += s.awayPitch * awayK + 0.3 * s.raise * idle;
+    s.yaw = staticPose ? ty : damp(s.yaw, ty, 3.2, dt);
+    s.hpitch = staticPose ? tp : damp(s.hpitch, tp, 3.2, dt);
+    s.eyeYaw = staticPose ? ty : damp(s.eyeYaw, ty, 9, dt);
+    s.eyePitch = staticPose ? tp : damp(s.eyePitch, tp, 9, dt);
+    // in flight the head stays level while the body banks and bobs (stabilised head)
+    rig.head.rotation.set(
+      rest.head.x + s.hpitch + f * (-0.1 - 0.35 * s.pitch * 0.3 + 0.02 * stroke),
+      rest.head.y + s.yaw,
+      rest.head.z + Math.sin(t * 0.7) * 0.02 * idle - s.bank * 0.5 * f,
+    );
+    rig.head.position.y = rest.headPos.y + Math.sin(t * 1.4) * 0.008 * idle - flightBob * 0.5;
     const eyeK = 0.7;
-    rig.eyeL.rotation.set((s.eyePitch - s.pitch) * eyeK + s.pitch * 0.35, (s.eyeYaw - s.yaw) * eyeK + s.yaw * 0.35, 0);
+    rig.eyeL.rotation.set((s.eyePitch - s.hpitch) * eyeK + s.hpitch * 0.3, (s.eyeYaw - s.yaw) * eyeK + s.yaw * 0.3, 0);
     rig.eyeR.rotation.copy(rig.eyeL.rotation);
 
-    // ---- breathing
-    const breath = Math.sin(t * 1.4) * 0.014 * idle;
-    rig.body.scale.set(rest.bodyScale.x * (1 + breath * 0.6), rest.bodyScale.y * (1 + breath), rest.bodyScale.z * (1 + breath * 0.6));
+    // ---- breathing (subtle)
+    const breath = Math.sin(t * 1.25) * 0.008 * idle;
+    rig.body.scale.set(rest.bodyScale.x * (1 + breath * 0.5), rest.bodyScale.y * (1 + breath), rest.bodyScale.z * (1 + breath * 0.5));
 
-    // ---- blinks
+    // ---- blinks at natural random intervals
     if (!staticPose) {
       s.nextBlink -= dt;
       if (s.nextBlink <= 0 && s.blinkT < 0) {
         s.blinkT = 0;
-        s.doubleBlink = Math.random() < 0.25;
+        s.doubleBlink = Math.random() < 0.2;
       }
       if (s.blinkT >= 0) {
         s.blinkT += dt;
-        const d = 0.16;
+        const dur = 0.17;
         const cycle = s.doubleBlink ? 2 : 1;
-        const tt = s.blinkT / d;
+        const tt = s.blinkT / dur;
         if (tt >= cycle) {
           s.blinkT = -1;
           s.blink = 0;
-          s.nextBlink = 2 + Math.random() * 4.5;
+          s.nextBlink = 2.5 + Math.random() * 4.5;
         } else {
           s.blink = Math.sin((tt % 1) * Math.PI);
         }
       }
     }
-    const lidX = THREE.MathUtils.lerp(rest.lidOpen, LID_CLOSED, s.blink);
+    const lidX = THREE.MathUtils.lerp(rest.lidOpen, LID_CLOSED, ease(s.blink));
     rig.lidL.rotation.x = lidX;
     rig.lidR.rotation.x = lidX;
 
-    // ---- glasses glint + push-up nudge
+    // ---- glasses glint + (rare) push-up nudge
     if (!staticPose) {
       s.nextGlint -= dt;
       if (s.nextGlint <= 0 && s.glint < 0) {
@@ -332,15 +357,15 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
       }
       if (s.glint >= 0) {
         s.glint += dt;
-        const p = s.glint / 0.55;
+        const p = s.glint / 0.6;
         if (p >= 1) {
           s.glint = -1;
-          s.nextGlint = 3 + Math.random() * 5;
+          s.nextGlint = 4 + Math.random() * 6;
           (rig.glints[0].material as THREE.MeshBasicMaterial).opacity = 0;
         } else {
           const g = rig.glints[s.glintSide];
-          g.position.x = THREE.MathUtils.lerp(-0.17, 0.17, p);
-          (g.material as THREE.MeshBasicMaterial).opacity = Math.sin(p * Math.PI) * 0.55;
+          g.position.x = THREE.MathUtils.lerp(-0.17, 0.17, ease(p));
+          (g.material as THREE.MeshBasicMaterial).opacity = Math.sin(p * Math.PI) * 0.5;
         }
       }
       s.nextNudge -= dt;
@@ -348,45 +373,46 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
       let nudgeY = 0;
       if (s.nudge >= 0) {
         s.nudge += dt;
-        const p = s.nudge / 0.7;
+        const p = s.nudge / 0.8;
         if (p >= 1) {
           s.nudge = -1;
-          s.nextNudge = 7 + Math.random() * 7;
-        } else nudgeY = Math.sin(p * Math.PI) * 0.028;
+          s.nextNudge = 16 + Math.random() * 12;
+        } else nudgeY = Math.sin(ease(p) * Math.PI) * 0.026;
       }
       rig.glasses.position.y = rest.glassesPos.y + nudgeY;
       rig.glasses.rotation.x = nudgeY * 3;
     }
 
     // ---- tufts flutter (breeze idle, wind in flight)
-    const flut = 0.04 * idle + 0.12 * f;
-    rig.tuftL.rotation.z = rest.tuftL.z + Math.sin(t * 3.1) * flut;
-    rig.tuftR.rotation.z = rest.tuftR.z - Math.sin(t * 3.1 + 0.9) * flut;
+    const flut = 0.03 * idle + (0.06 + 0.06 * s.power) * f;
+    rig.tuftL.rotation.z = rest.tuftL.z + Math.sin(t * 2.6) * flut;
+    rig.tuftR.rotation.z = rest.tuftR.z - Math.sin(t * 2.6 + 0.9) * flut;
 
-    // ---- wings: rest (holding the paper) ⟷ flapping
-    s.raise = staticPose ? docRaise : smooth(s.raise, docRaise, 4, dt);
-    const flap = Math.sin(t * flapHz * Math.PI * 2);
-    const spread = 88 * DEG + 38 * DEG * flap;
-    const sweep = -12 * DEG + 6 * DEG * flap; // slight forward cup
+    // ---- wings: rest (holding the paper) ⟷ flapping / gliding / flaring
+    s.raise = staticPose ? docRaise : damp(s.raise, docRaise, 3, dt);
+    const glide = 1 - s.power;
+    const spreadBase = 88 * DEG + 6 * DEG * glide + 22 * DEG * s.flare;
+    const amp = (34 * DEG + 14 * DEG * s.flare) * s.power + 3 * DEG * glide;
+    const spread = spreadBase + amp * stroke + 2 * DEG * Math.sin(t * 1.6) * glide;
+    const sweep = -12 * DEG + 5 * DEG * stroke * s.power - 6 * DEG * s.flare;
     for (const side of [1, -1] as const) {
       const wing = side > 0 ? rig.wingL : rig.wingR;
       const restQ = side > 0 ? rest.wingL : rest.wingR;
-      // presenter: arms lift a little with the document
       _q2.setFromAxisAngle(X_AXIS, -0.55 * s.raise).multiply(restQ);
-      // flight pose
       _q.setFromAxisAngle(Z_AXIS, side * spread);
       _q3.setFromAxisAngle(Y_AXIS, side * sweep);
       _q.multiply(_q3);
       wing.quaternion.copy(_q2).slerp(_q, f);
       const feathers = side > 0 ? rig.feathersL : rig.feathersR;
-      const fs = Math.max(0.001, f * 1.35);
-      feathers.scale.setScalar(fs);
-      feathers.rotation.z = -side * 0.22 * Math.sin(t * flapHz * Math.PI * 2 - 0.9) * f;
+      feathers.scale.setScalar(Math.max(0.001, f * 1.35));
+      // feather tips lag the stroke (follow-through)
+      feathers.rotation.z = -side * (0.2 * strokeLag * s.power + 0.05 * glide) * f;
     }
 
-    // ---- talons: tucked back when flying
-    rig.talonL.rotation.x = rest.talonL.x + 1.35 * f;
-    rig.talonR.rotation.x = rest.talonR.x + 1.35 * f;
+    // ---- talons: tucked back when flying, reaching down in the flare
+    const talonX = 1.35 * f - 0.9 * s.flare * f;
+    rig.talonL.rotation.x = rest.talonL.x + talonX;
+    rig.talonR.rotation.x = rest.talonR.x + talonX;
 
     // ---- document: in the hands (raised on scroll) or hanging from the talons
     if (document === "hidden") {
@@ -396,16 +422,16 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
       const r = s.raise;
       const hx = rest.docPos.x, hy = rest.docPos.y + 0.34 * r, hz = rest.docPos.z + 0.08 * r;
       const hrx = rest.docRot.x - 0.5 * r;
-      const swing = Math.sin(t * 2.2) * 0.06 * f;
+      const swing = Math.sin(t * 1.9) * 0.05 * f + s.bank * 0.3 * f;
       rig.doc.position.set(THREE.MathUtils.lerp(hx, 0, f), THREE.MathUtils.lerp(hy, -0.16, f), THREE.MathUtils.lerp(hz, 0.16, f));
       rig.doc.rotation.set(THREE.MathUtils.lerp(hrx, -Math.PI / 2 + 0.55, f), 0, swing);
     }
 
-    // ---- whole-body bob / bank
+    // ---- whole-body bob / bank / pitch
     const root = rootRef.current;
     if (root) {
-      root.rotation.set((rotation?.[0] ?? 0) + pitch * f, rotation?.[1] ?? 0, (rotation?.[2] ?? 0) + bank * f);
-      root.position.set(position?.[0] ?? 0, (position?.[1] ?? 0) + 0.06 * flightBob + Math.sin(t * 1.1) * 0.015 * idle, position?.[2] ?? 0);
+      root.rotation.set((rotation?.[0] ?? 0) + s.pitch * f, rotation?.[1] ?? 0, (rotation?.[2] ?? 0) + s.bank * f);
+      root.position.set(position?.[0] ?? 0, (position?.[1] ?? 0) + flightBob + Math.sin(t * 1.1) * 0.012 * idle, position?.[2] ?? 0);
     }
   };
 
@@ -419,3 +445,4 @@ const OwlRig = forwardRef<OwlRigHandle, OwlRigProps>(function OwlRig(
 });
 
 export default OwlRig;
+export { easeOutBack };
