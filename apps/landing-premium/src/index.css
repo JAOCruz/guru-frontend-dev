@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f3f0e8;
+  --color-paper-2: #e9e4d8;
+  --color-ink: #0b0b0c;
+  --color-guru: #1f3dff;
+  --color-guru-deep: #0d1b8c;
+  --color-mint: #00c853;
+  --font-display: "Unbounded", system-ui, sans-serif;
+  --font-body: "Inter Tight", system-ui, sans-serif;
+  --shadow-hard: 5px 5px 0 0 var(--color-ink);
+  --shadow-hard-lg: 10px 10px 0 0 var(--color-ink);
+  --shadow-hard-sm: 3px 3px 0 0 var(--color-ink);
+}
+
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Paper grain + faint grid: the "printed document" feel behind everything */
+.paper-bg {
+  background-color: var(--color-paper);
+  background-image:
+    linear-gradient(to right, rgb(11 11 12 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(11 11 12 / 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.6'/></svg>");
+}
+
+.brut { border: 2px solid var(--color-ink); box-shadow: var(--shadow-hard); }
+.brut-sm { border: 2px solid var(--color-ink); box-shadow: var(--shadow-hard-sm); }
+.press { transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.press:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 0 var(--color-ink); }
+.press:active { transform: translate(4px, 4px); box-shadow: 0 0 0 0 var(--color-ink); }
+
+.outline-text { color: transparent; -webkit-text-stroke: 2px var(--color-ink); }
+
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee { animation: marquee 32s linear infinite; }
+.marquee.reverse { animation-direction: reverse; }
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee { animation: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* Hero slogan: heavy black letters with a silver rim and a stepped metallic extrusion (like v1).
+   Space Grotesk stops at 700, so a same-color stroke thickens it; the rim is a ring of shadows. */
+.metal-3d {
+  font-family: "Space Grotesk", var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  -webkit-text-stroke: 0.045em currentColor;
+  text-shadow:
+    0.05em 0 0 #f4f6f9, -0.05em 0 0 #f4f6f9, 0 0.05em 0 #f4f6f9, 0 -0.05em 0 #f4f6f9,
+    0.035em 0.035em 0 #f4f6f9, -0.035em 0.035em 0 #f4f6f9, 0.035em -0.035em 0 #f4f6f9, -0.035em -0.035em 0 #f4f6f9,
+    0.065em 0.065em 0 #dfe3e8,
+    0.08em 0.08em 0 #c3c9d1,
+    0.095em 0.095em 0 #a7afba,
+    0.11em 0.11em 0 #8b94a1,
+    0.125em 0.125em 0 #707a88,
+    0.14em 0.16em 0.2em rgb(11 11 12 / 0.35);
+}
+
+@keyframes story-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* The 3D typewriter shakes a little while it "types" */
+@keyframes type-jitter { 0% { transform: translate(0, 0); } 100% { transform: translate(0.5px, -1px); } }
+@media (prefers-reduced-motion: reduce) { [class*="type-jitter"] { animation: none !important; } }
