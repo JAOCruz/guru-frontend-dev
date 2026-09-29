@@ -36,22 +36,22 @@ scene = bpy.context.scene
 
 # ---------------------------------------------------------------- palette
 COL = {
-    "feather": (0.62, 0.36, 0.16),   # warm brown-tan
-    "featherDark": (0.36, 0.20, 0.09),
-    "cream": (0.96, 0.88, 0.72),
-    "creamDark": (0.86, 0.74, 0.55),
-    "navy": (0.075, 0.11, 0.30),
-    "navyDark": (0.045, 0.07, 0.20),
+    "feather": (0.40, 0.21, 0.08),   # warm brown-tan
+    "featherDark": (0.17, 0.085, 0.035),
+    "cream": (0.92, 0.80, 0.58),
+    "creamDark": (0.74, 0.58, 0.38),
+    "navy": (0.04, 0.06, 0.22),
+    "navyDark": (0.025, 0.04, 0.14),
     "pants": (0.05, 0.06, 0.12),
     "white": (0.95, 0.95, 0.93),
     "tie": (0.42, 0.08, 0.14),
-    "hand": (0.55, 0.32, 0.14),
+    "hand": (0.40, 0.21, 0.08),
     "orange": (0.95, 0.60, 0.10),
     "black": (0.02, 0.02, 0.025),
     "sclera": (0.98, 0.98, 0.97),
-    "amber": (0.85, 0.55, 0.12),
+    "amber": (0.80, 0.48, 0.08),
     "pupil": (0.01, 0.01, 0.012),
-    "paper": (0.91, 0.82, 0.62),
+    "paper": (0.88, 0.76, 0.52),
     "inkLine": (0.22, 0.20, 0.20),
     "seal": (0.72, 0.10, 0.12),
     "lens": (0.55, 0.70, 1.0),
@@ -270,7 +270,7 @@ for s, nm in ((1, "L"), (-1, "R")):
     sphere("Sclera" + nm, (0, 0, 0), (EYE_R, EYE_R, EYE_R), mat("sclera", 0.25), e)
     sphere("Iris" + nm, (0, -EYE_R * 0.88, 0), (0.125, 0.04, 0.125), mat("amber", 0.35), e)
     sphere("Pupil" + nm, (0, -EYE_R * 1.01, 0), (0.07, 0.022, 0.07), mat("pupil", 0.2), e, seg=20, rings=10)
-    sphere("Shine" + nm, (s * -0.035, -EYE_R * 1.08, 0.045), (0.028, 0.012, 0.028), mat("sclera", 0.1, emit="sclera"), e, seg=12, rings=6)
+    sphere("Shine" + nm, (s * -0.035, -EYE_R * 1.08, 0.045), (0.022, 0.01, 0.022), mat("sclera", 0.1, emit="sclera"), e, seg=12, rings=6)
     # eyelid: front cap of a slightly bigger sphere; rotation.x = 0 closed, ~-100° open
     bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=EYE_R * 1.07, location=rel(ec, head))
     lid = bpy.context.active_object
