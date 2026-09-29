@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, ChevronDown, ChevronLeft, Eye, FileDown, FilePlus2, Search, Upload } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { CheckCircle2, ChevronDown, ChevronLeft, Eye, FileDown, FilePlus2, Search, Sparkles, Upload } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { useAuth } from "../../context/AuthContext";
 import { useUserColors } from "../../context/UserColorsContext";
@@ -10,6 +11,7 @@ import {
 import { confirmDialog, notify } from "../../lib/dialogs";
 import UploadDialog from "./UploadDialog";
 import PdfPreview from "./PdfPreview";
+import PersonalizeDialog from "./PersonalizeDialog";
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const fmt = (d: string) => new Date(d).toLocaleDateString("es-DO", { day: "numeric", month: "short", year: "numeric" });
@@ -28,9 +30,22 @@ export default function History() {
   const [openDoc, setOpenDoc] = useState<PortfolioDocument | null>(null);
   const [upload, setUpload] = useState<{ doc?: PortfolioDocument } | null>(null);
   const [preview, setPreview] = useState<{ title: string; version: DocVersion } | null>(null);
+  const [personalize, setPersonalize] = useState<{ doc: PortfolioDocument; version: DocVersion } | null>(null);
+  const [params] = useSearchParams();
+  const wantedClient = Number(params.get("client")) || null;
 
   const loadClients = () =>
-    documentosAPI.clients(clientQ.trim()).then(({ data }) => setClients(data.clients)).catch(() => notify("No se pudieron cargar los clientes"));
+    documentosAPI
+      .clients(clientQ.trim())
+      .then(({ data }) => {
+        setClients(data.clients);
+        // coming from "Personalizar": open that client
+        if (wantedClient && !selected) {
+          const c = data.clients.find((x) => x.id === wantedClient);
+          if (c) setSelected(c);
+        }
+      })
+      .catch(() => notify("No se pudieron cargar los clientes"));
 
   useEffect(() => {
     const t = setTimeout(loadClients, 250);
@@ -228,6 +243,11 @@ export default function History() {
                                 <NeoButton size="sm" variant="neutral" onClick={() => download(openDoc, v, "pdf")}>
                                   <FileDown size={14} /> PDF
                                 </NeoButton>
+                                {v.mime_type === DOCX && (
+                                  <NeoButton size="sm" variant="neutral" onClick={() => setPersonalize({ doc: openDoc, version: v })} title="Llenar con datos o pedir cambios a la IA: crea una versión nueva">
+                                    <Sparkles size={14} /> Personalizar
+                                  </NeoButton>
+                                )}
                                 {isAdmin && v.status !== "approved" && (
                                   <NeoButton size="sm" onClick={() => approve(openDoc, v)}>
                                     Aprobar v{v.version_number}
@@ -261,6 +281,18 @@ export default function History() {
           initialClient={upload.doc ? undefined : selected}
           onClose={() => setUpload(null)}
           onDone={afterUpload}
+        />
+      )}
+      {personalize && (
+        <PersonalizeDialog
+          source={{ version_id: personalize.version.id }}
+          title={`${personalize.doc.title} v${personalize.version.version_number}`}
+          fixedClient={{ id: personalize.doc.client_id, name: personalize.doc.client_name, phone: null }}
+          onSaved={(doc) => {
+            setOpenDoc(doc);
+            loadDocuments();
+          }}
+          onClose={() => setPersonalize(null)}
         />
       )}
       {preview && (

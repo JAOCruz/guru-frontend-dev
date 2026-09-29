@@ -124,7 +124,7 @@ export default function UploadDialog({ document: doc, initialClient, onClose, on
 }
 
 // Choose an existing client or create one (name + phone)
-function ClientPicker({ client, onChange }: { client: HistoryClient | null; onChange: (c: HistoryClient | null) => void }) {
+export function ClientPicker({ client, onChange }: { client: HistoryClient | null; onChange: (c: HistoryClient | null) => void }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<HistoryClient[]>([]);
   const [creating, setCreating] = useState(false);

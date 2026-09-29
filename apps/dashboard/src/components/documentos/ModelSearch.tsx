@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Eye, FileDown, FileText, Search, Sparkles, UserPlus } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { documentosAPI, downloadFile, modelFileUrl, type Model } from "../../services/documentosApi";
 import { notify } from "../../lib/dialogs";
 import PdfPreview from "./PdfPreview";
+import PersonalizeDialog from "./PersonalizeDialog";
 
 // "Buscar por nombre": our curated selection of models. They are used as they are and are
 // never saved to anyone's history; personalizing one is Generación (Fase 2).
@@ -14,6 +16,9 @@ export default function ModelSearch() {
   const [aiResults, setAiResults] = useState<Model[] | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [preview, setPreview] = useState<Model | null>(null);
+  const [personalize, setPersonalize] = useState<Model | null>(null);
+  const [saved, setSaved] = useState<{ client_id: number } | null>(null);
+  const [, setParams] = useSearchParams();
 
   useEffect(() => {
     setAiResults(null);
@@ -99,24 +104,27 @@ export default function ModelSearch() {
               <NeoButton size="sm" variant="neutral" onClick={() => download(m, "pdf")} aria-label={`Descargar PDF de ${m.name}`}>
                 <FileDown size={14} /> PDF
               </NeoButton>
-              <NeoButton
-                size="sm"
-                variant="neutral"
-                title="Próximamente: Generación (Fase 2)"
-                onClick={() =>
-                  notify(
-                    "Próximamente: personalizar este modelo con los datos de un cliente (fotos, audios, datos) llegará con Generación, la siguiente fase.",
-                    "info",
-                  )
-                }
-              >
-                <UserPlus size={14} /> Personalizar <span className="rounded-full bg-foreground/10 px-1.5 text-[10px]">pronto</span>
+              <NeoButton size="sm" onClick={() => setPersonalize(m)} title="Llenarlo con los datos de un cliente o pedir cambios a la IA">
+                <UserPlus size={14} /> Personalizar
               </NeoButton>
             </div>
           </li>
         ))}
         {!loading && !list.length && <li className="px-4 py-8 text-center text-sm text-foreground/60">No hay modelos con ese nombre.</li>}
       </ul>
+
+      {personalize && (
+        <PersonalizeDialog
+          source={{ model_id: personalize.id }}
+          title={personalize.name}
+          onSaved={(doc) => setSaved({ client_id: doc.client_id })}
+          onClose={() => {
+            setPersonalize(null);
+            // after saving, go to that client's history
+            if (saved) setParams({ tab: "historial", client: String(saved.client_id) });
+          }}
+        />
+      )}
 
       {preview && (
         <PdfPreview
