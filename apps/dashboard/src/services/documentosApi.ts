@@ -9,6 +9,7 @@ export interface Model {
   file_name: string;
   category: string | null;
   reason?: string;
+  tag_status?: "untagged" | "pending" | "approved"; // Etiquetas
 }
 
 export interface HistoryClient {

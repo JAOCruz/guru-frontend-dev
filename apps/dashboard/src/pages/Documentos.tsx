@@ -1,22 +1,27 @@
 import { Link, useSearchParams } from "react-router-dom";
-import { FolderOpen, Search } from "lucide-react";
+import { FolderOpen, Search, Tags } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import ModelSearch from "../components/documentos/ModelSearch";
 import History from "../components/documentos/History";
+import TagReview from "../components/documentos/TagReview";
 
 // Documentos (Fase 1). Two parts, as Leandro described them:
 //  · Buscar por nombre — our curated selection of models, used as-is (never saved to a history)
 //  · Historial — each digitador's personalized documents per client, with versions
-// Separate from MotherBrain (where tags are edited).
+//  · Revisión de etiquetas (admin) — tagged copies of the models: AI tagging, review and approval
+// Separate from MotherBrain (its tag names are only used as vocabulary).
 export default function Documentos() {
   const { isAdmin } = useAuth();
   const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") === "historial" ? "historial" : "buscar";
-  const setTab = (t: "buscar" | "historial") => setParams(t === "buscar" ? {} : { tab: t }, { replace: true });
+  type TabKey = "buscar" | "historial" | "etiquetas";
+  const asked = params.get("tab");
+  const tab: TabKey = asked === "historial" ? "historial" : asked === "etiquetas" && isAdmin ? "etiquetas" : "buscar";
+  const setTab = (t: TabKey) => setParams(t === "buscar" ? {} : { tab: t }, { replace: true });
 
   const tabs = [
     { key: "buscar" as const, label: "Buscar por nombre", hint: "Nuestra selección de modelos", Icon: Search },
     { key: "historial" as const, label: isAdmin ? "Historial" : "Mi historial", hint: "Documentos personalizados por cliente", Icon: FolderOpen },
+    ...(isAdmin ? [{ key: "etiquetas" as const, label: "Revisión de etiquetas", hint: "Etiquetar, revisar y aprobar modelos", Icon: Tags }] : []),
   ];
 
   return (
@@ -33,7 +38,7 @@ export default function Documentos() {
         </Link>
       </div>
 
-      <div role="tablist" aria-label="Secciones de documentos" className="grid min-w-0 gap-2 sm:grid-cols-2">
+      <div role="tablist" aria-label="Secciones de documentos" className={`grid min-w-0 gap-2 ${tabs.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         {tabs.map(({ key, label, hint, Icon }) => {
           const active = tab === key;
           return (
@@ -57,7 +62,7 @@ export default function Documentos() {
         })}
       </div>
 
-      {tab === "buscar" ? <ModelSearch /> : <History />}
+      {tab === "buscar" ? <ModelSearch /> : tab === "historial" ? <History /> : <TagReview />}
     </div>
   );
 }

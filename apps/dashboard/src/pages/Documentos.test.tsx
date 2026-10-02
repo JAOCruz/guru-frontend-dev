@@ -23,6 +23,11 @@ vi.mock("../context/UserColorsContext", () => ({
   useUserColors: () => ({ users: [{ id: 2, name: "Hengi", username: "hengi", role: "digitador" }], refresh: vi.fn() }),
 }));
 
+vi.mock("../components/documentos/TagEditor", () => ({
+  default: (p: { modelId: number; mode: string }) => <div data-testid="tag-editor">{`${p.mode}:${p.modelId}`}</div>,
+}));
+vi.mock("../components/documentos/TagReview", () => ({ default: () => <div data-testid="tag-review" /> }));
+
 import Documentos from "./Documentos";
 import DialogHost from "../components/DialogHost";
 
@@ -111,5 +116,43 @@ describe("Documentos — Mi historial", () => {
     expect((within(dialog).getByLabelText(/nombre del documento/i) as HTMLInputElement).value).toBe("poder firmado");
     fireEvent.click(within(dialog).getByRole("button", { name: /^subir$/i }));
     await waitFor(() => expect(api.upload).toHaveBeenCalledWith({ file, client_id: 1, title: "poder firmado", notes: "" }));
+  });
+});
+
+describe("Documentos — Etiquetas", () => {
+  const TAGGED = [
+    { ...MODELS[0], tag_status: "approved" },
+    { ...MODELS[1], tag_status: "pending" },
+  ];
+
+  it("employees get 'Llenar' only on approved models; it opens the fill editor", async () => {
+    api.models.mockResolvedValue({ data: { models: TAGGED } });
+    renderAt();
+    const approved = (await screen.findByText("DECLARACIÓN JURADA DE INGRESOS")).closest("li")!;
+    const pending = screen.getByText("PODER ESPECIAL").closest("li")!;
+    expect(within(approved).getByText(/listo para llenar/i)).toBeTruthy();
+    expect(within(pending).queryByRole("button", { name: /^llenar/i })).toBeNull();
+    fireEvent.click(within(approved).getByRole("button", { name: /^llenar/i }));
+    expect(screen.getByTestId("tag-editor").textContent).toBe("fill:1");
+  });
+
+  it("the admin also fills pending models and sees their status", async () => {
+    auth.isAdmin = true;
+    api.models.mockResolvedValue({ data: { models: TAGGED } });
+    renderAt();
+    const pending = (await screen.findByText("PODER ESPECIAL")).closest("li")!;
+    expect(within(pending).getByText(/pendiente de revisión/i)).toBeTruthy();
+    expect(within(pending).getByRole("button", { name: /^llenar/i })).toBeTruthy();
+  });
+
+  it("only the admin has the 'Revisión de etiquetas' tab", async () => {
+    renderAt();
+    await screen.findByText("PODER ESPECIAL");
+    expect(screen.queryByRole("tab", { name: /revisión de etiquetas/i })).toBeNull();
+    cleanup();
+    auth.isAdmin = true;
+    renderAt();
+    fireEvent.click(await screen.findByRole("tab", { name: /revisión de etiquetas/i }));
+    expect(await screen.findByTestId("tag-review")).toBeTruthy();
   });
 });
