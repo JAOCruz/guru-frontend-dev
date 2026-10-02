@@ -29,6 +29,9 @@ interface Props {
 }
 
 const TAG = /\{\{([^}]+)\}\}/g;
+// parts the server's Word engine does not list (it only reads the body)
+const OUTSIDE_BODY = "header, footer, [class*='footnote'], [class*='endnote'], [class*='comment']";
+const bodyParagraphs = (root: HTMLElement) => Array.from(root.querySelectorAll("p")).filter((p) => !p.closest(OUTSIDE_BODY));
 const flat = (s: string) => s.replace(/[  \t\n]/g, " ");
 
 function wrapTags(root: HTMLElement) {
@@ -95,15 +98,18 @@ const DocxView = forwardRef<DocxViewHandle, Props>(function DocxView({ url, valu
     const el = box.current!;
     setState("loading");
     el.innerHTML = "";
+    // each render goes into its own box, swapped in only if it is still the current one
+    const target = document.createElement("div");
     fetch(url, { headers: { Authorization: `Bearer ${getAuthToken()}` }, credentials: "include" })
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.blob();
       })
-      .then((blob) => renderAsync(blob, el, undefined, { inWrapper: true, breakPages: true, ignoreLastRenderedPageBreak: true, useBase64URL: true }))
+      .then((blob) => renderAsync(blob, target, undefined, { inWrapper: true, breakPages: true, ignoreLastRenderedPageBreak: true, useBase64URL: true }))
       .then(() => {
         if (!alive) return;
-        wrapTags(el);
+        wrapTags(target);
+        el.replaceChildren(...Array.from(target.childNodes));
         setState("ready");
       })
       .catch(() => alive && setState("error"));
@@ -167,13 +173,14 @@ const DocxView = forwardRef<DocxViewHandle, Props>(function DocxView({ url, valu
     const startEl = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : (range.startContainer as Element);
     const endEl = range.endContainer.nodeType === Node.TEXT_NODE ? range.endContainer.parentElement : (range.endContainer as Element);
     const p = startEl?.closest("p");
-    if (!p || !box.current!.contains(p) || endEl?.closest("p") !== p || startEl?.closest("mark") || endEl?.closest("mark")) return onSelect(null);
+    if (!p || !box.current!.contains(p) || p.closest(OUTSIDE_BODY) || endEl?.closest("p") !== p || startEl?.closest("mark") || endEl?.closest("mark")) return onSelect(null);
     const text = paraText(p) as string;
     const start = paraText(p, { node: range.startContainer, offset: range.startOffset }) as number;
     const end = paraText(p, { node: range.endContainer, offset: range.endOffset }) as number;
     const selected = text.slice(start, end);
     if (!selected.trim() || selected.includes("{{")) return onSelect(null);
-    const occurrence = Array.from(box.current!.querySelectorAll("p")).filter((x) => paraText(x) === text).indexOf(p);
+    // counted like the server: body paragraphs only (no headers, footers or notes), in document order
+    const occurrence = bodyParagraphs(box.current!).filter((x) => paraText(x) === text).indexOf(p);
     onSelect({ text, offset: start, length: end - start, occurrence: Math.max(0, occurrence), selected });
   };
 
@@ -194,6 +201,7 @@ const DocxView = forwardRef<DocxViewHandle, Props>(function DocxView({ url, valu
         className="doc-view h-full overflow-auto rounded-base bg-foreground/5"
         onClick={onClick}
         onMouseUp={onMouseUp}
+        onTouchEnd={() => setTimeout(onMouseUp, 0)}
         data-testid="docx-view"
       />
       {state !== "ready" && (

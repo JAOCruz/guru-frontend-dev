@@ -4,7 +4,7 @@ import { NeoButton } from "@guru/ui";
 import { fieldCls, labelCls } from "../users/Modal";
 import { ClientPicker } from "./UploadDialog";
 import DocxView, { type DocSelection, type DocxViewHandle } from "./DocxView";
-import { downloadFile, generacionAPI, versionFileUrl, type HistoryClient, type PortfolioDocument } from "../../services/documentosApi";
+import { downloadFile, versionFileUrl, type HistoryClient, type PortfolioDocument } from "../../services/documentosApi";
 import {
   etiquetasAPI, groupLabel, prefillFromProfile, STATUS_LABEL, tagVersionFileUrl,
   type TagEditOp, type TagMeta, type TagModel, type TagVersion,
@@ -39,7 +39,7 @@ function applyLocal(tags: TagMeta[], ops: TagEditOp[]): TagMeta[] {
   let out = tags.map((t) => ({ ...t }));
   for (const op of ops) {
     if (op.op === "tag" && !out.some((t) => t.key === op.key)) out.push({ key: op.key, label: op.label || op.key, group: op.group || "DOCUMENTO", example: null });
-    if (op.op === "meta") out = out.map((t) => (t.key === op.key ? { ...t, ...(op.label ? { label: op.label } : {}), ...(op.group ? { group: op.group } : {}) } : t));
+    if (op.op === "meta") out = out.map((t) => (t.key === op.key ? { ...t, ...(op.label !== undefined ? { label: op.label } : {}), ...(op.group ? { group: op.group } : {}) } : t));
     if (op.op === "untag") out = out.filter((t) => t.key !== op.key);
   }
   return out;
@@ -94,13 +94,31 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
   const roles = useMemo(() => [...new Set(tags.map((t) => t.group).filter((g) => g !== "DOCUMENTO"))], [tags]);
   const filled = tags.filter((t) => values[t.key]?.trim()).length;
 
-  // client + role → that role's tags from the client's legal profile
+  // client + role → that role's tags from the client's legal profile. What a previous client/role
+  // filled is removed first (what was typed by hand stays); a late answer for another client is ignored.
+  const prefilled = useRef<Record<string, string>>({});
   useEffect(() => {
+    const previous = prefilled.current;
+    prefilled.current = {};
+    setValues((v) => {
+      const next = { ...v };
+      for (const [k, val] of Object.entries(previous)) if (next[k] === val) delete next[k];
+      return next;
+    });
     if (mode !== "fill" || !client || !role || !shown) return;
+    let alive = true;
     etiquetasAPI
       .profile(client.id)
-      .then(({ data }) => setValues((v) => ({ ...v, ...prefillFromProfile(shown.tags, data.profile, role) })))
+      .then(({ data }) => {
+        if (!alive) return;
+        const fill = prefillFromProfile(shown.tags, data.profile, role);
+        prefilled.current = fill;
+        setValues((v) => ({ ...v, ...fill }));
+      })
       .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, [client, role, shown, mode]);
 
   const goTo = (key: string) => {
@@ -126,7 +144,7 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
   const fillWithAI = async () => {
     setBusy(true);
     try {
-      const { data } = await generacionAPI.extract({ model_id: modelId }, { client_id: client?.id, text: aiText, files: aiFiles });
+      const { data } = await etiquetasAPI.extract(modelId, { version_id: shown!.id, client_id: client?.id, text: aiText, files: aiFiles });
       const n = Object.keys(data.values).length;
       setValues((v) => ({ ...v, ...data.values }));
       notify(n ? `La IA llenó ${n} etiqueta${n === 1 ? "" : "s"}; revísalas` : "La IA no encontró datos para llenar", n ? "success" : "info");
@@ -144,7 +162,8 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
     setBusy(true);
     try {
       const clean = Object.fromEntries(Object.entries(values).filter(([k, v]) => labels[k] && v.trim()));
-      const { data } = await etiquetasAPI.fill(modelId, { values: clean, client_id: client.id, client_role: role || null, title: title.trim() || model!.name });
+      // the version on screen (the server only honors another version than the approved one for admins)
+      const { data } = await etiquetasAPI.fill(modelId, { values: clean, client_id: client.id, client_role: role || null, title: title.trim() || model!.name, version_id: shown!.id });
       setSaved(data.document);
       onSaved?.(data.document);
     } catch (err: any) {

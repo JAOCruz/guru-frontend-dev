@@ -3,10 +3,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
 import { forwardRef, useImperativeHandle } from "react";
 
-const { tags, docs, gen, scrollTo, dialogs } = vi.hoisted(() => ({
-  tags: { model: vi.fn(), fill: vi.fn(), edit: vi.fn(), approve: vi.fn(), restore: vi.fn(), profile: vi.fn() },
+const { tags, docs, scrollTo, dialogs } = vi.hoisted(() => ({
+  tags: { model: vi.fn(), fill: vi.fn(), edit: vi.fn(), approve: vi.fn(), restore: vi.fn(), profile: vi.fn(), extract: vi.fn() },
   docs: { searchAllClients: vi.fn(), createClient: vi.fn() },
-  gen: { extract: vi.fn() },
   scrollTo: vi.fn(() => 2),
   dialogs: { confirmDialog: vi.fn((_msg: string, _opts?: unknown) => Promise.resolve(true)), notify: vi.fn() },
 }));
@@ -14,7 +13,6 @@ const { tags, docs, gen, scrollTo, dialogs } = vi.hoisted(() => ({
 vi.mock("../../services/etiquetasApi", async (orig) => ({ ...(await orig<object>()), etiquetasAPI: tags, tagVersionFileUrl: (id: number) => `tagfile/${id}` }));
 vi.mock("../../services/documentosApi", () => ({
   documentosAPI: docs,
-  generacionAPI: gen,
   downloadFile: vi.fn(() => Promise.resolve()),
   versionFileUrl: (id: number, f: string) => `version/${id}/${f}`,
 }));
@@ -47,10 +45,10 @@ const V2 = { id: 12, template_id: 7, version_number: 2, tags: TAGS, skipped: [],
 const APPROVED = { id: 7, name: "ACTO DE VENTA", category: "Vehículos", status: "approved", current: V2, approved: V2 };
 
 beforeEach(() => {
-  [...Object.values(tags), ...Object.values(docs), ...Object.values(gen)].forEach((f) => f.mockReset());
+  [...Object.values(tags), ...Object.values(docs)].forEach((f) => f.mockReset());
   scrollTo.mockClear();
   dialogs.confirmDialog.mockClear();
-  docs.searchAllClients.mockResolvedValue({ data: { clients: [{ id: 1, name: "Juan Pérez", phone: "1809" }] } });
+  docs.searchAllClients.mockResolvedValue({ data: { clients: [{ id: 1, name: "Juan Pérez", phone: "1809" }, { id: 2, name: "Ana Díaz", phone: "1829" }] } });
   tags.profile.mockResolvedValue({ data: { profile: { NOMBRE: "JUAN PÉREZ" } } });
 });
 afterEach(cleanup);
@@ -110,11 +108,38 @@ describe("Llenar un modelo aprobado", () => {
     fireEvent.click(screen.getByRole("button", { name: /generar documento/i }));
     await waitFor(() => expect(tags.fill).toHaveBeenCalled());
     expect(dialogs.confirmDialog.mock.calls[0][0]).toMatch(/3 etiquetas/);
-    expect(tags.fill).toHaveBeenCalledWith(7, { values: { NOMBRE_VENDEDOR: "JUAN PÉREZ" }, client_id: 1, client_role: "VENDEDOR", title: "ACTO DE VENTA" });
+    expect(tags.fill).toHaveBeenCalledWith(7, { values: { NOMBRE_VENDEDOR: "JUAN PÉREZ" }, client_id: 1, client_role: "VENDEDOR", title: "ACTO DE VENTA", version_id: 12 });
     expect(await screen.findByText(/guardado en el historial/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /descargar word/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /descargar pdf/i })).toBeTruthy();
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: 30 }));
+  });
+
+  it("changing the client clears what the previous client's profile filled", async () => {
+    tags.model.mockResolvedValue({ data: { model: APPROVED } });
+    tags.profile.mockImplementation((id: number) => Promise.resolve({ data: { profile: id === 1 ? { NOMBRE: "JUAN PÉREZ" } : {} } }));
+    render(<TagEditor modelId={7} mode="fill" onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
+    fireEvent.change(screen.getByLabelText(/el cliente es/i), { target: { value: "VENDEDOR" } });
+    await waitFor(() => expect((screen.getByLabelText("Nombre (vendedor)") as HTMLInputElement).value).toBe("JUAN PÉREZ"));
+    fireEvent.change(screen.getByLabelText("Nombre (comprador)"), { target: { value: "MARÍA" } });
+    fireEvent.click(screen.getByRole("button", { name: /cambiar/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /ana díaz/i }));
+    fireEvent.change(screen.getByLabelText(/el cliente es/i), { target: { value: "VENDEDOR" } });
+    await waitFor(() => expect(tags.profile).toHaveBeenLastCalledWith(2));
+    expect((screen.getByLabelText("Nombre (vendedor)") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Nombre (comprador)") as HTMLInputElement).value).toBe("MARÍA"); // typed by hand: kept
+  });
+
+  it("'Llenar con IA' reads into the tags of the version on screen", async () => {
+    tags.model.mockResolvedValue({ data: { model: APPROVED } });
+    tags.extract.mockResolvedValue({ data: { values: { NOMBRE_COMPRADOR: "ANA" } } });
+    render(<TagEditor modelId={7} mode="fill" onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /llenar con ia \(/i }));
+    fireEvent.change(screen.getByLabelText(/información del caso/i), { target: { value: "La compradora es Ana" } });
+    fireEvent.click(screen.getByRole("button", { name: /^llenar con ia$/i }));
+    await waitFor(() => expect((screen.getByLabelText("Nombre (comprador)") as HTMLInputElement).value).toBe("ANA"));
+    expect(tags.extract).toHaveBeenCalledWith(7, { version_id: 12, client_id: undefined, text: "La compradora es Ana", files: [] });
   });
 
   it("without a client it does not generate", async () => {
@@ -168,6 +193,14 @@ describe("Revisión de etiquetas (admin)", () => {
     fireEvent.click(await screen.findByRole("button", { name: /aprobar v3/i }));
     await waitFor(() => expect(tags.approve).toHaveBeenCalledWith(13));
     expect(dialogs.confirmDialog).toHaveBeenCalled();
+  });
+
+  it("a label can be cleared while typing (it does not snap back)", async () => {
+    tags.model.mockResolvedValue({ data: { model: PENDING } });
+    render(<TagEditor modelId={7} mode="review" onClose={() => {}} />);
+    const input = (await screen.findByLabelText("Etiqueta NOMBRE_VENDEDOR")) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "" } });
+    expect(input.value).toBe("");
   });
 
   it("an older version opens read-only and can be restored", async () => {

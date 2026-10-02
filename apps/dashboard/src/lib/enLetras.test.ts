@@ -25,6 +25,19 @@ describe("números en letras (actos legales)", () => {
     expect(montoEnLetras("abc")).toBeNull();
   });
 
+  it("short form before the currency, dollars, singular", () => {
+    expect(montoEnLetras("RD$ 21")).toBe("VEINTIÚN PESOS DOMINICANOS");
+    expect(montoEnLetras("101")).toBe("CIENTO UN PESOS DOMINICANOS");
+    expect(montoEnLetras("1.00")).toBe("UN PESO DOMINICANO");
+    expect(montoEnLetras("US$ 15,000.00")).toBe("QUINCE MIL DÓLARES ESTADOUNIDENSES");
+    expect(montoEnLetras("USD 1,000,000")).toBe("UN MILLÓN DE DÓLARES ESTADOUNIDENSES");
+  });
+
+  it("decimals that are not money keep their decimals", () => {
+    expect(letrasPara("AREA_LETRAS", { AREA_NUMEROS: "350.75" })).toBe("TRESCIENTOS CINCUENTA PUNTO SETENTA Y CINCO");
+    expect(letrasPara("AREA_LETRAS", { AREA_NUMEROS: "1,250" })).toBe("MIL DOSCIENTOS CINCUENTA");
+  });
+
   it("finds the number a _LETRAS/_TEXTO tag can be written from", () => {
     const values = { PRECIO_VENTA_NUMEROS: "RD$100,000.00", DIA_NUMERO: "5", AÑO_NUMERO: "" };
     expect(letrasPara("PRECIO_VENTA_LETRAS", values)).toBe("CIEN MIL PESOS DOMINICANOS");

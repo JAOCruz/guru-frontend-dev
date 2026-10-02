@@ -33,17 +33,33 @@ export function numeroEnLetras(n: number): string {
   return parts.join(" ");
 }
 
-// "RD$ 92,000,960.00" → words + "PESOS DOMINICANOS" (+ "CON 50/100" when there are cents)
+const DOLAR = /US\$|USD|D[OÓ]LAR/i;
+
+// "RD$ 92,000,960.00" → words + "PESOS DOMINICANOS" (dollars: "DÓLARES ESTADOUNIDENSES"), "CON 50/100" for cents
 export function montoEnLetras(raw: string): string | null {
   const clean = String(raw).replace(/[^\d.,]/g, "");
   if (!/\d/.test(clean)) return null;
   const [entero, dec = ""] = clean.replace(/,/g, "").split(".");
   const n = Number(entero || "0");
   if (!Number.isFinite(n)) return null;
-  const palabras = numeroEnLetras(n);
+  const dolares = DOLAR.test(raw);
+  // "UNO" shortens before the currency: VEINTIÚN PESOS, CIENTO UN PESOS, UN PESO
+  const palabras = apocope(numeroEnLetras(n));
   const de = n > 0 && n % 1_000_000 === 0 ? " DE" : "";
+  const moneda = dolares ? (n === 1 ? "DÓLAR ESTADOUNIDENSE" : "DÓLARES ESTADOUNIDENSES") : n === 1 ? "PESO DOMINICANO" : "PESOS DOMINICANOS";
   const centavos = Number((dec + "00").slice(0, 2));
-  return `${palabras}${de} PESOS DOMINICANOS${centavos ? ` CON ${String(centavos).padStart(2, "0")}/100` : ""}`;
+  return `${palabras}${de} ${moneda}${centavos ? ` CON ${String(centavos).padStart(2, "0")}/100` : ""}`;
+}
+
+// Plain numbers (areas, quantities): "350.75" → "TRESCIENTOS CINCUENTA PUNTO SETENTA Y CINCO"
+function cantidadEnLetras(raw: string): string | null {
+  const clean = String(raw).replace(/[^\d.,]/g, "").replace(/,/g, "");
+  if (!/\d/.test(clean)) return null;
+  const [entero, dec] = clean.split(".");
+  const words = numeroEnLetras(Number(entero || "0"));
+  if (!dec || !/[1-9]/.test(dec)) return words;
+  const ceros = dec.match(/^0*/)![0].length;
+  return `${words} PUNTO ${"CERO ".repeat(ceros)}${numeroEnLetras(Number(dec))}`;
 }
 
 // A tag ending in _LETRAS/_TEXTO can be written from its _NUMEROS/_NUMERO sibling when it has a value
@@ -55,8 +71,8 @@ export function letrasPara(key: string, values: Record<string, string>): string 
   for (const s of siblings) {
     const v = values[`${base}_${s}${rest}`];
     if (v && /\d/.test(v)) {
-      const money = /PRECIO|MONTO|SUMA|VALOR|PAGO|CUOTA|RENTA|ALQUILER|PESOS|RD\$/i.test(base + v);
-      return money ? montoEnLetras(v) : numeroEnLetras(Number(v.replace(/[^\d]/g, "")));
+      const money = /PRECIO|MONTO|SUMA|VALOR|PAGO|CUOTA|RENTA|ALQUILER|PESOS|RD\$|US\$|USD|D[OÓ]LAR/i.test(base + v);
+      return money ? montoEnLetras(v) : cantidadEnLetras(v);
     }
   }
   return null;

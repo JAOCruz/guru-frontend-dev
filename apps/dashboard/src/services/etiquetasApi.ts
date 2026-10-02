@@ -69,8 +69,16 @@ export const etiquetasAPI = {
     api.post<{ model: TagModel }>(`/documentos/tags/models/${id}/edit`, body),
   restore: (id: number, versionId: number) => api.post<{ model: TagModel }>(`/documentos/tags/models/${id}/restore`, { version_id: versionId }),
   approve: (versionId: number) => api.post<{ model: TagModel }>(`/documentos/tags/versions/${versionId}/approve`),
-  fill: (id: number, body: { values: Record<string, string>; client_id: number; client_role?: string | null; title: string; version_id?: number }) =>
+  fill: (id: number, body: { values: Record<string, string>; client_id: number; client_role?: string | null; title: string; version_id: number }) =>
     api.post<{ document: PortfolioDocument; empty: number }>(`/documentos/tags/models/${id}/fill`, body),
+  extract: (id: number, data: { version_id: number; client_id?: number; text: string; files: File[] }) => {
+    const fd = new FormData();
+    fd.append("version_id", String(data.version_id));
+    if (data.client_id) fd.append("client_id", String(data.client_id));
+    fd.append("text", data.text);
+    data.files.forEach((f) => fd.append("files", f));
+    return api.post<{ values: Record<string, string> }>(`/documentos/tags/models/${id}/extract`, fd, { timeout: 180_000 });
+  },
   profile: (clientId: number) => api.get<{ profile: Record<string, string> }>(`/documentos/clients/${clientId}/profile`),
 };
 
