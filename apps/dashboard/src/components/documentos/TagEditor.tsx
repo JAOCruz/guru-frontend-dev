@@ -437,7 +437,7 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
               {mode === "fill" && !saved && (
                 <>
                   <NeoButton className="w-full" type="button" onClick={generate} disabled={busy}>
-                    <Save size={16} /> {busy ? "Generando…" : "Generar documento"}
+                    <Save size={16} className="shrink-0" /> {busy ? "Generando…" : `Generar y guardar para ${client?.name || "el cliente"}`}
                   </NeoButton>
                 </>
               )}
@@ -455,17 +455,19 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
                 <>
                   {ops.length > 0 && (
                     <>
-                      <p className="text-xs font-bold text-amber-700">{ops.length} cambios sin guardar</p>
+                      <p className="text-xs font-bold text-amber-700">
+                        {ops.length} cambios al modelo sin guardar · se guardan como v{model.current!.version_number + 1} (no afecta documentos de clientes)
+                      </p>
                       <input className={fieldCls} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Nota (opcional): qué cambiaste" aria-label="Nota de la versión" />
                     </>
                   )}
-                  <div className="grid grid-cols-2 gap-2">
-                    <NeoButton size="sm" type="button" variant="neutral" onClick={saveEdits} disabled={busy || !ops.length}>
-                      <Save size={15} /> Guardar cambios
+                  <div className="flex flex-col gap-2">
+                    <NeoButton className="w-full" size="sm" type="button" variant="neutral" onClick={saveEdits} disabled={busy || !ops.length}>
+                      <Save size={15} className="shrink-0" /> Guardar como v{model.current!.version_number + 1} del modelo
                     </NeoButton>
                     {model.status !== "approved" && (
-                      <NeoButton size="sm" type="button" onClick={approve} disabled={busy || ops.length > 0} title={ops.length ? "Guarda los cambios antes de aprobar" : undefined}>
-                        <CheckCircle2 size={15} /> Aprobar v{model.current!.version_number}
+                      <NeoButton className="w-full" size="sm" type="button" onClick={approve} disabled={busy || ops.length > 0} title={ops.length ? "Guarda los cambios antes de aprobar" : undefined}>
+                        <CheckCircle2 size={15} className="shrink-0" /> Aprobar v{model.current!.version_number}
                       </NeoButton>
                     )}
                   </div>

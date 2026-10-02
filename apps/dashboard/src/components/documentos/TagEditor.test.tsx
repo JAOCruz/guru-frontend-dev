@@ -105,7 +105,7 @@ describe("Llenar un modelo aprobado", () => {
     fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
     fireEvent.change(screen.getByLabelText(/el cliente es/i), { target: { value: "VENDEDOR" } });
     await waitFor(() => expect((screen.getByLabelText("Nombre (vendedor)") as HTMLInputElement).value).toBe("JUAN PÉREZ"));
-    fireEvent.click(screen.getByRole("button", { name: /generar documento/i }));
+    fireEvent.click(screen.getByRole("button", { name: /generar y guardar para/i }));
     await waitFor(() => expect(tags.fill).toHaveBeenCalled());
     expect(dialogs.confirmDialog.mock.calls[0][0]).toMatch(/3 etiquetas/);
     expect(tags.fill).toHaveBeenCalledWith(7, { values: { NOMBRE_VENDEDOR: "JUAN PÉREZ" }, client_id: 1, client_role: "VENDEDOR", title: "ACTO DE VENTA", version_id: 12 });
@@ -146,7 +146,7 @@ describe("Llenar un modelo aprobado", () => {
     tags.model.mockResolvedValue({ data: { model: APPROVED } });
     render(<TagEditor modelId={7} mode="fill" onClose={() => {}} />);
     await screen.findByRole("heading", { name: "ACTO DE VENTA" });
-    fireEvent.click(screen.getByRole("button", { name: /generar documento/i }));
+    fireEvent.click(screen.getByRole("button", { name: /generar y guardar para/i }));
     expect(dialogs.notify).toHaveBeenCalledWith("Elige el cliente");
     expect(tags.fill).not.toHaveBeenCalled();
   });
@@ -171,9 +171,9 @@ describe("Revisión de etiquetas (admin)", () => {
     // rename a label, remove a tag
     fireEvent.change(screen.getByLabelText("Etiqueta NOMBRE_VENDEDOR"), { target: { value: "Vendedor (nombre completo)" } });
     fireEvent.click(screen.getByRole("button", { name: /quitar nombre_comprador/i }));
-    expect(screen.getByText(/3 cambios sin guardar/i)).toBeTruthy();
+    expect(screen.getByText(/3 cambios al modelo sin guardar/i)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /guardar cambios/i }));
+    fireEvent.click(screen.getByRole("button", { name: /guardar como v\d+ del modelo/i }));
     await waitFor(() => expect(tags.edit).toHaveBeenCalled());
     expect(tags.edit).toHaveBeenCalledWith(7, {
       base_version_id: 13,
