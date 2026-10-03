@@ -12,6 +12,7 @@ export interface DocSelection {
   length: number;
   occurrence: number; // nth paragraph with this same text
   selected: string;
+  hasTags: boolean; // holds whole tags (it can be changed as text, not tagged)
 }
 
 export interface DocxViewHandle {
@@ -173,15 +174,19 @@ const DocxView = forwardRef<DocxViewHandle, Props>(function DocxView({ url, valu
     const startEl = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : (range.startContainer as Element);
     const endEl = range.endContainer.nodeType === Node.TEXT_NODE ? range.endContainer.parentElement : (range.endContainer as Element);
     const p = startEl?.closest("p");
-    if (!p || !box.current!.contains(p) || p.closest(OUTSIDE_BODY) || endEl?.closest("p") !== p || startEl?.closest("mark") || endEl?.closest("mark")) return onSelect(null);
+    if (!p || !box.current!.contains(p) || p.closest(OUTSIDE_BODY) || endEl?.closest("p") !== p) return onSelect(null);
+    // a selection that starts or ends inside a tag takes the whole tag
+    const at = (mark: Element, after: number) => ({ node: mark.parentNode!, offset: Array.from(mark.parentNode!.childNodes).indexOf(mark as ChildNode) + after });
+    const startMark = startEl?.closest("mark.doc-tag");
+    const endMark = endEl?.closest("mark.doc-tag");
     const text = paraText(p) as string;
-    const start = paraText(p, { node: range.startContainer, offset: range.startOffset }) as number;
-    const end = paraText(p, { node: range.endContainer, offset: range.endOffset }) as number;
+    const start = paraText(p, startMark ? at(startMark, 0) : { node: range.startContainer, offset: range.startOffset }) as number;
+    const end = paraText(p, endMark ? at(endMark, 1) : { node: range.endContainer, offset: range.endOffset }) as number;
     const selected = text.slice(start, end);
-    if (!selected.trim() || selected.includes("{{")) return onSelect(null);
+    if (!selected.trim()) return onSelect(null);
     // counted like the server: body paragraphs only (no headers, footers or notes), in document order
     const occurrence = bodyParagraphs(box.current!).filter((x) => paraText(x) === text).indexOf(p);
-    onSelect({ text, offset: start, length: end - start, occurrence: Math.max(0, occurrence), selected });
+    onSelect({ text, offset: start, length: end - start, occurrence: Math.max(0, occurrence), selected, hasTags: selected.includes("{{") });
   };
 
   return (

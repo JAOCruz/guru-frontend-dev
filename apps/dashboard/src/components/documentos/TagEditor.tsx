@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Circle, FileDown, Paperclip, RotateCcw, Save, Sparkles, Tag, Trash2, X } from "lucide-react";
+import { CheckCircle2, Circle, FileDown, Paperclip, PencilLine, RotateCcw, Save, Sparkles, Tag, Trash2, X } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { fieldCls, labelCls } from "../users/Modal";
 import { ClientPicker } from "./UploadDialog";
 import DocxView, { type DocSelection, type DocxViewHandle } from "./DocxView";
 import { downloadFile, versionFileUrl, type HistoryClient, type PortfolioDocument } from "../../services/documentosApi";
 import {
-  etiquetasAPI, groupLabel, prefillFromProfile, STATUS_LABEL, tagVersionFileUrl,
-  type TagEditOp, type TagMeta, type TagModel, type TagVersion,
+  etiquetasAPI, groupLabel, isBodyOp, prefillFromProfile, STATUS_LABEL, tagVersionFileUrl,
+  type AiChange, type TagEditOp, type TagMeta, type TagModel, type TagVersion,
 } from "../../services/etiquetasApi";
 import { confirmDialog, notify } from "../../lib/dialogs";
 import { letrasPara } from "../../lib/enLetras";
 
 // Documentos · Etiquetas editor. The Word on the left, its tags on the right.
 //  · fill: each tag has a field; typing fills the document live; Generar saves it to the client's history
-//  · review (admin): tag a selection, rename/relabel/remove tags, save as a new version, approve, restore
+//  · review (admin): tag a selection, rename/relabel/remove tags, change the wording (by hand or with
+//    the AI, confirming each change), save as a new version, approve, restore
 interface Props {
   modelId: number;
   mode: "fill" | "review";
@@ -70,6 +71,11 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
   const [selection, setSelection] = useState<DocSelection | null>(null);
   const [newTag, setNewTag] = useState({ key: "", label: "", group: "DOCUMENTO" });
   const [notes, setNotes] = useState("");
+  const [selMode, setSelMode] = useState<"tag" | "text">("tag");
+  const [replacement, setReplacement] = useState("");
+  const [aiEditOpen, setAiEditOpen] = useState(false);
+  const [instructions, setInstructions] = useState("");
+  const [proposal, setProposal] = useState<{ base: number; changes: AiChange[]; keep: boolean[] } | null>(null);
 
   const load = (next?: TagModel) => {
     const apply = (m: TagModel) => {
@@ -78,6 +84,7 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
       setTitle((t) => t || m.name);
       setOps([]);
       setSelection(null);
+      setProposal(null);
     };
     if (next) return apply(next);
     etiquetasAPI
@@ -93,6 +100,8 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
   const labels = useMemo(() => Object.fromEntries(tags.map((t) => [t.key, t.label])), [tags]);
   const roles = useMemo(() => [...new Set(tags.map((t) => t.group).filter((g) => g !== "DOCUMENTO"))], [tags]);
   const filled = tags.filter((t) => values[t.key]?.trim()).length;
+  const hasBodyOps = ops.some(isBodyOp);
+  const hasTagOps = ops.some((o) => !isBodyOp(o));
 
   // client + role → that role's tags from the client's legal profile. What a previous client/role
   // filled is removed first (what was typed by hand stays); a late answer for another client is ignored.
@@ -184,10 +193,50 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
     setNewTag({ key: "", label: "", group: "DOCUMENTO" });
   };
 
-  const saveEdits = async () => {
+  // a selection: tag it (plain text only) or change its wording (whole tags may be inside)
+  const pick = (sel: DocSelection | null) => {
+    setSelection(sel);
+    if (!sel) return;
+    setSelMode(sel.hasTags ? "text" : "tag");
+    setReplacement(sel.selected);
+  };
+
+  const addTextChange = () => {
+    if (!selection) return;
+    if (replacement === selection.selected) return notify("Escribe el texto nuevo");
+    queue({ op: "text", text: selection.text, offset: selection.offset, length: selection.length, occurrence: selection.occurrence, replacement });
+    setSelection(null);
+  };
+
+  const proposeWithAI = async () => {
     setBusy(true);
     try {
-      const { data } = await etiquetasAPI.edit(modelId, { base_version_id: model!.current!.id, ops, notes });
+      const { data } = await etiquetasAPI.aiEdit(modelId, instructions.trim());
+      if (!data.changes.length) notify("La IA no propuso cambios; explica con más detalle qué quieres cambiar", "info");
+      setProposal(data.changes.length ? { base: data.base_version_id, changes: data.changes, keep: data.changes.map(() => true) } : null);
+    } catch (err: any) {
+      notify(err?.response?.data?.error || "La IA no respondió; intenta de nuevo");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveProposal = async () => {
+    if (!proposal) return;
+    const kept: TagEditOp[] = proposal.changes
+      .filter((_, n) => proposal.keep[n])
+      .map(({ tags_added: _a, tags_removed: _r, ...op }) => op as TagEditOp);
+    await save(kept, `IA: ${instructions.trim()}`.slice(0, 500), proposal.base);
+    setInstructions("");
+    setAiEditOpen(false);
+  };
+
+  const saveEdits = () => save(ops, notes);
+
+  const save = async (list: TagEditOp[], note: string, baseId = model!.current!.id) => {
+    setBusy(true);
+    try {
+      const { data } = await etiquetasAPI.edit(modelId, { base_version_id: baseId, ops: list, notes: note });
       setNotes("");
       load(data.model);
       onChanged?.();
@@ -260,7 +309,7 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
               labels={labels}
               activeKey={active}
               onTagClick={onChip}
-              onSelect={mode === "review" && isLatest ? setSelection : undefined}
+              onSelect={mode === "review" && isLatest && !proposal ? pick : undefined}
             />
           </div>
 
@@ -331,43 +380,114 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
 
               {mode === "review" && isLatest && selection && (
                 <section className="space-y-2 rounded-base border-2 border-main bg-background p-3">
-                  <p className="text-sm font-bold">Etiquetar «{selection.selected}»</p>
-                  <label className={labelCls}>
-                    Nombre de la etiqueta
-                    <input
-                      className={fieldCls}
-                      list="tag-keys"
-                      value={newTag.key}
-                      placeholder="Ej. NOMBRE_VENDEDOR"
-                      onChange={(e) => {
-                        const key = toKey(e.target.value);
-                        // a key ending in an existing role belongs to that role
-                        const role = roles.find((r) => key.endsWith(`_${r}`));
-                        setNewTag({ ...newTag, key: e.target.value, ...(role ? { group: role } : {}) });
-                      }}
-                    />
-                  </label>
-                  <datalist id="tag-keys">{tags.map((t) => <option key={t.key} value={t.key} />)}</datalist>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className={labelCls}>
-                      Descripción
-                      <input className={fieldCls} value={newTag.label} onChange={(e) => setNewTag({ ...newTag, label: e.target.value })} placeholder="Nombre del vendedor" />
-                    </label>
-                    <label className={labelCls}>
-                      Parte
-                      <input className={fieldCls} list="tag-groups" value={newTag.group} onChange={(e) => setNewTag({ ...newTag, group: toKey(e.target.value).replace(/ /g, "_") })} />
-                      <datalist id="tag-groups">{["DOCUMENTO", ...roles].map((g) => <option key={g} value={g}>{groupLabel(g)}</option>)}</datalist>
-                    </label>
+                  <p className="break-words text-sm font-bold">«{selection.selected}»</p>
+                  <div className="grid grid-cols-2 gap-1" role="group" aria-label="Qué hacer con la selección">
+                    {(["tag", "text"] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        aria-pressed={selMode === m}
+                        disabled={m === "tag" && selection.hasTags}
+                        title={m === "tag" && selection.hasTags ? "La selección tiene etiquetas: solo se puede cambiar como texto" : undefined}
+                        onClick={() => setSelMode(m)}
+                        className={`rounded-base border-2 border-border px-2 py-1 text-xs font-bold disabled:opacity-40 ${selMode === m ? "bg-main text-main-foreground" : "bg-background hover:bg-main/10"}`}
+                      >
+                        {m === "tag" ? "Etiquetar" : "Cambiar texto"}
+                      </button>
+                    ))}
                   </div>
-                  <div className="flex justify-end gap-2">
-                    <NeoButton size="sm" variant="neutral" type="button" onClick={() => setSelection(null)}>Cancelar</NeoButton>
-                    <NeoButton size="sm" type="button" onClick={addTag}>Agregar etiqueta</NeoButton>
-                  </div>
+                  {selMode === "tag" ? (
+                    <>
+                      {hasBodyOps && <p className="text-xs font-semibold text-amber-700">Guarda primero los cambios de texto; después etiquetas.</p>}
+                      <label className={labelCls}>
+                        Nombre de la etiqueta
+                        <input
+                          className={fieldCls}
+                          list="tag-keys"
+                          value={newTag.key}
+                          placeholder="Ej. NOMBRE_VENDEDOR"
+                          onChange={(e) => {
+                            const key = toKey(e.target.value);
+                            // a key ending in an existing role belongs to that role
+                            const role = roles.find((r) => key.endsWith(`_${r}`));
+                            setNewTag({ ...newTag, key: e.target.value, ...(role ? { group: role } : {}) });
+                          }}
+                        />
+                      </label>
+                      <datalist id="tag-keys">{tags.map((t) => <option key={t.key} value={t.key} />)}</datalist>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className={labelCls}>
+                          Descripción
+                          <input className={fieldCls} value={newTag.label} onChange={(e) => setNewTag({ ...newTag, label: e.target.value })} placeholder="Nombre del vendedor" />
+                        </label>
+                        <label className={labelCls}>
+                          Parte
+                          <input className={fieldCls} list="tag-groups" value={newTag.group} onChange={(e) => setNewTag({ ...newTag, group: toKey(e.target.value).replace(/ /g, "_") })} />
+                          <datalist id="tag-groups">{["DOCUMENTO", ...roles].map((g) => <option key={g} value={g}>{groupLabel(g)}</option>)}</datalist>
+                        </label>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <NeoButton size="sm" variant="neutral" type="button" onClick={() => setSelection(null)}>Cancelar</NeoButton>
+                        <NeoButton size="sm" type="button" onClick={addTag} disabled={hasBodyOps}>Agregar etiqueta</NeoButton>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {hasTagOps && <p className="text-xs font-semibold text-amber-700">Guarda primero los cambios de etiquetas; después los de texto.</p>}
+                      <label className={labelCls}>
+                        Texto nuevo
+                        <textarea className={fieldCls} rows={4} value={replacement} onChange={(e) => setReplacement(e.target.value)} />
+                      </label>
+                      <p className="text-[11px] text-foreground/60">
+                        Para un dato que cambia por cliente escribe una etiqueta: {"{{NOMBRE_VENDEDOR}}"}. Déjalo vacío para borrar el texto. El formato (negritas, letra) se conserva.
+                      </p>
+                      <div className="flex justify-end gap-2">
+                        <NeoButton size="sm" variant="neutral" type="button" onClick={() => setSelection(null)}>Cancelar</NeoButton>
+                        <NeoButton size="sm" type="button" onClick={addTextChange} disabled={hasTagOps}>Agregar cambio</NeoButton>
+                      </div>
+                    </>
+                  )}
                 </section>
               )}
 
               {mode === "review" && isLatest && !selection && (
-                <p className="text-xs text-foreground/60">Para etiquetar un dato, selecciónalo con el mouse en el documento.</p>
+                <AiEditPanel
+                  open={aiEditOpen}
+                  onToggle={() => setAiEditOpen((o) => !o)}
+                  blocked={ops.length > 0}
+                  busy={busy}
+                  instructions={instructions}
+                  onInstructions={setInstructions}
+                  onPropose={proposeWithAI}
+                  proposal={proposal}
+                  onKeep={(n, v) => setProposal((p) => p && { ...p, keep: p.keep.map((k, j) => (j === n ? v : k)) })}
+                  onDiscard={() => setProposal(null)}
+                  onSave={saveProposal}
+                  next={model.current!.version_number + 1}
+                />
+              )}
+
+              {mode === "review" && isLatest && ops.some(isBodyOp) && (
+                <section className="space-y-1">
+                  <h3 className="text-xs font-black uppercase tracking-wide text-foreground/70">Cambios de texto sin guardar</h3>
+                  {ops.map((o, n) =>
+                    o.op === "text" ? (
+                      <div key={n} className="flex items-start gap-2 rounded-base border-2 border-border/30 bg-background p-2 text-xs">
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <p className="break-words text-red-700 line-through">{o.text.slice(o.offset, o.offset + o.length)}</p>
+                          <p className="break-words text-green-800">{o.replacement || "(borrado)"}</p>
+                        </div>
+                        <button type="button" aria-label={`Descartar cambio ${n + 1}`} onClick={() => setOps((l) => l.filter((_, j) => j !== n))} className="shrink-0 rounded-base border-2 border-border p-1 hover:bg-red-100">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : null,
+                  )}
+                </section>
+              )}
+
+              {mode === "review" && isLatest && !selection && (
+                <p className="text-xs text-foreground/60">Selecciona un texto en el documento para etiquetarlo o cambiar su redacción.</p>
               )}
 
               {/* tags by role */}
@@ -451,12 +571,13 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
                   <NeoButton className="w-full" type="button" onClick={onClose}>Listo</NeoButton>
                 </div>
               )}
-              {mode === "review" && isLatest && (
+              {mode === "review" && isLatest && !proposal && (
                 <>
                   {ops.length > 0 && (
                     <>
                       <p className="text-xs font-bold text-amber-700">
-                        {ops.length} cambios al modelo sin guardar · se guardan como v{model.current!.version_number + 1} (no afecta documentos de clientes)
+                        {ops.length} cambios al modelo sin guardar · se guardan como v{model.current!.version_number + 1} (no afecta documentos de clientes){" "}
+                        <button type="button" className="underline" onClick={() => setOps([])}>Descartar</button>
                       </p>
                       <input className={fieldCls} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Nota (opcional): qué cambiaste" aria-label="Nota de la versión" />
                     </>
@@ -523,6 +644,101 @@ function ReviewHeader({ model, shown, isLatest, busy, onView, onRestore }: {
           </div>
         )}
       </div>
+    </section>
+  );
+}
+
+// Before / after of a paragraph, with only the words that change marked
+function Diff({ from, to }: { from: string; to: string }) {
+  const a = from.split(/(\s+)/);
+  const b = to.split(/(\s+)/);
+  let pre = 0;
+  while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
+  let suf = 0;
+  while (suf < a.length - pre && suf < b.length - pre && a[a.length - 1 - suf] === b[b.length - 1 - suf]) suf++;
+  const part = (w: string[], cls: string) => (
+    <>
+      {w.slice(0, pre).join("")}
+      <mark className={cls}>{w.slice(pre, w.length - suf).join("")}</mark>
+      {w.slice(w.length - suf).join("")}
+    </>
+  );
+  return (
+    <>
+      <p className="mt-1 whitespace-pre-wrap break-words text-foreground/70">{part(a, "bg-red-100 text-red-800 line-through")}</p>
+      <p className="mt-1 whitespace-pre-wrap break-words">{part(b, "bg-green-100 text-green-900 font-semibold")}</p>
+    </>
+  );
+}
+
+const CHANGE_LABEL: Record<AiChange["op"], string> = { para: "Cambia el párrafo", insert: "Agrega un párrafo", delete: "Borra el párrafo" };
+
+function AiEditPanel({ open, onToggle, blocked, busy, instructions, onInstructions, onPropose, proposal, onKeep, onDiscard, onSave, next }: {
+  open: boolean; onToggle: () => void; blocked: boolean; busy: boolean;
+  instructions: string; onInstructions: (s: string) => void; onPropose: () => void;
+  proposal: { changes: AiChange[]; keep: boolean[] } | null; onKeep: (n: number, v: boolean) => void;
+  onDiscard: () => void; onSave: () => void; next: number;
+}) {
+  const kept = proposal ? proposal.keep.filter(Boolean).length : 0;
+  return (
+    <section className="space-y-2 rounded-base border-2 border-border bg-background p-3">
+      <button type="button" onClick={onToggle} className="flex items-center gap-1 text-sm font-semibold underline">
+        <Sparkles size={14} /> Cambiar texto con IA
+      </button>
+      {open && !proposal && (
+        <div className="space-y-2">
+          {blocked && <p className="text-xs font-semibold text-amber-700">Guarda o descarta primero los cambios pendientes.</p>}
+          <label className={labelCls}>
+            Cambios legales que quieres
+            <textarea
+              className={fieldCls}
+              rows={4}
+              value={instructions}
+              onChange={(e) => onInstructions(e.target.value)}
+              placeholder="Ej. Agrega una cláusula de elección de domicilio; que el precio se pague en dos cuotas; cita la Ley 108-05…"
+            />
+          </label>
+          <p className="text-[11px] text-foreground/60">La IA propone; tú ves cada cambio y decides cuáles se guardan como v{next}.</p>
+          <NeoButton size="sm" type="button" onClick={onPropose} disabled={busy || blocked || instructions.trim().length < 3}>
+            <Sparkles size={14} /> {busy ? "Pensando…" : "Proponer cambios"}
+          </NeoButton>
+        </div>
+      )}
+      {proposal && (
+        <div className="space-y-2">
+          <p className="text-xs font-bold">La IA propone {proposal.changes.length} cambio(s). Marca los que quieres guardar:</p>
+          <ul className="space-y-2">
+            {proposal.changes.map((c, n) => (
+              <li key={n} className={`rounded-base border-2 p-2 text-xs ${proposal.keep[n] ? "border-main" : "border-border/30 opacity-60"}`}>
+                <label className="flex items-center gap-1.5 font-bold">
+                  <input type="checkbox" aria-label={`Incluir cambio ${n + 1}`} checked={proposal.keep[n]} onChange={(e) => onKeep(n, e.target.checked)} />
+                  <PencilLine size={12} /> {CHANGE_LABEL[c.op]}
+                </label>
+                {c.op === "para" ? (
+                  <Diff from={c.from} to={c.to} />
+                ) : (
+                  c.op === "delete" && <p className="mt-1 whitespace-pre-wrap break-words text-red-700 line-through">{c.from}</p>
+                )}
+                {c.op === "insert" && <p className="mt-1 whitespace-pre-wrap break-words text-green-800">{c.text}</p>}
+                {(c.tags_added.length > 0 || c.tags_removed.length > 0) && (
+                  <p className="mt-1 flex flex-wrap gap-1 font-mono text-[10px]">
+                    {c.tags_added.map((k) => <span key={k} className="rounded-base bg-green-100 px-1">+ {k}</span>)}
+                    {c.tags_removed.map((k) => <span key={k} className="rounded-base bg-red-100 px-1">− {k}</span>)}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-col gap-2">
+            <NeoButton className="w-full" size="sm" type="button" onClick={onSave} disabled={busy || !kept}>
+              <Save size={15} className="shrink-0" /> Guardar como v{next} ({kept} {kept === 1 ? "cambio" : "cambios"})
+            </NeoButton>
+            <NeoButton className="w-full" size="sm" type="button" variant="neutral" onClick={onDiscard} disabled={busy}>
+              Descartar propuesta
+            </NeoButton>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

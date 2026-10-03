@@ -4,7 +4,7 @@ import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-li
 import { forwardRef, useImperativeHandle } from "react";
 
 const { tags, docs, scrollTo, dialogs } = vi.hoisted(() => ({
-  tags: { model: vi.fn(), fill: vi.fn(), edit: vi.fn(), approve: vi.fn(), restore: vi.fn(), profile: vi.fn(), extract: vi.fn() },
+  tags: { model: vi.fn(), fill: vi.fn(), edit: vi.fn(), approve: vi.fn(), restore: vi.fn(), profile: vi.fn(), extract: vi.fn(), aiEdit: vi.fn() },
   docs: { searchAllClients: vi.fn(), createClient: vi.fn() },
   scrollTo: vi.fn(() => 2),
   dialogs: { confirmDialog: vi.fn((_msg: string, _opts?: unknown) => Promise.resolve(true)), notify: vi.fn() },
@@ -165,7 +165,7 @@ describe("Revisión de etiquetas (admin)", () => {
     expect(screen.getByText(/v2 · en uso/i)).toBeTruthy();
 
     // select text in the document → tag it
-    lastSelect!({ text: "TERCERO: el plazo es 30 días", offset: 21, length: 7, occurrence: 0, selected: "30 días" });
+    lastSelect!({ text: "TERCERO: el plazo es 30 días", offset: 21, length: 7, occurrence: 0, selected: "30 días", hasTags: false });
     fireEvent.change(await screen.findByLabelText(/nombre de la etiqueta/i), { target: { value: "plazo_dias" } });
     fireEvent.click(screen.getByRole("button", { name: /agregar etiqueta/i }));
     // rename a label, remove a tag
@@ -213,5 +213,62 @@ describe("Revisión de etiquetas (admin)", () => {
     expect(screen.queryByRole("button", { name: /aprobar/i })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /restaurar v2/i }));
     await waitFor(() => expect(tags.restore).toHaveBeenCalledWith(7, 12));
+  });
+  it("changes the wording of a selection (tags included) and saves it as a new version", async () => {
+    tags.model.mockResolvedValue({ data: { model: PENDING } });
+    tags.edit.mockResolvedValue({ data: { model: { ...PENDING, current: { ...V3, id: 14, version_number: 4 } } } });
+    render(<TagEditor modelId={7} mode="review" onClose={() => {}} />);
+    await screen.findByText(/pendiente de revisión/i);
+    const text = "vende a {{NOMBRE_COMPRADOR}} el vehículo";
+    lastSelect!({ text, offset: 0, length: 27, occurrence: 0, selected: "vende a {{NOMBRE_COMPRADOR}}", hasTags: true });
+    // a selection with tags can only be changed as text
+    expect(screen.queryByRole("button", { name: /agregar etiqueta/i })).toBeNull();
+    const box = (await screen.findByLabelText(/texto nuevo/i)) as HTMLTextAreaElement;
+    expect(box.value).toBe("vende a {{NOMBRE_COMPRADOR}}");
+    fireEvent.change(box, { target: { value: "dona a {{NOMBRE_DONATARIO}}" } });
+    fireEvent.click(screen.getByRole("button", { name: /agregar cambio/i }));
+    expect(screen.getByText("dona a {{NOMBRE_DONATARIO}}")).toBeTruthy();
+    expect(screen.getByText(/1 cambios al modelo sin guardar/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /guardar como v4 del modelo/i }));
+    await waitFor(() => expect(tags.edit).toHaveBeenCalledWith(7, {
+      base_version_id: 13,
+      notes: "",
+      ops: [{ op: "text", text, offset: 0, length: 27, occurrence: 0, replacement: "dona a {{NOMBRE_DONATARIO}}" }],
+    }));
+  });
+
+  it("tag edits and text changes are saved separately", async () => {
+    tags.model.mockResolvedValue({ data: { model: PENDING } });
+    render(<TagEditor modelId={7} mode="review" onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /quitar nombre_comprador/i }));
+    lastSelect!({ text: "PRIMERO: algo", offset: 0, length: 7, occurrence: 0, selected: "PRIMERO", hasTags: false });
+    fireEvent.click(await screen.findByRole("button", { name: /^cambiar texto$/i }));
+    expect(screen.getByText(/guarda primero los cambios de etiquetas/i)).toBeTruthy();
+    expect((screen.getByRole("button", { name: /agregar cambio/i }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("Cambiar con IA: proposes changes, shows them to confirm, saves only the ones kept", async () => {
+    tags.model.mockResolvedValue({ data: { model: PENDING } });
+    tags.aiEdit.mockResolvedValue({ data: { base_version_id: 13, changes: [
+      { op: "para", i: 1, from: "Yo, {{NOMBRE_VENDEDOR}}, vendo.", to: "Yo, {{NOMBRE_VENDEDOR}}, de nacionalidad {{NACIONALIDAD_VENDEDOR}}, vendo.", tags_added: ["NACIONALIDAD_VENDEDOR"], tags_removed: [] },
+      { op: "insert", after: 3, text: "CUARTO: Elección de domicilio.", tags_added: [], tags_removed: [] },
+    ] } });
+    tags.edit.mockResolvedValue({ data: { model: { ...PENDING, current: { ...V3, id: 14, version_number: 4 } } } });
+    render(<TagEditor modelId={7} mode="review" onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /cambiar texto con ia/i }));
+    fireEvent.change(screen.getByLabelText(/cambios legales/i), { target: { value: "Agrega la nacionalidad del vendedor" } });
+    fireEvent.click(screen.getByRole("button", { name: /proponer cambios/i }));
+    await waitFor(() => expect(tags.aiEdit).toHaveBeenCalledWith(7, "Agrega la nacionalidad del vendedor"));
+    expect(await screen.findByText(/de nacionalidad \{\{NACIONALIDAD_VENDEDOR\}\}/)).toBeTruthy();
+    // while a proposal is open, the usual save/approve buttons step aside
+    expect(screen.queryByRole("button", { name: /aprobar v3/i })).toBeNull();
+    expect(screen.getByText(/\+ NACIONALIDAD_VENDEDOR/)).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Incluir cambio 2"));
+    fireEvent.click(screen.getByRole("button", { name: /guardar como v4 \(1 cambio\)/i }));
+    await waitFor(() => expect(tags.edit).toHaveBeenCalledWith(7, {
+      base_version_id: 13,
+      notes: "IA: Agrega la nacionalidad del vendedor",
+      ops: [{ op: "para", i: 1, from: "Yo, {{NOMBRE_VENDEDOR}}, vendo.", to: "Yo, {{NOMBRE_VENDEDOR}}, de nacionalidad {{NACIONALIDAD_VENDEDOR}}, vendo." }],
+    }));
   });
 });

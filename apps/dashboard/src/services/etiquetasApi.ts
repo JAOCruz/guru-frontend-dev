@@ -58,7 +58,18 @@ export type TagEditOp =
   | { op: "tag"; text: string; offset: number; length: number; occurrence: number; key: string; label?: string; group?: string }
   | { op: "rename"; from: string; key: string; label?: string; group?: string }
   | { op: "untag"; key: string }
-  | { op: "meta"; key: string; label?: string; group?: string };
+  | { op: "meta"; key: string; label?: string; group?: string }
+  // body edits (the model's wording); never mixed with the tag edits above in one save
+  | { op: "text"; text: string; offset: number; length: number; occurrence: number; replacement: string }
+  | { op: "para"; i: number; from: string; to: string }
+  | { op: "insert"; after: number; text: string }
+  | { op: "delete"; i: number; from: string };
+
+export const BODY_OPS = new Set<TagEditOp["op"]>(["text", "para", "insert", "delete"]);
+export const isBodyOp = (o: TagEditOp) => BODY_OPS.has(o.op);
+
+// A change the AI proposes to the wording, to confirm before it is saved
+export type AiChange = Extract<TagEditOp, { op: "para" | "insert" | "delete" }> & { tags_added: string[]; tags_removed: string[] };
 
 export const etiquetasAPI = {
   summary: () => api.get<{ counts: Record<TagStatus, number>; models: TagSummaryModel[]; batch: TagBatch }>("/documentos/tags/summary"),
@@ -67,6 +78,8 @@ export const etiquetasAPI = {
   model: (id: number) => api.get<{ model: TagModel }>(`/documentos/tags/models/${id}`),
   edit: (id: number, body: { base_version_id: number; ops: TagEditOp[]; notes?: string }) =>
     api.post<{ model: TagModel }>(`/documentos/tags/models/${id}/edit`, body),
+  aiEdit: (id: number, instructions: string) =>
+    api.post<{ base_version_id: number; changes: AiChange[] }>(`/documentos/tags/models/${id}/ai-edit`, { instructions }, { timeout: 180_000 }),
   restore: (id: number, versionId: number) => api.post<{ model: TagModel }>(`/documentos/tags/models/${id}/restore`, { version_id: versionId }),
   approve: (versionId: number) => api.post<{ model: TagModel }>(`/documentos/tags/versions/${versionId}/approve`),
   fill: (id: number, body: { values: Record<string, string>; client_id: number; client_role?: string | null; title: string; version_id: number }) =>
