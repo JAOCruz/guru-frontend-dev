@@ -166,6 +166,8 @@ export const avatarsAPI = {
 export const adminUsersAPI = {
   setAvatar: (id: number, avatar: string | null, opts: { force: boolean; label?: string }) =>
     api.put<{ user: AdminUser }>(`/admin/users/${id}/avatar`, { avatar, ...opts }),
+  setColor: (id: number, color: string, opts: { force: boolean; label?: string }) =>
+    api.put<{ user: AdminUser }>(`/admin/users/${id}/color`, { color, ...opts }),
   list: (status: "active" | "inactive" | "all" = "active") =>
     api.get<{ users: AdminUser[] }>("/admin/users", { params: { status } }),
   create: (data: AdminUserInput & { temp_password: string }) =>
