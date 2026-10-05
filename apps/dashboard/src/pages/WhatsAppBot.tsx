@@ -79,6 +79,7 @@ const WhatsAppBot: React.FC = () => {
     assignmentMode: "manual",
   });
   const [qr, setQr] = useState<string | null>(null);
+  const isMeta = status.provider === "meta";
   const [loading, setLoading] = useState(false);
   const [resyncing, setResyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +117,7 @@ const WhatsAppBot: React.FC = () => {
         mode: raw.botMode ?? "all",
         assignmentMode: raw.assignmentMode ?? "manual",
         phone: raw.phone,
+        provider: raw.provider ?? "baileys",
       }));
     } catch (e: any) {
       logDebug(`Error consultando estado: ${describeError(e)}`);
@@ -339,6 +341,11 @@ const WhatsAppBot: React.FC = () => {
             {/* Status badge */}
             <div className="mb-6">
               <StatusBadge status={status.status} paused={status.paused} />
+              {isMeta && (
+                <p className="mt-2 font-base text-base text-foreground/70">
+                  Conectado por la <span className="font-semibold text-foreground">API oficial de Meta</span>
+                </p>
+              )}
               {status.phone && status.status === "connected" && (
                 <p className="mt-2 font-base text-base text-foreground/70">
                   Número:{" "}
@@ -392,6 +399,8 @@ const WhatsAppBot: React.FC = () => {
                       </>
                     )}
                   </NeoButton>
+                  {!isMeta && (
+                    <>
                   <NeoButton
                     onClick={handleResync}
                     disabled={resyncing}
@@ -431,6 +440,8 @@ const WhatsAppBot: React.FC = () => {
                     )}
                     Desconectar
                   </NeoButton>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -462,6 +473,11 @@ const WhatsAppBot: React.FC = () => {
                 </NeoButton>
               </div>
 
+              {currentMode === "selected" && status.status === "connected" && (
+                <div className="mt-3 rounded-base border-2 border-border bg-secondary-background p-3 font-base text-base text-foreground/80 shadow-shadow">
+                  💡 El bot solo responde en los chats que actives con el botón 🤖 de cada chat en Mensajes
+                </div>
+              )}
               {currentMode === "selected" && status.status === "disconnected" && (
                 <div className="mt-3 rounded-base border-2 border-border bg-secondary-background p-3 font-base text-base text-foreground/80 shadow-shadow">
                   💡 Conecta para gestionar contactos habilitados
@@ -516,7 +532,21 @@ const WhatsAppBot: React.FC = () => {
               Código QR
             </h3>
 
-            {status.status === "connected" ? (
+            {isMeta ? (
+              <div className="flex flex-col items-center gap-4 py-6">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-border bg-secondary-background shadow-button">
+                  <CheckCircle2 size={40} className="text-main" />
+                </div>
+                <div className="text-center">
+                  <p className="font-heading text-xl font-bold text-foreground md:text-2xl">
+                    Sin QR
+                  </p>
+                  <p className="mt-1 font-base text-base text-foreground/70">
+                    El número está conectado directo con Meta; no hay que escanear nada
+                  </p>
+                </div>
+              </div>
+            ) : status.status === "connected" ? (
               <div className="flex flex-col items-center gap-4 py-6">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-border bg-secondary-background shadow-button">
                   <CheckCircle2 size={40} className="text-main" />

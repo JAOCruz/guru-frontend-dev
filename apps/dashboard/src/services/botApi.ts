@@ -63,6 +63,8 @@ export interface BotStatus {
   mode?: BotMode;
   assignmentMode?: AssignmentMode;
   phone?: string;
+  /** "meta" = official WhatsApp Cloud API (no QR session), "baileys" = linked device by QR */
+  provider?: "meta" | "baileys";
 }
 
 export interface BotMessage {
@@ -428,9 +430,10 @@ export const botAPI = {
     });
   },
 
-  /** POST /api/messages/manual-toggle/:phone — toggle manual takeover (Bot ↔ Manual) */
+  /** POST /api/messages/bot-toggle/:phone — the chat's 🤖 button: in "Seleccionados" turns the bot
+   *  on/off for this chat, in "Todos" is the agent takeover (Bot ↔ Manual) */
   toggleChatAI: (phone: string) =>
-    botApi.post(`/messages/manual-toggle/${encodeURIComponent(phone)}`),
+    botApi.post<{ phone: string; botActive: boolean }>(`/messages/bot-toggle/${encodeURIComponent(phone)}`),
 
   /** GET /api/messages/phone-status/:phone — get AI/manual status */
   getPhoneStatus: (phone: string) =>

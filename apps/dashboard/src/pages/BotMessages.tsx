@@ -964,7 +964,11 @@ const BotMessages: React.FC = () => {
       prev.map((c) => (c.phone === phone ? { ...c, botActive: !c.botActive } : c))
     );
     try {
-      await botAPI.toggleChatAI(phone);
+      const res = await botAPI.toggleChatAI(phone);
+      // the server says where it ended up (an always-manual number can't be switched on)
+      setConversations((prev) =>
+        prev.map((c) => (c.phone === phone ? { ...c, botActive: res.data.botActive } : c))
+      );
     } catch {
       // revert on failure
       setConversations((prev) =>
