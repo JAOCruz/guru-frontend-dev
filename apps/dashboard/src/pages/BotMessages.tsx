@@ -4,7 +4,7 @@ import { botAPI, getBotApiBaseURL, catalogUnitPrice, type ServiceCatalogItem, ty
 import { getAuthToken, fetchAuthenticatedFile, formatCurrency, preventDecimalInput } from "../utils";
 import { useAuth } from "../context/AuthContext";
 import { whatsappAction } from "../lib/quoteActions";
-import { NeoCard, NeoButton, NeoInput, NeoBadge } from "@guru/ui";
+import { NeoCard, NeoButton, NeoInput } from "@guru/ui";
 import {
   MessageSquare,
   Search,
@@ -13,8 +13,6 @@ import {
   User,
   RefreshCw,
   ChevronLeft,
-  Circle,
-  Users,
   MessageCircle,
   UserCheck,
   Download,
@@ -35,6 +33,7 @@ import {
   Pencil,
   Image as ImageIcon,
   Paperclip,
+  SlidersHorizontal,
 } from "lucide-react";
 import { notify } from "../lib/dialogs";
 
@@ -245,60 +244,54 @@ const ConvItem: React.FC<ConvItemProps> = ({
   onToggleAI,
 }) => {
   const name = conv.client_name || formatPhone(conv.phone);
-  const preview = (conv.last_message || "—").slice(0, 40);
+  const preview = conv.last_message || "—";
   const time = formatRelTime(conv.last_message_at);
 
   return (
-    <div
-      onClick={onSelect}
-      className={`flex cursor-pointer items-start gap-3 border-b-2 border-border px-4 py-4 transition-all md:py-3 ${
-        isSelected
-          ? "bg-main text-main-foreground"
-          : "bg-background text-foreground hover:bg-secondary-background"
-      }`}
-    >
-      {/* Avatar */}
-      <Avatar
-        url={conv.profile_pic_url}
-        name={conv.client_name}
-        phone={conv.phone}
-        size="md"
-        className="h-11 w-11 md:h-10 md:w-10"
-      />
-
-      {/* Name + preview */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="truncate font-base text-base font-semibold">{name}</p>
-          <span className={`flex-shrink-0 font-base text-xs ${isSelected ? "text-main-foreground/70" : "text-foreground/50"}`}>
-            {time}
-          </span>
-        </div>
-        <p className={`mt-0.5 line-clamp-2 font-base text-xs leading-snug ${isSelected ? "text-main-foreground/80" : "text-foreground/60"}`}>
-          {preview}
-        </p>
-        {conv.client_assigned_to != null && (
-          <div className="mt-1">
-            <UserBadge userId={conv.client_assigned_to} />
-          </div>
-        )}
-      </div>
-
-      {/* IA toggle button */}
-      <NeoButton
-        onClick={(e) => onToggleAI(conv.phone, e)}
-        title={
-          conv.botActive
-            ? "IA activa — click para desactivar"
-            : "Manual — click para activar IA"
-        }
-        variant={conv.botActive ? "default" : "neutral"}
-        size="icon"
-        className="mt-1 h-10 w-10 flex-shrink-0 md:h-8 md:w-8"
+    <li className="relative">
+      <button
+        type="button"
+        onClick={onSelect}
+        className={`flex w-full items-center gap-3 px-3 py-2.5 pr-12 text-left transition-colors ${
+          isSelected ? "bg-main/15 shadow-[inset_4px_0_0_0_var(--main)]" : "hover:bg-secondary-background"
+        }`}
       >
-        {conv.botActive ? <Bot size={16} /> : <User size={16} />}
-      </NeoButton>
-    </div>
+        <Avatar
+          url={conv.profile_pic_url}
+          name={conv.client_name}
+          phone={conv.phone}
+          size="md"
+          className="shrink-0"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="min-w-0 truncate text-sm font-bold text-foreground">{name}</p>
+            <span className="shrink-0 text-[11px] tabular-nums text-foreground/50">{time}</span>
+          </div>
+          <p className="mt-0.5 truncate text-xs text-foreground/65">{preview}</p>
+          {conv.client_assigned_to != null && (
+            <div className="mt-1">
+              <UserBadge userId={conv.client_assigned_to} />
+            </div>
+          )}
+        </div>
+      </button>
+
+      {/* Bot switch for this chat */}
+      <button
+        type="button"
+        onClick={(e) => onToggleAI(conv.phone, e)}
+        aria-label={conv.botActive ? "Bot activo en este chat: pasar a manual" : "Manual: activar bot en este chat"}
+        title={conv.botActive ? "Bot activo — clic para pasar a manual" : "Manual — clic para activar el bot"}
+        className={`absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-base border-2 border-border transition-colors ${
+          conv.botActive
+            ? "bg-main text-main-foreground shadow-button"
+            : "bg-background text-foreground/60 hover:bg-secondary-background"
+        }`}
+      >
+        {conv.botActive ? <Bot size={15} /> : <User size={15} />}
+      </button>
+    </li>
   );
 };
 
@@ -579,32 +572,33 @@ const MessageBubble: React.FC<{ msg: MsgRow; isHighlighted?: boolean }> = ({ msg
       id={`msg-${msg.id}`}
     >
       <div
-        className={`max-w-[75%] px-4 py-2.5 font-base text-base shadow-button transition-all duration-300 ${
+        className={`max-w-[85%] px-3 py-2 font-base text-sm shadow-button transition-all duration-300 md:max-w-[70%] ${
           isHighlighted
             ? "scale-[1.02] ring-2 ring-main ring-offset-2 ring-offset-background"
             : ""
         } ${
+          // the bot's replies are light, a person's are solid: you see at a glance who answered
           isOut
-            ? "rounded-bl-base rounded-tl-base rounded-tr-base border-2 border-border bg-main text-main-foreground"
-            : "rounded-br-base rounded-tl-base rounded-tr-base border-2 border-border bg-secondary-background text-foreground"
+            ? msg.ai_generated
+              ? "rounded-bl-base rounded-tl-base rounded-tr-base border-2 border-border bg-main/15 text-foreground"
+              : "rounded-bl-base rounded-tl-base rounded-tr-base border-2 border-border bg-main text-main-foreground"
+            : "rounded-br-base rounded-tl-base rounded-tr-base border-2 border-border bg-background text-foreground"
         }`}
       >
         {/* Authenticated media */}
         {media && <MediaAttachment apiPath={media} isOut={isOut} />}
         {/* Text content */}
         {text && !text.startsWith("[📎") && !text.startsWith("[🎤") && (
-          <p className="break-words leading-relaxed">{text}</p>
+          <p className="whitespace-pre-line break-words leading-relaxed">{text}</p>
         )}
         {/* Timestamp */}
         <p
-          className={`mt-1 font-base text-xs ${
-            isOut ? "text-right text-main-foreground/60" : "text-foreground/50"
-          }`}
+          className={`mt-0.5 font-base text-[11px] tabular-nums ${
+            isOut ? "text-right" : ""
+          } ${isOut && !msg.ai_generated ? "text-main-foreground/70" : "text-foreground/50"}`}
         >
+          {msg.ai_generated && <span className="mr-1.5 font-bold">🤖 Bot ·</span>}
           {time}
-          {msg.ai_generated && (
-            <span className="ml-1.5 text-main-foreground/50">· IA</span>
-          )}
         </p>
       </div>
     </div>
@@ -614,12 +608,12 @@ const MessageBubble: React.FC<{ msg: MsgRow; isHighlighted?: boolean }> = ({ msg
 // ─── Date Separator ───────────────────────────────────────────────────────────
 
 const DateSeparator: React.FC<{ label: string }> = ({ label }) => (
-  <div className="my-4 flex items-center gap-3">
-    <div className="flex-1 border-t-2 border-border" />
-    <span className="rounded-base border-2 border-border bg-secondary-background px-3 py-1.5 font-base text-xs font-black uppercase tracking-wider text-foreground/70">
+  <div className="my-3 flex items-center gap-3">
+    <div className="flex-1 border-t-2 border-border/15" />
+    <span className="rounded-full border-2 border-border bg-background px-2.5 py-0.5 font-base text-[11px] font-bold capitalize text-foreground/70">
       {label}
     </span>
-    <div className="flex-1 border-t-2 border-border" />
+    <div className="flex-1 border-t-2 border-border/15" />
   </div>
 );
 
@@ -632,6 +626,9 @@ const BotMessages: React.FC = () => {
   const [convLoading, setConvLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "ai" | "manual">("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [contactFilter, setContactFilter] = useState<"all" | "clients" | "non_clients">("all");
+  const [assignedFilter, setAssignedFilter] = useState<string>("ALL"); // "ALL" | "none" | user id
 
   // Selected conversation
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
@@ -1129,18 +1126,44 @@ const BotMessages: React.FC = () => {
 
   // ── Filtering ──────────────────────────────────────────────────────────────
 
-  const filtered = conversations.filter((c) => {
+  // Search + folded filters first; the tabs (and their counts) work on that list
+  const narrowed = conversations.filter((c) => {
     const q = search.toLowerCase();
     const matchSearch =
       !search ||
       (c.client_name || "").toLowerCase().includes(q) ||
       c.phone.includes(q);
-    const matchFilter =
-      filter === "all" ||
-      (filter === "ai" && c.botActive) ||
-      (filter === "manual" && !c.botActive);
-    return matchSearch && matchFilter;
+    const matchContact =
+      contactFilter === "all" ||
+      (contactFilter === "clients" ? c.client_id != null : c.client_id == null);
+    const matchAssigned =
+      assignedFilter === "ALL" ||
+      (assignedFilter === "none" ? c.client_assigned_to == null : String(c.client_assigned_to) === assignedFilter);
+    return matchSearch && matchContact && matchAssigned;
   });
+  const tabCounts = {
+    all: narrowed.length,
+    ai: narrowed.filter((c) => c.botActive).length,
+    manual: narrowed.filter((c) => !c.botActive).length,
+  };
+  const filtered = narrowed.filter(
+    (c) => filter === "all" || (filter === "ai" && c.botActive) || (filter === "manual" && !c.botActive),
+  );
+
+  const assignedName = (id: string) =>
+    id === "none" ? "Sin asignar" : assignableUsers.find((u) => String(u.id) === id)?.name || `Usuario ${id}`;
+  const activeFilters = [
+    contactFilter !== "all" && {
+      key: "contact",
+      label: contactFilter === "clients" ? "Clientes" : "Sin cliente",
+      clear: () => setContactFilter("all"),
+    },
+    assignedFilter !== "ALL" && { key: "assigned", label: assignedName(assignedFilter), clear: () => setAssignedFilter("ALL") },
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
+  const clearFilters = () => {
+    setContactFilter("all");
+    setAssignedFilter("ALL");
+  };
 
   const selectedConv = conversations.find((c) => c.phone === selectedPhone);
 
@@ -1438,6 +1461,38 @@ const BotMessages: React.FC = () => {
   });
 
   // Calculate stats
+  // Chat tools: cotización, media, buscar
+  const chatTools = [
+    { label: "Generar cotización", icon: <Receipt size={16} />, onClick: openQuoteModal, active: false },
+    { label: "Ver media del chat", icon: <ImageIcon size={16} />, onClick: openMediaModal, active: false },
+    {
+      label: "Buscar en mensajes",
+      icon: <Search size={16} />,
+      active: showMsgSearch,
+      onClick: () => {
+        setShowMsgSearch(!showMsgSearch);
+        if (showMsgSearch) {
+          setMsgSearch("");
+          setMessageSearchMatches([]);
+          setHighlightMessageId(null);
+        }
+      },
+    },
+  ].map((t) => (
+    <button
+      key={t.label}
+      type="button"
+      onClick={t.onClick}
+      title={t.label}
+      aria-label={t.label}
+      className={`flex h-8 w-8 items-center justify-center rounded-base border-2 border-border shadow-button transition-colors md:h-9 md:w-9 ${
+        t.active ? "bg-main text-main-foreground" : "bg-background text-foreground hover:bg-main/15"
+      }`}
+    >
+      {t.icon}
+    </button>
+  ));
+
   const totalConversations = conversations.length;
   // Sum message_count from all conversations
   const totalMessages = conversations.reduce((sum, conv) => {
@@ -1464,83 +1519,128 @@ const BotMessages: React.FC = () => {
           showRightPanel ? "hidden md:flex" : "flex"
         } w-full flex-shrink-0 md:w-80`}
       >
-        {/* Stats bar */}
-        <div className="flex-shrink-0 border-b-2 border-border bg-secondary-background px-4 py-3">
-          <div className="grid grid-cols-2 gap-3">
-            <NeoCard variant="neutral" className="p-2.5">
-              <div className="flex min-w-0 items-center gap-2 font-base text-sm text-foreground/70">
-                <Users size={14} className="shrink-0" />
-                <span className="truncate">Conversaciones</span>
-              </div>
-              <div className="mt-1 font-heading text-xl font-bold text-foreground md:text-2xl">
-                {totalConversations}
-              </div>
-            </NeoCard>
-            <NeoCard variant="neutral" className="p-2.5">
-              <div className="flex items-center gap-2 font-base text-sm text-foreground/70">
-                <MessageCircle size={14} />
-                <span>Mensajes</span>
-              </div>
-              <div className="mt-1 font-heading text-xl font-bold text-foreground md:text-2xl">
-                {totalMessages}
-              </div>
-            </NeoCard>
-          </div>
-        </div>
-
-        {/* Header */}
-        <div className="flex-shrink-0 border-b-2 border-border p-4">
-          <div className="mb-3 flex min-w-0 items-center gap-2">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-base border-2 border-border bg-main text-main-foreground shadow-button">
-              <MessageSquare size={18} />
-            </div>
-            <h2 className="min-w-0 flex-1 truncate font-heading text-xl font-black text-foreground md:text-3xl">
-              Conversaciones
-            </h2>
-            <NeoBadge variant="neutral" className="flex-shrink-0 px-3 py-1.5 text-xs">
-              {conversations.length}
-            </NeoBadge>
+        {/* Header: title, search, folded filters, tabs with counts */}
+        <div className="flex-shrink-0 border-b-2 border-border bg-secondary-background px-3 pb-2 pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-heading text-2xl font-black text-foreground">Mensajes</h2>
+            <span className="text-xs font-semibold tabular-nums text-foreground/60">
+              {totalConversations} chats · {totalMessages} mensajes
+            </span>
           </div>
 
-          {/* Search */}
-          <div className="relative mb-3">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50"
-            />
-            <NeoInput
+          <div className="relative mt-2">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50" />
+            <input
               type="text"
-              placeholder={search.trim().length >= 2 ? "Buscando en mensajes..." : "Buscar por nombre, número o palabra..."}
+              placeholder={search.trim().length >= 2 ? "Buscando en mensajes..." : "Buscar nombre, número o palabra…"}
+              aria-label="Buscar"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-3 text-base"
+              className={`w-full rounded-base border-2 border-border bg-background py-2 pl-9 font-base text-sm text-foreground outline-none focus:border-main ${
+                search.trim().length >= 2 ? "pr-24" : "pr-3"
+              }`}
             />
             {search.trim().length >= 2 && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-base text-xs font-black text-main">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-base text-[10px] font-black text-main">
                 EN MENSAJES
               </span>
             )}
           </div>
 
-          {/* Filter tabs */}
-          <div className="flex gap-1">
+          {/* Advanced filters, folded by default */}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              aria-expanded={showFilters}
+              className={`inline-flex items-center gap-1.5 rounded-base border-2 border-border px-2.5 py-1 text-xs font-bold ${
+                showFilters || activeFilters.length ? "bg-main text-main-foreground" : "bg-background"
+              }`}
+            >
+              <SlidersHorizontal size={14} />
+              {activeFilters.length ? `Filtros · ${activeFilters.length}` : "Filtros"}
+            </button>
+            {activeFilters.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={f.clear}
+                aria-label={`Quitar filtro: ${f.label}`}
+                className="inline-flex max-w-[11rem] items-center gap-1 rounded-full border-2 border-border bg-background px-2 py-0.5 text-xs font-semibold"
+              >
+                <span className="truncate">{f.label}</span>
+                <X size={12} className="shrink-0" />
+              </button>
+            ))}
+            {activeFilters.length > 1 && (
+              <button type="button" onClick={clearFilters} className="text-xs font-semibold underline">
+                Limpiar
+              </button>
+            )}
+          </div>
+          {showFilters && (
+            <div className="mt-2 space-y-2 rounded-base border-2 border-border bg-background p-2.5">
+              <label className="block font-base text-xs font-semibold text-foreground/70">
+                Contacto
+                <select
+                  value={contactFilter}
+                  onChange={(e) => setContactFilter(e.target.value as typeof contactFilter)}
+                  className="mt-1 w-full rounded-base border-2 border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-main"
+                >
+                  <option value="all">Todos</option>
+                  <option value="clients">Clientes registrados</option>
+                  <option value="non_clients">Sin cliente</option>
+                </select>
+              </label>
+              {isAdmin && (
+                <label className="block font-base text-xs font-semibold text-foreground/70">
+                  Asignado a
+                  <select
+                    value={assignedFilter}
+                    onChange={(e) => setAssignedFilter(e.target.value)}
+                    className="mt-1 w-full rounded-base border-2 border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-main"
+                  >
+                    <option value="ALL">Todos</option>
+                    <option value="none">Sin asignar</option>
+                    {assignableUsers.map((u) => (
+                      <option key={u.id} value={String(u.id)}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+
+          {/* Tabs with counts */}
+          <div role="tablist" aria-label="Estado del bot" className="custom-scroll -mx-3 mt-2 flex gap-1 overflow-x-auto px-3 pb-1">
             {(
               [
                 ["all", "Todos"],
-                ["ai", "IA Activa"],
+                ["ai", "Bot"],
                 ["manual", "Manual"],
               ] as const
-            ).map(([val, label]) => (
-              <NeoButton
-                key={val}
-                onClick={() => setFilter(val)}
-                variant={filter === val ? "default" : "neutral"}
-                size="sm"
-                className="flex-1"
-              >
-                {label}
-              </NeoButton>
-            ))}
+            ).map(([val, label]) => {
+              const active = filter === val;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setFilter(val)}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-base border-2 px-2 py-1 text-xs font-bold ${
+                    active ? "border-border bg-main text-main-foreground shadow-button" : "border-transparent hover:border-border"
+                  }`}
+                >
+                  {label}
+                  <span className={`rounded-full px-1.5 text-[11px] ${active ? "bg-main-foreground/15" : "bg-foreground/10"}`}>
+                    {tabCounts[val]}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -1556,18 +1656,22 @@ const BotMessages: React.FC = () => {
                 size={32}
                 className="mx-auto mb-2 opacity-40"
               />
-              <p className="font-base text-base">Sin conversaciones</p>
+              <p className="font-base text-base">
+                {conversations.length ? "Ningún chat con estos filtros" : "Sin conversaciones"}
+              </p>
             </div>
           ) : (
-            filtered.map((conv) => (
-              <ConvItem
-                key={conv.phone}
-                conv={conv}
-                isSelected={selectedPhone === conv.phone}
-                onSelect={() => selectConversation(conv.phone, conv.firstMatchId)}
-                onToggleAI={handleToggleAI}
-              />
-            ))
+            <ul className="divide-y-2 divide-border/15">
+              {filtered.map((conv) => (
+                <ConvItem
+                  key={conv.phone}
+                  conv={conv}
+                  isSelected={selectedPhone === conv.phone}
+                  onSelect={() => selectConversation(conv.phone, conv.firstMatchId)}
+                  onToggleAI={handleToggleAI}
+                />
+              ))}
+            </ul>
           )}
         </div>
       </div>
@@ -1593,104 +1697,91 @@ const BotMessages: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* ── Top bar ── */}
-            <div className="flex flex-shrink-0 items-center gap-3 border-b-2 border-border bg-secondary-background px-4 py-3">
-              {/* Back (mobile only) */}
-              <NeoButton
-                size="icon"
-                variant="neutral"
-                className="md:hidden"
-                onClick={() => {
-                  setShowRightPanel(false);
-                  setSelectedPhone(null);
-                }}
-              >
-                <ChevronLeft size={20} />
-              </NeoButton>
-
-              {/* Avatar */}
-              <Avatar
-                url={selectedConv?.profile_pic_url}
-                name={selectedConv?.client_name}
-                phone={selectedPhone}
-                size="md"
-              />
-
-              {/* Name + phone */}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setShowClientPanel(true)}
-                    className="truncate font-base text-base font-semibold text-foreground hover:text-main hover:underline"
-                    title="Ver información del cliente"
-                  >
-                    {selectedConv?.client_name || formatPhone(selectedPhone)}
-                  </button>
-                  <NeoButton
-                    size="icon"
-                    variant="neutral"
-                    className="h-7 w-7 flex-shrink-0"
-                    onClick={() => setShowClientPanel(true)}
-                    title="Ver información del cliente"
-                  >
-                    <Info size={14} />
-                  </NeoButton>
-                  <Circle
-                    size={7}
-                    className="flex-shrink-0 fill-main text-main"
-                  />
-                </div>
-                <p className="truncate font-base text-sm text-foreground/60">
-                  {selectedPhone}
-                </p>
-              </div>
-
-              {/* IA badge + toggle */}
-              <div className="flex items-center gap-2">
-                {globalBotActive === false && (
-                  <NeoBadge
-                    variant="outline"
-                    className="hidden px-2 py-0.5 text-[10px] text-red-600 border-red-600 sm:inline"
-                  >
-                    Bot pausado
-                  </NeoBadge>
-                )}
-                {selectedConv?.botActive && (
-                  <NeoBadge variant="main" className="hidden px-2 py-0.5 text-[10px] sm:inline">
-                    IA activada
-                  </NeoBadge>
-                )}
-                <NeoButton
-                  onClick={(e) => handleToggleAI(selectedPhone, e)}
-                  variant={selectedConv?.botActive ? "default" : "neutral"}
-                  size="sm"
+            {/* ── Top bar: who + tools, then the bot and assignment strip ── */}
+            <div className="flex-shrink-0 border-b-2 border-border bg-secondary-background">
+              <div className="flex items-center gap-2 px-3 pt-2.5 md:gap-3 md:px-4">
+                {/* Back (mobile only) */}
+                <button
+                  type="button"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-base border-2 border-border bg-background md:hidden"
+                  onClick={() => {
+                    setShowRightPanel(false);
+                    setSelectedPhone(null);
+                  }}
+                  aria-label="Volver a la lista"
                 >
-                  {selectedConv?.botActive ? (
-                    <Bot size={14} />
-                  ) : (
-                    <User size={14} />
-                  )}
-                  <span className="hidden sm:inline">
-                    {selectedConv?.botActive ? "Bot" : "Manual"}
-                  </span>
-                </NeoButton>
+                  <ChevronLeft size={18} />
+                </button>
+
+                <Avatar
+                  url={selectedConv?.profile_pic_url}
+                  name={selectedConv?.client_name}
+                  phone={selectedPhone}
+                  size="sm"
+                  className="shrink-0 md:h-10 md:w-10"
+                />
+
+                {/* Name + phone: opens the client's info */}
+                <button
+                  type="button"
+                  onClick={() => setShowClientPanel(true)}
+                  className="group min-w-0 flex-1 text-left"
+                  title="Ver información del cliente"
+                >
+                  <h3 className="flex items-center gap-1.5 font-base text-base font-bold text-foreground">
+                    <span className="truncate group-hover:text-main group-hover:underline">
+                      {selectedConv?.client_name || formatPhone(selectedPhone)}
+                    </span>
+                    <Info size={14} className="shrink-0 text-foreground/50" />
+                  </h3>
+                  <p className="truncate font-base text-xs tabular-nums text-foreground/60">{formatPhone(selectedPhone)}</p>
+                </button>
+
+                {/* Tools (on phones they go in the strip below, so the name fits) */}
+                <div className="hidden shrink-0 items-center gap-1.5 md:flex">{chatTools}</div>
               </div>
 
-              {!isAdmin && selectedConv?.client_assigned_to != null && (
-                <UserBadge userId={selectedConv.client_assigned_to} size="sm" />
-              )}
+              {/* Bot + assignment strip */}
+              <div className="flex flex-wrap items-center gap-2 px-3 pb-2.5 pt-2 md:px-4">
+                <button
+                  type="button"
+                  onClick={(e) => handleToggleAI(selectedPhone, e)}
+                  aria-label={selectedConv?.botActive ? "Bot activo en este chat: pasar a manual" : "Manual: activar bot en este chat"}
+                  className={`inline-flex items-center gap-1.5 rounded-full border-2 border-border px-2.5 py-0.5 text-xs font-bold transition-colors ${
+                    selectedConv?.botActive ? "bg-main text-main-foreground" : "bg-background text-foreground/70 hover:bg-main/15"
+                  }`}
+                >
+                  {selectedConv?.botActive ? <Bot size={13} /> : <User size={13} />}
+                  {selectedConv?.botActive ? (
+                    <>
+                      Bot<span className="hidden sm:inline"> respondiendo</span>
+                    </>
+                  ) : (
+                    "Manual"
+                  )}
+                </button>
+                {globalBotActive === false && (
+                  <span className="rounded-full border-2 border-red-600 px-2 py-0.5 text-[11px] font-bold text-red-600">
+                    Bot pausado
+                  </span>
+                )}
 
-              {/* Assignment (admin only) */}
-              {isAdmin && (
-                <div className="flex items-center gap-2">
-                  <div className="relative flex items-center gap-1.5">
-                    <UserCheck size={16} className="text-foreground/70" />
+                {!isAdmin && selectedConv?.client_assigned_to != null && (
+                  <UserBadge userId={selectedConv.client_assigned_to} size="sm" />
+                )}
+
+                {/* Assignment (admin only) */}
+                {isAdmin && (
+                  <label className="relative flex items-center gap-1.5 text-xs font-semibold text-foreground/70 md:ml-auto">
+                    <UserCheck size={14} className="hidden shrink-0 sm:block" />
+                    <span className="hidden sm:inline">Asignado a</span>
                     <select
                       disabled={assigning}
                       value={selectedConv?.client_assigned_to ?? ""}
                       onChange={(e) => handleAssign(e.target.value)}
-                      className="h-9 max-w-[90px] truncate rounded-base border-2 border-border bg-background px-2 py-1 text-xs font-semibold text-foreground shadow-none focus:outline-none disabled:opacity-50 md:max-w-[140px]"
+                      className="h-7 max-w-[100px] truncate rounded-base sm:max-w-[140px] border-2 border-border bg-background px-1.5 text-xs font-semibold text-foreground focus:outline-none disabled:opacity-50"
                       title="Asignar chat a digitador"
+                      aria-label="Asignar chat a"
                     >
                       <option value="">Sin asignar</option>
                       {assignableUsers.map((u) => (
@@ -1704,46 +1795,10 @@ const BotMessages: React.FC = () => {
                         {assignMsg}
                       </span>
                     )}
-                  </div>
-                </div>
-              )}
-
-              {/* Generate quote button */}
-              <NeoButton
-                onClick={openQuoteModal}
-                variant="neutral"
-                size="icon"
-                title="Generar cotización"
-              >
-                <Receipt size={18} />
-              </NeoButton>
-
-              {/* View chat media button (works for registered and unregistered contacts) */}
-              <NeoButton
-                onClick={openMediaModal}
-                variant="neutral"
-                size="icon"
-                title="Ver media del chat"
-              >
-                <ImageIcon size={18} />
-              </NeoButton>
-
-              {/* Message search button */}
-              <NeoButton
-                onClick={() => {
-                  setShowMsgSearch(!showMsgSearch);
-                  if (showMsgSearch) {
-                    setMsgSearch("");
-                    setMessageSearchMatches([]);
-                    setHighlightMessageId(null);
-                  }
-                }}
-                variant={showMsgSearch ? "default" : "neutral"}
-                size="icon"
-                title="Buscar en mensajes"
-              >
-                <Search size={18} />
-              </NeoButton>
+                  </label>
+                )}
+                <div className="ml-auto flex items-center gap-1.5 md:hidden">{chatTools}</div>
+              </div>
             </div>
 
             {/* Message search bar */}
@@ -1782,7 +1837,7 @@ const BotMessages: React.FC = () => {
             <div
               ref={scrollContainerRef}
               onScroll={handleScrollContainer}
-              className="custom-scroll flex-1 overflow-y-auto px-4 py-4"
+              className="custom-scroll flex-1 overflow-y-auto px-3 py-3 md:px-5"
             >
               {msgLoading ? (
                 <div className="flex items-center justify-center py-16 text-foreground/50">
@@ -1836,7 +1891,8 @@ const BotMessages: React.FC = () => {
                   </NeoButton>
                 </div>
               )}
-              <div className="flex items-center gap-2 px-4 py-3 md:py-2">
+              {/* right padding: the owl advisor floats over the bottom-right corner */}
+              <div className="flex items-center gap-2 py-2.5 pl-3 pr-14 md:pl-4 md:pr-24">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1919,7 +1975,7 @@ const BotMessages: React.FC = () => {
             </div>
 
           {/* Content */}
-          <div className="custom-scroll flex-1 overflow-y-auto px-4 py-4">
+          <div className="custom-scroll flex-1 overflow-y-auto px-3 py-3 md:px-5">
             {!selectedConv?.client_id ? (
               <div className="space-y-4">
                 {/* Chat identity */}
