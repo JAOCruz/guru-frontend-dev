@@ -14,12 +14,15 @@ import {
   Image,
   Music,
   FileIcon,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { botAPI, BotClient, ClientDetailFull, ClientMedia } from "../services/botApi";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import { NeoCard, NeoButton, NeoInput, NeoBadge } from "@guru/ui";
+import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
 import { notify } from "../lib/dialogs";
+import { formatPhone } from "../lib/phone";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,6 +47,12 @@ const formatDate = (dateStr: string): string => {
   });
 };
 
+const formatShortDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("es-DO", { day: "numeric", month: "short" });
+};
+
 const formatTime = (dateStr: string): string => {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "";
@@ -58,31 +67,36 @@ const ClientItem: React.FC<{
   onSelect: () => void;
 }> = ({ client, isSelected, onSelect }) => {
   return (
-    <div
-      onClick={onSelect}
-      className={`flex cursor-pointer items-center gap-3 border-b-2 border-border px-4 py-3 transition-all ${
-        isSelected
-          ? "bg-main text-main-foreground"
-          : "bg-background text-foreground hover:bg-secondary-background"
-      }`}
-    >
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-border bg-main text-xs font-black text-main-foreground shadow-button">
-        {getInitials(client.name, client.phone)}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-base text-base font-semibold">
-          {client.name || "Sin nombre"}
-        </p>
-        <p className={`truncate font-base text-sm ${isSelected ? "text-main-foreground/80" : "text-foreground/60"}`}>
-          {client.phone}
-        </p>
-        {client.assigned_to != null && (
-          <div className="mt-1">
-            <UserBadge userId={client.assigned_to} />
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+          isSelected ? "bg-main/15 shadow-[inset_4px_0_0_0_var(--main)]" : "hover:bg-secondary-background"
+        }`}
+      >
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-border bg-main text-xs font-black text-main-foreground shadow-button">
+          {getInitials(client.name, client.phone)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="min-w-0 truncate text-sm font-bold text-foreground">{client.name || "Sin nombre"}</p>
+            <span className="shrink-0 text-[11px] tabular-nums text-foreground/50">
+              {client.messageCount} mensajes
+            </span>
           </div>
-        )}
-      </div>
-    </div>
+          <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-foreground/65">
+            <span className="shrink-0 tabular-nums">{formatPhone(client.phone)}</span>
+            {client.joinedAt && <span className="shrink-0 text-foreground/45">· desde {formatShortDate(client.joinedAt)}</span>}
+          </div>
+          {client.assigned_to != null && (
+            <div className="mt-1">
+              <UserBadge userId={client.assigned_to} />
+            </div>
+          )}
+        </div>
+      </button>
+    </li>
   );
 };
 
@@ -394,6 +408,9 @@ const BotClients: React.FC = () => {
   const [clients, setClients] = useState<BotClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [assignTab, setAssignTab] = useState<"all" | "assigned" | "unassigned">("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [userFilter, setUserFilter] = useState("ALL");
 
   const [selectedClient, setSelectedClient] = useState<BotClient | null>(null);
   const [showRightPanel, setShowRightPanel] = useState(false);
@@ -483,10 +500,22 @@ const BotClients: React.FC = () => {
     }
   };
 
-  const filtered = clients.filter((c) => {
+  // Search + digitador filter first; the tabs (and their counts) work on that list
+  const narrowed = clients.filter((c) => {
     const q = search.toLowerCase();
-    return (c.name || "").toLowerCase().includes(q) || c.phone.includes(q);
+    const matchSearch = (c.name || "").toLowerCase().includes(q) || c.phone.includes(q);
+    const matchUser = userFilter === "ALL" || String(c.assigned_to) === userFilter;
+    return matchSearch && matchUser;
   });
+  const tabCounts = {
+    all: narrowed.length,
+    assigned: narrowed.filter((c) => c.assigned_to != null).length,
+    unassigned: narrowed.filter((c) => c.assigned_to == null).length,
+  };
+  const filtered = narrowed.filter(
+    (c) => assignTab === "all" || (assignTab === "assigned" ? c.assigned_to != null : c.assigned_to == null),
+  );
+  const userName = (id: string) => users.find((u) => String(u.id) === id)?.name || `Usuario ${id}`;
 
   const tabLabels: Record<typeof activeTab, string> = {
     info: "Info",
@@ -507,31 +536,106 @@ const BotClients: React.FC = () => {
           showRightPanel ? "hidden md:flex" : "flex"
         } w-full flex-shrink-0 md:w-80`}
       >
-        {/* Header */}
-        <div className="flex-shrink-0 border-b-2 border-border p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-base border-2 border-border bg-main text-main-foreground shadow-button">
-              <Users size={16} />
-            </div>
-            <h2 className="font-heading text-4xl font-black text-foreground md:text-5xl">
-              Clientes
-            </h2>
-            <NeoBadge variant="neutral" className="ml-auto">
-              {clients.length}
-            </NeoBadge>
+        {/* Header: title, search, folded filter, tabs with counts */}
+        <div className="flex-shrink-0 border-b-2 border-border bg-secondary-background px-3 pb-2 pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-heading text-2xl font-black text-foreground">Clientes</h2>
+            <span className="text-xs font-semibold tabular-nums text-foreground/60">{clients.length} clientes</span>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50" />
-            <NeoInput
+          <div className="relative mt-2">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50" />
+            <input
               type="text"
-              placeholder="Buscar por nombre, número..."
+              placeholder="Buscar nombre o número…"
+              aria-label="Buscar"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-3 text-base"
+              className="w-full rounded-base border-2 border-border bg-background py-2 pl-9 pr-3 font-base text-sm text-foreground outline-none focus:border-main"
             />
           </div>
+
+          {isAdmin && (
+            <>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((v) => !v)}
+                  aria-expanded={showFilters}
+                  className={`inline-flex items-center gap-1.5 rounded-base border-2 border-border px-2.5 py-1 text-xs font-bold ${
+                    showFilters || userFilter !== "ALL" ? "bg-main text-main-foreground" : "bg-background"
+                  }`}
+                >
+                  <SlidersHorizontal size={14} />
+                  {userFilter !== "ALL" ? "Filtros · 1" : "Filtros"}
+                </button>
+                {userFilter !== "ALL" && (
+                  <button
+                    type="button"
+                    onClick={() => setUserFilter("ALL")}
+                    aria-label={`Quitar filtro: ${userName(userFilter)}`}
+                    className="inline-flex max-w-[11rem] items-center gap-1 rounded-full border-2 border-border bg-background px-2 py-0.5 text-xs font-semibold"
+                  >
+                    <span className="truncate">{userName(userFilter)}</span>
+                    <X size={12} className="shrink-0" />
+                  </button>
+                )}
+              </div>
+              {showFilters && (
+                <div className="mt-2 rounded-base border-2 border-border bg-background p-2.5">
+                  <label className="block font-base text-xs font-semibold text-foreground/70">
+                    Digitador
+                    <select
+                      value={userFilter}
+                      onChange={(e) => setUserFilter(e.target.value)}
+                      className="mt-1 w-full rounded-base border-2 border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-main"
+                    >
+                      <option value="ALL">Todos</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={String(u.id)}>
+                          {u.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+
+              <div role="tablist" aria-label="Asignación" className="custom-scroll -mx-3 mt-2 flex gap-1 overflow-x-auto px-3 pb-1">
+                {(
+                  [
+                    ["all", "Todos"],
+                    ["assigned", "Asignados"],
+                    ["unassigned", "Sin asignar"],
+                  ] as const
+                ).map(([val, label]) => {
+                  const active = assignTab === val;
+                  const urgent = val === "unassigned" && tabCounts.unassigned > 0;
+                  return (
+                    <button
+                      key={val}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setAssignTab(val)}
+                      className={`inline-flex shrink-0 items-center gap-1 rounded-base border-2 px-2 py-1 text-xs font-bold ${
+                        active
+                          ? "border-border bg-main text-main-foreground shadow-button"
+                          : urgent
+                            ? "border-orange-500 bg-orange-500/10 text-orange-700"
+                            : "border-transparent hover:border-border"
+                      }`}
+                    >
+                      {label}
+                      <span className={`rounded-full px-1.5 text-[11px] ${active ? "bg-main-foreground/15" : "bg-foreground/10"}`}>
+                        {tabCounts[val]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Client List */}
@@ -543,17 +647,19 @@ const BotClients: React.FC = () => {
           ) : filtered.length === 0 ? (
             <div className="py-8 text-center text-foreground/50">
               <Users size={32} className="mx-auto mb-2 opacity-40" />
-              <p className="font-base text-base">Sin clientes</p>
+              <p className="font-base text-base">{clients.length ? "Ningún cliente con estos filtros" : "Sin clientes"}</p>
             </div>
           ) : (
-            filtered.map((client) => (
-              <ClientItem
-                key={client.id}
-                client={client}
-                isSelected={selectedClient?.id === client.id}
-                onSelect={() => handleSelectClient(client)}
-              />
-            ))
+            <ul className="divide-y-2 divide-border/15">
+              {filtered.map((client) => (
+                <ClientItem
+                  key={client.id}
+                  client={client}
+                  isSelected={selectedClient?.id === client.id}
+                  onSelect={() => handleSelectClient(client)}
+                />
+              ))}
+            </ul>
           )}
         </div>
       </div>
@@ -592,7 +698,7 @@ const BotClients: React.FC = () => {
                 <p className="truncate font-base text-base font-semibold text-foreground">
                   {selectedClient.name || "Sin nombre"}
                 </p>
-                <p className="truncate font-base text-sm text-foreground/60">{selectedClient.phone}</p>
+                <p className="truncate font-base text-sm tabular-nums text-foreground/60">{formatPhone(selectedClient.phone)}</p>
               </div>
             </div>
 
