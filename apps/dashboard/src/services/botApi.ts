@@ -65,6 +65,8 @@ export interface BotStatus {
   phone?: string;
   /** "meta" = official WhatsApp Cloud API (no QR session), "baileys" = linked device by QR */
   provider?: "meta" | "baileys";
+  /** Mensajes lists only chats with messages from this moment (ISO); null = all */
+  chatsSince?: string | null;
 }
 
 export interface BotMessage {
@@ -365,6 +367,10 @@ export const botAPI = {
   setBotMode: (mode: BotMode) => botApi.post("/whatsapp/bot-mode", { mode }),
   setAssignmentMode: (mode: AssignmentMode) =>
     botApi.post("/whatsapp/assignment-mode", { mode }),
+
+  /** POST /api/whatsapp/archive-chats — Mensajes shows only chats from now on (nothing is deleted) */
+  archiveChats: () =>
+    botApi.post<{ chatsSince: string; manualCleared: number }>("/whatsapp/archive-chats"),
 
   /** GET /api/whatsapp/profile-pic/:phone — fetch WhatsApp profile picture URL */
   getProfilePic: (phone: string) =>

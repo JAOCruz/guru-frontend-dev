@@ -14,6 +14,7 @@ import {
   Play,
   Power,
   RefreshCw,
+  Archive,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import botApi, { botAPI, BotStatus, BotMode } from "../services/botApi";
@@ -118,6 +119,7 @@ const WhatsAppBot: React.FC = () => {
         assignmentMode: raw.assignmentMode ?? "manual",
         phone: raw.phone,
         provider: raw.provider ?? "baileys",
+        chatsSince: raw.chatsSince ?? null,
       }));
     } catch (e: any) {
       logDebug(`Error consultando estado: ${describeError(e)}`);
@@ -288,6 +290,23 @@ const WhatsAppBot: React.FC = () => {
       setStatus((prev) => ({ ...prev, assignmentMode: mode }));
     } catch (e: any) {
       setError(e?.response?.data?.message || "Error al cambiar modo de asignación");
+    }
+  };
+
+  const handleArchiveChats = async () => {
+    setError(null);
+    if (
+      !(await confirmDialog(
+        "Mensajes mostrará solo los chats con mensajes desde ahora. No se borra nada: los chats viejos quedan archivados en el sistema, el buscador los sigue encontrando y si un cliente viejo escribe, su chat vuelve a aparecer. También se quita el modo Manual a todos los chats.",
+        { title: "¿Archivar los chats anteriores?", confirmLabel: "Sí, archivar" },
+      ))
+    )
+      return;
+    try {
+      const res = await botAPI.archiveChats();
+      setStatus((prev) => ({ ...prev, chatsSince: res.data.chatsSince }));
+    } catch (e: any) {
+      setError(e?.response?.data?.error || "Error al archivar los chats");
     }
   };
 
@@ -517,6 +536,25 @@ const WhatsAppBot: React.FC = () => {
                   ? "💡 El admin asigna cada caso a un digitador."
                   : "🤖 Los nuevos casos se asignan automáticamente según disponibilidad."}
               </div>
+            </div>
+
+            {/* Divider */}
+            <div className="mb-5 mt-6 border-t-2 border-border" />
+
+            {/* Archive old chats */}
+            <div>
+              <p className="mb-3 font-base text-base font-bold uppercase tracking-widest text-foreground/60">
+                Chats en Mensajes
+              </p>
+              <p className="mb-3 font-base text-base text-foreground/80">
+                {status.chatsSince
+                  ? `Se ven los chats desde el ${new Date(status.chatsSince).toLocaleString("es-DO", { dateStyle: "long", timeStyle: "short" })}. Los anteriores están archivados.`
+                  : "Se ven todos los chats."}
+              </p>
+              <NeoButton onClick={handleArchiveChats} variant="neutral" className="w-full">
+                <Archive size={16} />
+                Archivar chats anteriores
+              </NeoButton>
             </div>
           </NeoCard>
         </motion.div>
