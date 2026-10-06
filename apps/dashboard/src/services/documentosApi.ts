@@ -50,6 +50,7 @@ export interface PortfolioDocument {
   // Fase 2 · bot
   prepared_by_bot?: boolean;
   invoice_id?: number | null;
+  invoice_status?: string | null; // status of the linked cotización (e.g. "paid")
   send_mode?: SendMode | null;
   sent_at?: string | null;
   send_error?: string | null;

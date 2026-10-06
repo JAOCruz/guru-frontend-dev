@@ -394,10 +394,16 @@ function BotBadge() {
 function ApproveDialog({ doc, version, onCancel, onApprove }: {
   doc: PortfolioDocument; version: DocVersion; onCancel: () => void; onApprove: (mode: SendMode) => void;
 }) {
-  const [mode, setMode] = useState<SendMode>(doc.invoice_id ? "al_pagar" : "manual");
+  // A quote that is already paid will never fire "when paid": the document would go out at approval with no new
+  // payment, so that case defaults to "Solo aprobar" and says so.
+  const alreadyPaid = !!doc.invoice_id && doc.invoice_status === "paid";
+  const [mode, setMode] = useState<SendMode>(doc.invoice_id && !alreadyPaid ? "al_pagar" : "manual");
   const options: { value: SendMode; label: string; hint: string }[] = [
     ...(doc.invoice_id
-      ? [{ value: "al_pagar" as const, label: "Enviar cuando pague", hint: "Se manda por WhatsApp al confirmar el pago de la cotización" }]
+      ? [{
+          value: "al_pagar" as const, label: "Enviar cuando pague",
+          hint: alreadyPaid ? "La cotización ya está pagada: se envía al aprobar." : "Se manda por WhatsApp al confirmar el pago de la cotización",
+        }]
       : []),
     { value: "ya", label: "Enviar ya", hint: "Se manda por WhatsApp ahora mismo" },
     { value: "manual", label: "Solo aprobar", hint: "No se envía; lo mandas tú después" },

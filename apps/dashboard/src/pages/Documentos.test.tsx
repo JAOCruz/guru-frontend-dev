@@ -204,6 +204,26 @@ describe("Documentos — enviado por el bot", () => {
     await waitFor(() => expect(api.approve).toHaveBeenCalledWith(10, 21, "manual"));
   });
 
+  it("a linked cotización already paid: warns under 'Enviar cuando pague' and defaults to 'Solo aprobar'", async () => {
+    api.approve.mockResolvedValue({ data: { document: { ...BOT, approved_version: 2, versions: VERSIONS }, sent: false } });
+    await openBotDoc({ ...BOT, invoice_status: "paid" });
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("La cotización ya está pagada: se envía al aprobar.")).toBeTruthy();
+    expect((within(dialog).getByLabelText(/solo aprobar/i) as HTMLInputElement).checked).toBe(true);
+    expect((within(dialog).getByLabelText(/enviar cuando pague/i) as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(within(dialog).getByRole("button", { name: /^aprobar$/i }));
+    await waitFor(() => expect(api.approve).toHaveBeenCalledWith(10, 21, "manual"));
+  });
+
+  it("a pending cotización keeps the normal hint and 'Enviar cuando pague' default", async () => {
+    await openBotDoc({ ...BOT, invoice_status: "pending_approval" });
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText(/ya está pagada/i)).toBeNull();
+    expect((within(dialog).getByLabelText(/enviar cuando pague/i) as HTMLInputElement).checked).toBe(true);
+  });
+
   it("approve controls follow can_approve (digitador without permission sees none)", async () => {
     await openBotDoc({ ...BOT, can_approve: false });
     expect(screen.queryByRole("button", { name: /^aprobar v/i })).toBeNull();
