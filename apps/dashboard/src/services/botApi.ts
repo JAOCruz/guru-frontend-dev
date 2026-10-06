@@ -199,6 +199,14 @@ export interface Invoice {
   [key: string]: unknown;
 }
 
+/** approve-and-send / send-whatsapp: the quote as it is now, whether it went out, and why not */
+export interface SendQuoteResult {
+  invoice: Invoice;
+  sent: boolean;
+  code?: string;
+  message?: string;
+}
+
 // ─── Service catalog types ──────────────────────────────────────────────────
 
 export interface ServiceCatalogItem {
@@ -479,9 +487,11 @@ export const botAPI = {
   generateInvoicePdf: (id: number | string) =>
     botApi.post<{ invoice: Invoice; pdfPath: string }>(`/invoices/${id}/generate-pdf`),
 
-  /** POST /api/invoices/:id/send-whatsapp — send the PDF to the client's WhatsApp chat and mark as sent */
-  sendInvoiceWhatsapp: (id: number | string) =>
-    botApi.post<{ invoice: Invoice; message: string }>(`/invoices/${id}/send-whatsapp`),
+  /** POST /api/invoices/:id/send-whatsapp — send the PDF to the client's WhatsApp chat (through the delivery
+   *  service: one send per quote; `resend: true` only after the panel confirmed a deliberate resend).
+   *  Answers { invoice, sent, code? } like approve-and-send. */
+  sendInvoiceWhatsapp: (id: number | string, opts?: { resend?: boolean }) =>
+    botApi.post<SendQuoteResult>(`/invoices/${id}/send-whatsapp`, ...(opts?.resend ? [{ resend: true }] : [])),
 
   /** POST /api/invoices/:id/request-approval — employee draft -> pending_approval (admin must approve before sending) */
   requestInvoiceApproval: (id: number | string) =>

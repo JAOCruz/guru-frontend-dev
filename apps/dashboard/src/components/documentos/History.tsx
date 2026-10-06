@@ -8,7 +8,7 @@ import {
   documentosAPI, downloadFile, versionFileUrl,
   type DocSort, type DocVersion, type SendMode, type SendResult, type HistoryClient, type PortfolioDocument,
 } from "../../services/documentosApi";
-import { notify } from "../../lib/dialogs";
+import { notify, confirmDialog } from "../../lib/dialogs";
 import UploadDialog from "./UploadDialog";
 import PdfPreview from "./PdfPreview";
 import PersonalizeDialog from "./PersonalizeDialog";
@@ -95,6 +95,14 @@ export default function History() {
   };
 
   const sendToClient = async (doc: PortfolioDocument) => {
+    // approved before phase 2 (no send mode chosen): sending it now is a deliberate choice
+    if (!doc.send_mode) {
+      const ok = await confirmDialog("Este documento se aprobó antes; ¿enviarlo ahora al cliente por WhatsApp?", {
+        title: "Enviar al cliente",
+        confirmLabel: "Enviar",
+      });
+      if (!ok) return;
+    }
     setSending(true);
     try {
       const r = (await documentosAPI.send(doc.id)).data;
@@ -381,13 +389,16 @@ function BotBadge() {
   );
 }
 
-// "Aprobar" asks how the approved document should reach the client
+// "Aprobar" asks how the approved document should reach the client.
+// "Enviar cuando pague" needs a cotización to wait for: without one it is not offered (the server answers NO_INVOICE).
 function ApproveDialog({ doc, version, onCancel, onApprove }: {
   doc: PortfolioDocument; version: DocVersion; onCancel: () => void; onApprove: (mode: SendMode) => void;
 }) {
   const [mode, setMode] = useState<SendMode>(doc.invoice_id ? "al_pagar" : "manual");
   const options: { value: SendMode; label: string; hint: string }[] = [
-    { value: "al_pagar", label: "Enviar cuando pague", hint: "Se manda por WhatsApp al confirmar el pago de la cotización" },
+    ...(doc.invoice_id
+      ? [{ value: "al_pagar" as const, label: "Enviar cuando pague", hint: "Se manda por WhatsApp al confirmar el pago de la cotización" }]
+      : []),
     { value: "ya", label: "Enviar ya", hint: "Se manda por WhatsApp ahora mismo" },
     { value: "manual", label: "Solo aprobar", hint: "No se envía; lo mandas tú después" },
   ];

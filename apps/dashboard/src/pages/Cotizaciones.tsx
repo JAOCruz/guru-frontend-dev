@@ -24,7 +24,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import api, { getAPIUrl } from "../services/api";
-import { botAPI, BotClient } from "../services/botApi";
+import { botAPI, BotClient, type SendQuoteResult } from "../services/botApi";
 import { useAuth } from "../context/AuthContext";
 import { whatsappAction, canViewDocument } from "../lib/quoteActions";
 import { useUserColors } from "../context/UserColorsContext";
@@ -389,6 +389,16 @@ export default function Cotizaciones() {
     }
   };
 
+  // What the delivery service answered (approve-and-send and send-whatsapp share the codes)
+  const reportSend = (data: { sent?: boolean; code?: string }, approved: boolean) => {
+    const window = "sin enviar: pasaron más de 24 h desde el último mensaje del cliente.";
+    if (data.sent) notify(approved ? "Aprobada y enviada por WhatsApp." : "Enviada por WhatsApp.", "success");
+    else if (data.code === "WINDOW_CLOSED") notify(approved ? `Aprobada, pero ${window}` : `Sin enviar${window.slice(10)}`, "info");
+    else if (data.code === "ALREADY_SENT") notify("Esta cotización ya se había enviado.", "info");
+    else if (approved) notify("Aprobada, pero no se pudo enviar por WhatsApp. Puedes reintentar con el botón de enviar.");
+    else notify("No se pudo enviar por WhatsApp. Verifica que el bot esté conectado.");
+  };
+
   // Admin: approves and delivers the PDF by WhatsApp in one go (the server reports why it could not send)
   const [approvingSend, setApprovingSend] = useState(false);
   const handleApproveAndSend = async () => {
@@ -399,11 +409,7 @@ export default function Cotizaciones() {
       const list = await fetchQuotations();
       const refreshed = list.find((q) => q.id === selectedQuotation.id) ?? data.invoice;
       if (refreshed) setSelectedQuotation(data.invoice ? { ...refreshed, ...data.invoice } : refreshed);
-      if (data.sent) notify("Aprobada y enviada por WhatsApp.", "success");
-      else if (data.code === "WINDOW_CLOSED")
-        notify("Aprobada, pero sin enviar: pasaron más de 24 h desde el último mensaje del cliente.", "info");
-      else if (data.code === "ALREADY_SENT") notify("Esta cotización ya se había enviado.", "info");
-      else notify("Aprobada, pero no se pudo enviar por WhatsApp. Puedes reintentar con el botón de enviar.");
+      reportSend(data, true);
     } catch (err: any) {
       console.error(err);
       notify(err?.response?.data?.error || "No se pudo aprobar y enviar");
@@ -416,7 +422,7 @@ export default function Cotizaciones() {
     if (!selectedQuotation) return;
     setConfirmingPayment(true);
     try {
-      await api.post(`/invoices/${selectedQuotation.id}/confirm-payment`, {
+      const { data } = await api.post(`/invoices/${selectedQuotation.id}/confirm-payment`, {
         payment_method: "manual",
         payment_reference: paymentReference.trim() || undefined,
       });
@@ -426,6 +432,9 @@ export default function Cotizaciones() {
       const refreshed = list.find((q) => q.id === selectedQuotation.id);
       if (refreshed) setSelectedQuotation(refreshed);
       else setSelectedQuotation((prev) => (prev ? { ...prev, status: "paid" } : prev));
+      // documents approved with "Enviar cuando pague" go out with the payment
+      const n = Number(data?.documents_sent) || 0;
+      notify(n > 0 ? `Pago confirmado · ${n} documento${n === 1 ? "" : "s"} enviado${n === 1 ? "" : "s"} por WhatsApp` : "Pago confirmado.", "success");
     } catch (err: any) {
       console.error(err);
       notify(err?.response?.data?.error || "Error confirmando pago");
@@ -610,25 +619,30 @@ export default function Cotizaciones() {
       setGeneratingPdf(false);
     }
   };
-  // Delivers the PDF to the client's WhatsApp (admin, or the employee once approved)
+  // Delivers the PDF to the client's WhatsApp (admin, or the employee once approved). The server sends
+  // through the delivery service: a first send (also after WINDOW_CLOSED) happens once; a quote that already
+  // went out is only resent after confirming here.
   const alreadySent = (q: Quotation) => !!q.sent_by_bot_at || q.status === "sent";
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
   const handleSendWhatsapp = async () => {
     if (!selectedQuotation) return;
     setSendingWhatsapp(true);
     try {
-      if (alreadySent(selectedQuotation)) {
+      const resend = alreadySent(selectedQuotation);
+      if (resend) {
         const ok = await confirmDialog("Esta cotización ya se envió. ¿Enviarla de nuevo al cliente?", {
           title: "Reenviar por WhatsApp",
           confirmLabel: "Reenviar",
         });
         if (!ok) return;
       }
-      await botAPI.sendInvoiceWhatsapp(selectedQuotation.id);
+      const res = resend ? await botAPI.sendInvoiceWhatsapp(selectedQuotation.id, { resend: true }) : await botAPI.sendInvoiceWhatsapp(selectedQuotation.id);
+      const data: Partial<SendQuoteResult> = res?.data ?? { sent: false };
+      const fresh = data.invoice as Partial<Quotation> | undefined;
       const list = await fetchQuotations();
-      const refreshed = list.find((q) => q.id === selectedQuotation.id);
-      if (refreshed) setSelectedQuotation(refreshed);
-      notify("Documento enviado al cliente por WhatsApp.", "success");
+      const refreshed = list.find((q) => q.id === selectedQuotation.id) ?? (fresh as Quotation | undefined);
+      if (refreshed) setSelectedQuotation(fresh ? { ...refreshed, ...fresh } : refreshed);
+      reportSend(data, false);
     } catch (err: any) {
       console.error(err);
       notify(err?.response?.data?.error || "No se pudo enviar por WhatsApp. Verifica que el bot esté conectado.");

@@ -146,22 +146,93 @@ describe("Cotizaciones — aprobar y enviar (bot)", () => {
     expect(await screen.findByText(/no se pudo enviar/i)).toBeTruthy();
   });
 
-  it("a sent quote offers 'Reenviar por WhatsApp' and sends only after confirming", async () => {
+  it("a sent quote offers 'Reenviar por WhatsApp' and resends (resend: true) only after confirming", async () => {
     auth.isAdmin = true;
     const { botAPI } = await import("../services/botApi");
-    (botAPI.sendInvoiceWhatsapp as any).mockReset().mockResolvedValue({});
+    (botAPI.sendInvoiceWhatsapp as any).mockReset().mockResolvedValue({ data: { invoice: quote("sent"), sent: true } });
     await open("sent", { sent_by_bot_at: "2026-10-01T10:00:00Z" });
     fireEvent.click(await screen.findByRole("button", { name: /^reenviar por whatsapp$/i }));
     const dlg = await screen.findByRole("dialog", { name: /reenviar/i });
     expect(within(dlg).getByText(/ya se envió\. ¿enviarla de nuevo al cliente\?/i)).toBeTruthy();
     expect(botAPI.sendInvoiceWhatsapp).not.toHaveBeenCalled();
     fireEvent.click(within(dlg).getByRole("button", { name: /^reenviar$/i }));
+    await waitFor(() => expect(botAPI.sendInvoiceWhatsapp).toHaveBeenCalledWith(7, { resend: true }));
+    expect(await screen.findByText(/^enviada por whatsapp\.$/i)).toBeTruthy();
+  });
+
+  // I2: the plain button goes through the delivery service; the result code uses the same toasts as approve-and-send
+  it("'Enviar por WhatsApp' after WINDOW_CLOSED sends without confirming and the 'Lista, sin enviar' note goes away", async () => {
+    auth.isAdmin = true;
+    const { botAPI } = await import("../services/botApi");
+    const sentQuote = { ...quote("sent"), sent_by_bot_at: "2026-10-05T10:00:00Z", send_error: null };
+    (botAPI.sendInvoiceWhatsapp as any).mockReset().mockImplementation(async () => {
+      api.get.mockImplementation((url: string) => Promise.resolve({ data: url === "/invoices" ? { invoices: [sentQuote] } : { users: [] } }));
+      return { data: { invoice: sentQuote, sent: true } };
+    });
+    await open("approved", { send_error: "WINDOW_CLOSED" });
+    expect(await screen.findByText(/lista, sin enviar/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^enviar por whatsapp$/i }));
     await waitFor(() => expect(botAPI.sendInvoiceWhatsapp).toHaveBeenCalledWith(7));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // (toasts from earlier tests may still be alive in the shared dialog state: at least one)
+    expect((await screen.findAllByText(/^enviada por whatsapp\.$/i)).length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.queryByText(/lista, sin enviar/i)).toBeNull());
+    expect(screen.getAllByText(/enviada por whatsapp/i).length).toBeGreaterThan(0);
+  });
+
+  it("explains the 24 h window (and other codes) when the plain send could not deliver", async () => {
+    auth.isAdmin = true;
+    const { botAPI } = await import("../services/botApi");
+    (botAPI.sendInvoiceWhatsapp as any).mockReset().mockResolvedValue({
+      data: { invoice: { ...quote("approved"), send_error: "WINDOW_CLOSED" }, sent: false, code: "WINDOW_CLOSED" },
+    });
+    await open("approved");
+    fireEvent.click(screen.getByRole("button", { name: /^enviar por whatsapp$/i }));
+    expect(await screen.findByText(/^sin enviar: pasaron más de 24 h desde el último mensaje del cliente\.$/i)).toBeTruthy();
+    cleanup();
+    (botAPI.sendInvoiceWhatsapp as any).mockResolvedValue({ data: { invoice: quote("sent"), sent: false, code: "ALREADY_SENT" } });
+    await open("approved");
+    fireEvent.click(screen.getByRole("button", { name: /^enviar por whatsapp$/i }));
+    expect(await screen.findByText(/ya se había enviado/i)).toBeTruthy();
+    cleanup();
+    (botAPI.sendInvoiceWhatsapp as any).mockResolvedValue({ data: { invoice: quote("approved"), sent: false, code: "SEND_FAILED" } });
+    await open("approved");
+    fireEvent.click(screen.getByRole("button", { name: /^enviar por whatsapp$/i }));
+    expect(await screen.findByText(/no se pudo enviar por whatsapp/i)).toBeTruthy();
   });
 
   it("employees never get 'Aprobar y enviar'", async () => {
     auth.isAdmin = false;
     await open("draft");
     expect(screen.queryByRole("button", { name: /^aprobar y enviar$/i })).toBeNull();
+  });
+});
+
+describe("Cotizaciones — confirmar pago (bot)", () => {
+  const confirmPayment = async (status: string) => {
+    auth.isAdmin = true;
+    await open(status);
+    fireEvent.click(screen.getByRole("button", { name: /^confirmar pago$/i }));
+    const dlg = await screen.findByText(/¿marcar/i);
+    fireEvent.click(within(dlg.closest("div")!.parentElement!).getByRole("button", { name: /^confirmar pago$/i }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/invoices/7/confirm-payment", expect.anything()));
+  };
+
+  // (runs first: toasts from earlier tests stay alive in the shared dialog state for a few seconds)
+  it("M1: with nothing to send it just confirms", async () => {
+    api.post.mockResolvedValue({ data: { invoice: quote("paid"), documents_sent: 0 } });
+    await confirmPayment("approved");
+    expect(await screen.findByText(/^pago confirmado\.$/i)).toBeTruthy();
+    expect(screen.queryByText(/^pago confirmado · /i)).toBeNull();
+  });
+
+  it("M1: says how many documents went out by WhatsApp with the payment", async () => {
+    api.post.mockResolvedValue({ data: { invoice: quote("paid"), documents_sent: 2 } });
+    await confirmPayment("sent");
+    expect(await screen.findByText(/^pago confirmado · 2 documentos enviados por whatsapp$/i)).toBeTruthy();
+    cleanup();
+    api.post.mockResolvedValue({ data: { invoice: quote("paid"), documents_sent: 1 } });
+    await confirmPayment("sent");
+    expect(await screen.findByText(/^pago confirmado · 1 documento enviado por whatsapp$/i)).toBeTruthy();
   });
 });

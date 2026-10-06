@@ -217,11 +217,48 @@ describe("Documentos — enviado por el bot", () => {
   it("'Enviar al cliente' on approved, unsent docs calls send", async () => {
     render(<DialogHost />);
     api.send.mockResolvedValue({ data: { document: { ...BOT, approved_version: 2, sent_at: "2026-10-02T10:00:00Z", versions: VERSIONS }, sent: true } });
-    await openBotDoc({ ...BOT, approved_version: 2 });
+    await openBotDoc({ ...BOT, approved_version: 2, send_mode: "manual" });
     fireEvent.click(screen.getByRole("button", { name: /^enviar al cliente$/i }));
     await waitFor(() => expect(api.send).toHaveBeenCalledWith(10));
+    expect(screen.queryByRole("dialog")).toBeNull(); // approved with a send mode: no question
     expect((await screen.findAllByText(/^Enviado /)).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /^enviar al cliente$/i })).toBeNull();
+  });
+
+  // M2: a document approved before phase 2 has no send_mode; sending it is a deliberate choice
+  it("'Enviar al cliente' on a document approved before phase 2 (no send_mode) asks first", async () => {
+    render(<DialogHost />);
+    api.send.mockResolvedValue({ data: { document: { ...BOT, approved_version: 2, sent_at: "2026-10-02T10:00:00Z", versions: VERSIONS }, sent: true } });
+    await openBotDoc({ ...BOT, approved_version: 2, send_mode: null });
+    fireEvent.click(screen.getByRole("button", { name: /^enviar al cliente$/i }));
+    const dlg = await screen.findByRole("dialog", { name: /enviar al cliente/i });
+    expect(within(dlg).getByText(/este documento se aprobó antes; ¿enviarlo ahora al cliente por whatsapp\?/i)).toBeTruthy();
+    expect(api.send).not.toHaveBeenCalled();
+    fireEvent.click(within(dlg).getByRole("button", { name: /^cancelar$/i }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.send).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /^enviar al cliente$/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /^enviar al cliente$/i }));
+    const again = await screen.findByRole("dialog", { name: /enviar al cliente/i });
+    fireEvent.click(within(again).getByRole("button", { name: /^enviar$/i }));
+    await waitFor(() => expect(api.send).toHaveBeenCalledWith(10));
+    expect((await screen.findAllByText(/^Enviado /)).length).toBeGreaterThan(0);
+  });
+
+  // T3: "Enviar cuando pague" needs a cotización to wait for
+  it("the approve dialog hides 'Enviar cuando pague' when the document has no cotización", async () => {
+    api.approve.mockResolvedValue({ data: { document: { ...BOT, invoice_id: null, approved_version: 2, versions: VERSIONS }, sent: false } });
+    await openBotDoc({ ...BOT, invoice_id: null });
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByLabelText(/enviar cuando pague/i)).toBeNull();
+    expect(within(dialog).getByLabelText(/enviar ya/i)).toBeTruthy();
+    expect((within(dialog).getByLabelText(/solo aprobar/i) as HTMLInputElement).checked).toBe(true);
+    cleanup();
+    await openBotDoc(BOT);
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    expect(within(await screen.findByRole("dialog")).getByLabelText(/enviar cuando pague/i)).toBeTruthy();
   });
 
   it("shows 'Enviado {fecha}' and the 24 h notice", async () => {
