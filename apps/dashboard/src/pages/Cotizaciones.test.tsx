@@ -18,6 +18,7 @@ vi.mock("../context/UserColorsContext", async () => {
 vi.mock("../utils", async (orig) => ({ ...(await orig<typeof import("../utils")>()), fetchAuthenticatedFile: fetchFile }));
 
 import Cotizaciones from "./Cotizaciones";
+import DialogHost from "../components/DialogHost";
 
 const quote = (status: string) => ({
   id: 7, doc_number: "COT-7", type: "COTIZACIÓN", status, client_name: "Juan Pérez", client_phone: "18095550000",
@@ -25,11 +26,11 @@ const quote = (status: string) => ({
   pdf_path: "/data/invoices/COT-7.pdf", created_at: "2026-09-28T10:00:00Z", created_by: 2, created_by_name: "Hengi",
 });
 
-const open = async (status: string) => {
+const open = async (status: string, extra: Record<string, unknown> = {}) => {
   api.get.mockImplementation((url: string) =>
-    Promise.resolve({ data: url === "/invoices" ? { invoices: [quote(status)] } : { users: [] } }),
+    Promise.resolve({ data: url === "/invoices" ? { invoices: [{ ...quote(status), ...extra }] } : { users: [] } }),
   );
-  render(<MemoryRouter><Cotizaciones /></MemoryRouter>);
+  render(<MemoryRouter><Cotizaciones /><DialogHost /></MemoryRouter>);
   fireEvent.click((await screen.findAllByText("Juan Pérez"))[0].closest("button")!);
 };
 
@@ -104,5 +105,47 @@ describe("Cotizaciones — compact list", () => {
     const chip = screen.getByRole("button", { name: /quitar filtro: facturas/i });
     fireEvent.click(chip);
     expect(screen.getByRole("button", { name: /^filtros$/i })).toBeTruthy();
+  });
+});
+
+describe("Cotizaciones — aprobar y enviar (bot)", () => {
+  it("the admin sees 'Aprobar y enviar' next to 'Aprobar' and it posts approve-and-send", async () => {
+    auth.isAdmin = true;
+    api.post.mockResolvedValue({ data: { invoice: quote("sent"), sent: true } });
+    await open("pending_approval");
+    expect(screen.getByRole("button", { name: /^aprobar$/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar y enviar$/i }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/invoices/7/approve-and-send"));
+    expect(await screen.findByText(/enviada por whatsapp/i)).toBeTruthy();
+  });
+
+  it("explains the 24 h window when approve-and-send could not send", async () => {
+    auth.isAdmin = true;
+    api.post.mockResolvedValue({ data: { invoice: { ...quote("approved"), send_error: "WINDOW_CLOSED" }, sent: false, code: "WINDOW_CLOSED" } });
+    await open("draft");
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar y enviar$/i }));
+    expect((await screen.findAllByText(/lista, sin enviar: pasaron más de 24 h desde el último mensaje del cliente/i)).length).toBeGreaterThan(0);
+  });
+
+  it("shows 'Enviada por WhatsApp' when sent_by_bot_at is set", async () => {
+    auth.isAdmin = true;
+    await open("sent", { sent_by_bot_at: "2026-10-01T10:00:00Z" });
+    expect((await screen.findAllByText(/enviada por whatsapp/i)).length).toBeGreaterThan(0);
+  });
+
+  it("keeps the send button next to the WINDOW_CLOSED notice, and a generic note for other errors", async () => {
+    auth.isAdmin = true;
+    await open("approved", { send_error: "WINDOW_CLOSED" });
+    expect(await screen.findByText(/lista, sin enviar: pasaron más de 24 h/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /enviar por whatsapp/i })).toBeTruthy();
+    cleanup();
+    await open("approved", { send_error: "SEND_FAILED" });
+    expect(await screen.findByText(/no se pudo enviar/i)).toBeTruthy();
+  });
+
+  it("employees never get 'Aprobar y enviar'", async () => {
+    auth.isAdmin = false;
+    await open("draft");
+    expect(screen.queryByRole("button", { name: /^aprobar y enviar$/i })).toBeNull();
   });
 });

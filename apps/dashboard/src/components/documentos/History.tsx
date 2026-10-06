@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, ChevronDown, ChevronLeft, Eye, FileDown, FilePlus2, Search, Sparkles, Upload } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Bot, CheckCircle2, Send, ChevronDown, ChevronLeft, Eye, FileDown, FilePlus2, Search, Sparkles, Upload } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { useAuth } from "../../context/AuthContext";
 import { useUserColors } from "../../context/UserColorsContext";
 import {
   documentosAPI, downloadFile, versionFileUrl,
-  type DocSort, type DocVersion, type HistoryClient, type PortfolioDocument,
+  type DocSort, type DocVersion, type SendMode, type SendResult, type HistoryClient, type PortfolioDocument,
 } from "../../services/documentosApi";
-import { confirmDialog, notify } from "../../lib/dialogs";
+import { notify } from "../../lib/dialogs";
 import UploadDialog from "./UploadDialog";
 import PdfPreview from "./PdfPreview";
 import PersonalizeDialog from "./PersonalizeDialog";
+import Modal from "../users/Modal";
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const fmt = (d: string) => new Date(d).toLocaleDateString("es-DO", { day: "numeric", month: "short", year: "numeric" });
@@ -31,6 +32,8 @@ export default function History() {
   const [upload, setUpload] = useState<{ doc?: PortfolioDocument } | null>(null);
   const [preview, setPreview] = useState<{ title: string; version: DocVersion } | null>(null);
   const [personalize, setPersonalize] = useState<{ doc: PortfolioDocument; version: DocVersion } | null>(null);
+  const [approving, setApproving] = useState<{ doc: PortfolioDocument; version: DocVersion } | null>(null);
+  const [sending, setSending] = useState(false);
   const [params] = useSearchParams();
   const wantedClient = Number(params.get("client")) || null;
 
@@ -70,18 +73,38 @@ export default function History() {
     }
   };
 
-  const approve = async (doc: PortfolioDocument, v: DocVersion) => {
-    const ok = await confirmDialog(`La versión v${v.version_number} quedará como la aprobada de «${doc.title}».`, {
-      title: `¿Aprobar v${v.version_number}?`,
-      confirmLabel: "Aprobar",
-    });
-    if (!ok) return;
+  const reportSend = (r: SendResult, mode?: SendMode) => {
+    if (r.sent) notify("Enviado al cliente por WhatsApp", "success");
+    else if (r.code === "WINDOW_CLOSED") notify(WINDOW_NOTICE, "info");
+    else if (r.code === "ALREADY_SENT") notify("Este documento ya se había enviado", "info");
+    else if (mode === "al_pagar") notify("Aprobada: se enviará cuando el cliente pague", "success");
+    else if (r.code) notify("No se pudo enviar el documento. Puedes reintentar con «Enviar al cliente»");
+  };
+
+  const approve = async (doc: PortfolioDocument, v: DocVersion, mode: SendMode) => {
+    setApproving(null);
     try {
-      setOpenDoc((await documentosAPI.approve(doc.id, v.id)).data.document);
+      const r = (await documentosAPI.approve(doc.id, v.id, mode)).data;
+      setOpenDoc(r.document);
       loadDocuments();
       notify(`v${v.version_number} aprobada`, "success");
+      reportSend(r, mode);
     } catch (err: any) {
       notify(err?.response?.data?.error || "No se pudo aprobar");
+    }
+  };
+
+  const sendToClient = async (doc: PortfolioDocument) => {
+    setSending(true);
+    try {
+      const r = (await documentosAPI.send(doc.id)).data;
+      setOpenDoc((cur) => (cur ? { ...cur, ...r.document, versions: r.document.versions ?? cur.versions } : r.document));
+      loadDocuments();
+      reportSend(r);
+    } catch (err: any) {
+      notify(err?.response?.data?.error || "No se pudo enviar el documento");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -209,11 +232,36 @@ export default function History() {
                           {isAdmin && d.created_by_name ? ` · ${d.created_by_name}` : ""}
                         </span>
                       </span>
+                      {d.prepared_by_bot && <BotBadge />}
                       <StatusBadge approved={d.approved_version} />
                       <ChevronDown size={18} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
                     </button>
                     {open && openDoc && (
                       <div className="border-t-2 border-border bg-secondary-background px-3 py-3">
+                        {(() => {
+                          const canApprove = openDoc.can_approve ?? isAdmin;
+                          const delivery = deliveryLine(openDoc);
+                          return (
+                            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-semibold">
+                              {openDoc.prepared_by_bot && (
+                                <>
+                                  <BotBadge />
+                                  {openDoc.invoice_id ? (
+                                    <Link to={`/cotizaciones?invoice=${openDoc.invoice_id}`} className="underline">
+                                      Ver cotización
+                                    </Link>
+                                  ) : null}
+                                </>
+                              )}
+                              {delivery && <span className={delivery.warn ? "text-amber-700" : "text-green-700"}>{delivery.text}</span>}
+                              {canApprove && openDoc.approved_version && !openDoc.sent_at && (
+                                <NeoButton size="sm" disabled={sending} onClick={() => sendToClient(openDoc)}>
+                                  <Send size={14} /> Enviar al cliente
+                                </NeoButton>
+                              )}
+                            </div>
+                          );
+                        })()}
                         <ul className="space-y-2">
                           {openDoc.versions?.map((v) => (
                             <li key={v.id} className="flex flex-col gap-2 rounded-base border-2 border-border bg-background px-3 py-2">
@@ -248,8 +296,8 @@ export default function History() {
                                     <Sparkles size={14} /> Personalizar
                                   </NeoButton>
                                 )}
-                                {isAdmin && v.status !== "approved" && (
-                                  <NeoButton size="sm" onClick={() => approve(openDoc, v)}>
+                                {(openDoc.can_approve ?? isAdmin) && v.status !== "approved" && (
+                                  <NeoButton size="sm" onClick={() => setApproving({ doc: openDoc, version: v })}>
                                     Aprobar v{v.version_number}
                                   </NeoButton>
                                 )}
@@ -295,6 +343,14 @@ export default function History() {
           onClose={() => setPersonalize(null)}
         />
       )}
+      {approving && (
+        <ApproveDialog
+          doc={approving.doc}
+          version={approving.version}
+          onCancel={() => setApproving(null)}
+          onApprove={(mode) => approve(approving.doc, approving.version, mode)}
+        />
+      )}
       {preview && (
         <PdfPreview
           title={preview.title}
@@ -304,6 +360,58 @@ export default function History() {
         />
       )}
     </section>
+  );
+}
+
+const WINDOW_NOTICE = "Lista, sin enviar: pasaron más de 24 h desde el último mensaje del cliente";
+
+function deliveryLine(d: PortfolioDocument): { text: string; warn: boolean } | null {
+  if (d.sent_at) return { text: `Enviado ${fmt(d.sent_at)}`, warn: false };
+  if (d.send_error === "WINDOW_CLOSED") return { text: WINDOW_NOTICE, warn: true };
+  if (d.send_error) return { text: "No se pudo enviar", warn: true };
+  if (d.send_mode === "al_pagar" && d.approved_version) return { text: "Se enviará cuando el cliente pague", warn: false };
+  return null;
+}
+
+function BotBadge() {
+  return (
+    <span className="flex shrink-0 items-center gap-1 rounded-full border-2 border-border bg-main/20 px-2 text-xs font-bold">
+      <Bot size={12} /> Preparado por el bot
+    </span>
+  );
+}
+
+// "Aprobar" asks how the approved document should reach the client
+function ApproveDialog({ doc, version, onCancel, onApprove }: {
+  doc: PortfolioDocument; version: DocVersion; onCancel: () => void; onApprove: (mode: SendMode) => void;
+}) {
+  const [mode, setMode] = useState<SendMode>(doc.invoice_id ? "al_pagar" : "manual");
+  const options: { value: SendMode; label: string; hint: string }[] = [
+    { value: "al_pagar", label: "Enviar cuando pague", hint: "Se manda por WhatsApp al confirmar el pago de la cotización" },
+    { value: "ya", label: "Enviar ya", hint: "Se manda por WhatsApp ahora mismo" },
+    { value: "manual", label: "Solo aprobar", hint: "No se envía; lo mandas tú después" },
+  ];
+  return (
+    <Modal title={`¿Aprobar v${version.version_number}?`} onClose={onCancel}>
+      <p className="mb-3 text-sm">
+        La versión v{version.version_number} quedará como la aprobada de «{doc.title}».
+      </p>
+      <div className="space-y-2">
+        {options.map((o) => (
+          <label key={o.value} className="flex cursor-pointer items-start gap-2 rounded-base border-2 border-border bg-secondary-background p-2">
+            <input type="radio" name="send_mode" value={o.value} checked={mode === o.value} onChange={() => setMode(o.value)} className="mt-1" />
+            <span>
+              <span className="block text-sm font-bold">{o.label}</span>
+              <span className="block text-xs text-foreground/60">{o.hint}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        <NeoButton variant="neutral" onClick={onCancel}>Cancelar</NeoButton>
+        <NeoButton onClick={() => onApprove(mode)}>Aprobar</NeoButton>
+      </div>
+    </Modal>
   );
 }
 

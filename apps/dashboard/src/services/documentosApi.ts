@@ -47,6 +47,20 @@ export interface PortfolioDocument {
   approved_version: number | null;
   versions_count: number;
   versions?: DocVersion[];
+  // Fase 2 · bot
+  prepared_by_bot?: boolean;
+  invoice_id?: number | null;
+  send_mode?: SendMode | null;
+  sent_at?: string | null;
+  send_error?: string | null;
+  can_approve?: boolean; // only on the single GET
+}
+
+export type SendMode = "al_pagar" | "ya" | "manual";
+export interface SendResult {
+  document: PortfolioDocument;
+  sent: boolean;
+  code?: "NOT_APPROVED" | "ALREADY_SENT" | "WINDOW_CLOSED" | "SEND_FAILED" | "PDF_FAILED";
 }
 
 export type DocSort = "recent" | "date" | "name";
@@ -74,8 +88,12 @@ export const documentosAPI = {
     if (notes) fd.append("notes", notes);
     return api.post<{ document: PortfolioDocument }>(`/documentos/documents/${id}/versions`, fd);
   },
-  approve: (id: number, versionId: number) =>
-    api.post<{ document: PortfolioDocument }>(`/documentos/documents/${id}/approve`, { version_id: versionId }),
+  approve: (id: number, versionId: number, sendMode?: SendMode) =>
+    api.post<SendResult>(`/documentos/documents/${id}/approve`, {
+      version_id: versionId,
+      ...(sendMode ? { send_mode: sendMode } : {}),
+    }),
+  send: (id: number) => api.post<SendResult>(`/documentos/documents/${id}/send`),
 };
 
 // ── Fase 2 · Generación ──

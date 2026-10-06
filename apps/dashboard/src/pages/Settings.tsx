@@ -3,7 +3,7 @@ import { settingsAPI } from "../services/api";
 import api from "../services/api";
 import { preventDecimalInput } from "../utils";
 import { todayISO, formatISODate } from "../lib/dates";
-import { Database, Play, CheckCircle, AlertCircle, Loader2, Info } from "lucide-react";
+import { Bot, Database, Play, CheckCircle, AlertCircle, Loader2, Info } from "lucide-react";
 import {
   NeoCard,
   NeoCardHeader,
@@ -15,7 +15,8 @@ import { NeoButton } from "@guru/ui";
 import { NeoInput } from "@guru/ui";
 import { Dialog } from "@guru/ui/retroui";
 import { DatePicker } from "@guru/ui/retroui";
-import { confirmDialog } from "../lib/dialogs";
+import { confirmDialog, notify } from "../lib/dialogs";
+import { useAuth } from "../context/AuthContext";
 
 const Settings: React.FC = () => {
   const [employeePercentage, setEmployeePercentage] = useState<number>(50);
@@ -37,9 +38,39 @@ const Settings: React.FC = () => {
     error?: string;
   } | null>(null);
 
+  // Bot: may digitadores approve and send their clients' documents?
+  const { isAdmin } = useAuth();
+  const [digitadoresApprove, setDigitadoresApprove] = useState(false);
+  const [botLoaded, setBotLoaded] = useState(false);
+  const [savingBot, setSavingBot] = useState(false);
+
   useEffect(() => {
     fetchEmployeePercentage();
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    api
+      .get("/settings/bot")
+      .then(({ data }) => {
+        setDigitadoresApprove(!!data.digitadores_aprueban_documentos);
+        setBotLoaded(true);
+      })
+      .catch(() => notify("No se pudo cargar la configuración del bot"));
+  }, [isAdmin]);
+
+  const toggleDigitadoresApprove = async () => {
+    const next = !digitadoresApprove;
+    setSavingBot(true);
+    try {
+      const { data } = await api.put("/settings/bot", { digitadores_aprueban_documentos: next });
+      setDigitadoresApprove(!!data.digitadores_aprueban_documentos);
+    } catch (err: any) {
+      notify(err?.response?.data?.error || "No se pudo guardar la configuración del bot");
+    } finally {
+      setSavingBot(false);
+    }
+  };
 
   const fetchEmployeePercentage = async () => {
     setLoading(true);
@@ -254,6 +285,49 @@ const Settings: React.FC = () => {
           )}
         </NeoCardContent>
       </NeoCard>
+
+      {isAdmin && (
+        <NeoCard>
+          <NeoCardHeader>
+            <div className="flex items-center gap-3">
+              <div className="rounded-base border-2 border-border bg-main p-2 text-main-foreground shadow-button">
+                <Bot size={24} />
+              </div>
+              <div>
+                <NeoCardTitle>Bot de WhatsApp</NeoCardTitle>
+                <NeoCardDescription>Quién puede aprobar y enviar los documentos que prepara el bot</NeoCardDescription>
+              </div>
+            </div>
+          </NeoCardHeader>
+          <NeoCardContent>
+            <div className="flex items-center justify-between gap-4">
+              <span id="digitadores-aprueban-label" className="text-base font-bold">
+                Los digitadores pueden aprobar y enviar documentos
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={digitadoresApprove}
+                aria-labelledby="digitadores-aprueban-label"
+                disabled={!botLoaded || savingBot}
+                onClick={toggleDigitadoresApprove}
+                className={`relative h-7 w-12 shrink-0 rounded-full border-2 border-border transition-colors disabled:opacity-50 ${
+                  digitadoresApprove ? "bg-main" : "bg-secondary-background"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full border-2 border-border bg-white transition-all ${
+                    digitadoresApprove ? "left-[1.35rem]" : "left-0.5"
+                  }`}
+                />
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-foreground/60">
+              Apagado: solo el admin aprueba. Encendido: el digitador asignado al cliente también puede.
+            </p>
+          </NeoCardContent>
+        </NeoCard>
+      )}
 
       {/* Confirmation Dialog */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

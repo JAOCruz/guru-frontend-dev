@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft,
   Download,
@@ -70,6 +70,8 @@ interface Quotation {
   notes?: string;
   payment_method?: string | null;
   payment_reference?: string | null;
+  sent_by_bot_at?: string | null;
+  send_error?: string | null;
 }
 
 // Status tabs, most actionable first
@@ -141,9 +143,18 @@ export default function Cotizaciones() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  // Deep link from Documentos ("Preparado por el bot"): /cotizaciones?invoice=7
+  const [searchParams] = useSearchParams();
+  const wantedInvoice = Number(searchParams.get("invoice")) || null;
   useEffect(() => {
-    fetchQuotations();
-  }, []);
+    fetchQuotations().then((list) => {
+      const wanted = wantedInvoice && list.find((q) => q.id === wantedInvoice);
+      if (wanted) {
+        setSelectedQuotation(wanted);
+        setShowRightPanel(true);
+      }
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showCreateModal && !editingQuotation) return;
@@ -375,6 +386,29 @@ export default function Cotizaciones() {
       if (refreshed) setSelectedQuotation(refreshed);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Admin: approves and delivers the PDF by WhatsApp in one go (the server reports why it could not send)
+  const [approvingSend, setApprovingSend] = useState(false);
+  const handleApproveAndSend = async () => {
+    if (!selectedQuotation) return;
+    setApprovingSend(true);
+    try {
+      const { data } = await api.post(`/invoices/${selectedQuotation.id}/approve-and-send`);
+      const list = await fetchQuotations();
+      const refreshed = list.find((q) => q.id === selectedQuotation.id) ?? data.invoice;
+      if (refreshed) setSelectedQuotation(data.invoice ? { ...refreshed, ...data.invoice } : refreshed);
+      if (data.sent) notify("Aprobada y enviada por WhatsApp.", "success");
+      else if (data.code === "WINDOW_CLOSED")
+        notify("Aprobada, pero sin enviar: pasaron más de 24 h desde el último mensaje del cliente.", "info");
+      else if (data.code === "ALREADY_SENT") notify("Esta cotización ya se había enviado.", "info");
+      else notify("Aprobada, pero no se pudo enviar por WhatsApp. Puedes reintentar con el botón de enviar.");
+    } catch (err: any) {
+      console.error(err);
+      notify(err?.response?.data?.error || "No se pudo aprobar y enviar");
+    } finally {
+      setApprovingSend(false);
     }
   };
 
@@ -1157,6 +1191,17 @@ export default function Cotizaciones() {
                 </NeoCard>
               )}
 
+              {/* WhatsApp delivery status (bot) */}
+              {selectedQuotation.sent_by_bot_at ? (
+                <p className="mt-2 text-sm font-bold text-green-700">Enviada por WhatsApp</p>
+              ) : selectedQuotation.send_error === "WINDOW_CLOSED" ? (
+                <p className="mt-2 text-sm font-bold text-amber-700">
+                  Lista, sin enviar: pasaron más de 24 h desde el último mensaje del cliente
+                </p>
+              ) : selectedQuotation.send_error ? (
+                <p className="mt-2 text-sm font-bold text-red-600">No se pudo enviar</p>
+              ) : null}
+
               {/* Actions */}
               {isAdmin &&
                 ["draft", "pending_approval"].includes(selectedQuotation.status) && (
@@ -1164,6 +1209,10 @@ export default function Cotizaciones() {
                     <NeoButton onClick={handleApprove} className="flex-1">
                       <CheckCircle size={16} />
                       Aprobar
+                    </NeoButton>
+                    <NeoButton onClick={handleApproveAndSend} disabled={approvingSend} className="flex-1">
+                      {approvingSend ? <RefreshCw size={16} className="mr-1 animate-spin" /> : <Send size={16} />}
+                      Aprobar y enviar
                     </NeoButton>
                     <NeoButton
                       variant="outline"
@@ -1238,9 +1287,7 @@ export default function Cotizaciones() {
                       ) : (
                         <Send size={16} />
                       )}
-                      {selectedQuotation.status === "pending_approval"
-                        ? "Aprobar y enviar"
-                        : "Enviar documento"}
+                      Enviar documento
                     </NeoButton>
                   </div>
                 )}
