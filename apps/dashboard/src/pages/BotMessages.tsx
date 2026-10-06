@@ -63,6 +63,8 @@ interface MsgRow {
   status?: string;
   created_at: string;
   ai_generated?: boolean;
+  /** tools the bot used for this reply (outbound bot messages only) */
+  tools?: { herramienta: string; ok: boolean }[];
 }
 
 interface ClientDetail {
@@ -581,6 +583,7 @@ const MessageBubble: React.FC<{ msg: MsgRow; isHighlighted?: boolean }> = ({ msg
         {text && !text.startsWith("[📎") && !text.startsWith("[🎤") && (
           <p className="whitespace-pre-line break-words leading-relaxed">{text}</p>
         )}
+        {isOut && msg.tools && msg.tools.length > 0 && <ToolsLine tools={msg.tools} />}
         {/* Timestamp */}
         <p
           className={`mt-0.5 font-base text-[11px] tabular-nums ${
@@ -594,6 +597,33 @@ const MessageBubble: React.FC<{ msg: MsgRow; isHighlighted?: boolean }> = ({ msg
     </div>
   );
 };
+
+const TOOL_LABELS: Record<string, string> = {
+  buscar_servicio: "buscó servicio",
+  calcular_precio: "calculó precio",
+  ver_tramite: "vio trámite",
+  guardar_datos_cliente: "guardó datos",
+  leer_documento: "leyó documento",
+  crear_solicitud: "creó solicitud",
+  preparar_cotizacion: "preparó cotización",
+  estado_solicitud: "vio estado",
+  pasar_a_humano: "pasó a una persona",
+};
+
+/** "buscó servicio · calculó precio" — a failed tool is struck through */
+const ToolsLine: React.FC<{ tools: { herramienta: string; ok: boolean }[] }> = ({ tools }) => (
+  <p className="mt-1 text-xs text-foreground/60">
+    {tools.map((t, i) => {
+      const label = TOOL_LABELS[t.herramienta] ?? t.herramienta;
+      return (
+        <React.Fragment key={i}>
+          {i > 0 && " · "}
+          {t.ok ? label : <span className="line-through" title="falló">{label}</span>}
+        </React.Fragment>
+      );
+    })}
+  </p>
+);
 
 // ─── Date Separator ───────────────────────────────────────────────────────────
 

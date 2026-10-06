@@ -239,6 +239,8 @@ export interface ChatMessage {
   handledBy?: HandledBy;
   fromMe?: boolean;
   read?: boolean;
+  /** tools the bot used for this reply (outbound bot messages only) */
+  tools?: { herramienta: string; ok: boolean }[];
 }
 
 export interface Conversation {

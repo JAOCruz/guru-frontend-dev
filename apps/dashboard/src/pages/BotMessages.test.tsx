@@ -106,3 +106,37 @@ describe("Mensajes — chat window", () => {
     expect(screen.getByText(/🤖 Bot/)).toBeTruthy();
   });
 });
+
+describe("Mensajes — herramientas del bot", () => {
+  const open = async (outbound: Record<string, unknown>) => {
+    botAPI.getPhoneMessages.mockResolvedValue({ data: [
+      { id: 2, phone: "18095550101", direction: "outbound", content: "Respuesta del bot", created_at: "2026-10-05T15:01:00Z", ai_generated: true, ...outbound },
+      { id: 1, phone: "18095550101", direction: "inbound", content: "Hola", created_at: "2026-10-05T15:00:00Z" },
+    ] });
+    render_();
+    fireEvent.click((await screen.findByText("Ana Gómez")).closest("button")!);
+    await screen.findByText("Respuesta del bot");
+  };
+
+  it("muestra las herramientas bajo la respuesta del bot", async () => {
+    await open({ tools: [{ herramienta: "buscar_servicio", ok: true }, { herramienta: "calcular_precio", ok: true }] });
+    const line = screen.getByText("buscó servicio · calculó precio");
+    expect(line.className).toMatch(/text-xs/);
+    expect(line.className).toMatch(/text-foreground\/60/);
+  });
+
+  it("una herramienta que falló se ve tachada", async () => {
+    await open({ tools: [{ herramienta: "buscar_servicio", ok: true }, { herramienta: "crear_solicitud", ok: false }, { herramienta: "otra_cosa", ok: true }] });
+    const failed = screen.getByText("creó solicitud");
+    expect(failed.parentElement!.textContent).toBe("buscó servicio · creó solicitud · otra_cosa");
+    expect(failed.className).toMatch(/line-through/);
+    expect(failed.getAttribute("title")).toBe("falló");
+  });
+
+  it("los mensajes sin tools no muestran la línea", async () => {
+    await open({});
+    expect(screen.queryByText(/buscó servicio|calculó precio|creó solicitud/)).toBeNull();
+    expect(document.querySelector("#msg-2 p.text-xs")).toBeNull();
+  });
+});
+
