@@ -31,7 +31,7 @@ import { useUserColors } from "../context/UserColorsContext";
 import UserBadge from "../components/UserBadge";
 import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
 import { fetchAuthenticatedFile, preventDecimalInput } from "../utils";
-import { notify } from "../lib/dialogs";
+import { notify, confirmDialog } from "../lib/dialogs";
 
 interface QuotationItem {
   desc?: string;
@@ -611,11 +611,19 @@ export default function Cotizaciones() {
     }
   };
   // Delivers the PDF to the client's WhatsApp (admin, or the employee once approved)
+  const alreadySent = (q: Quotation) => !!q.sent_by_bot_at || q.status === "sent";
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
   const handleSendWhatsapp = async () => {
     if (!selectedQuotation) return;
     setSendingWhatsapp(true);
     try {
+      if (alreadySent(selectedQuotation)) {
+        const ok = await confirmDialog("Esta cotización ya se envió. ¿Enviarla de nuevo al cliente?", {
+          title: "Reenviar por WhatsApp",
+          confirmLabel: "Reenviar",
+        });
+        if (!ok) return;
+      }
       await botAPI.sendInvoiceWhatsapp(selectedQuotation.id);
       const list = await fetchQuotations();
       const refreshed = list.find((q) => q.id === selectedQuotation.id);
@@ -1281,13 +1289,14 @@ export default function Cotizaciones() {
                       onClick={handleSendInvoice}
                       disabled={sending}
                       className="flex-1"
+                      title="No envía nada al cliente; solo la marca como enviada"
                     >
                       {sending ? (
                         <RefreshCw size={16} className="mr-1 animate-spin" />
                       ) : (
                         <Send size={16} />
                       )}
-                      Enviar documento
+                      Marcar como enviada
                     </NeoButton>
                   </div>
                 )}
@@ -1321,18 +1330,21 @@ export default function Cotizaciones() {
                       onClick={handleSendInvoice}
                       disabled={sending}
                       className="flex-1"
+                      title="No envía nada al cliente; solo la marca como enviada"
                     >
                       {sending ? (
                         <RefreshCw size={16} className="mr-1 animate-spin" />
                       ) : (
                         <Send size={16} />
                       )}
-                      Enviar documento
+                      Marcar como enviada
                     </NeoButton>
                   </div>
                 )}
 
+              {/* draft / pending: "Aprobar y enviar" is the only WhatsApp path */}
               {selectedQuotation.client_phone &&
+                !["draft", "pending_approval"].includes(selectedQuotation.status) &&
                 whatsappAction({
                   isAdmin,
                   isOwner: selectedQuotation.created_by === user?.id,
@@ -1350,9 +1362,7 @@ export default function Cotizaciones() {
                       ) : (
                         <Send size={16} />
                       )}
-                      {isAdmin && selectedQuotation.status === "pending_approval"
-                        ? "Aprobar y enviar por WhatsApp"
-                        : "Enviar por WhatsApp"}
+                      {alreadySent(selectedQuotation) ? "Reenviar por WhatsApp" : "Enviar por WhatsApp"}
                     </NeoButton>
                   </div>
                 )}

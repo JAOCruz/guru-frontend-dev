@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 const { auth, fetchFile, api } = vi.hoisted(() => ({
@@ -62,7 +62,10 @@ describe("Cotizaciones — employee visibility", () => {
     auth.isAdmin = true;
     await open("pending_approval");
     await waitFor(() => expect(fetchFile).toHaveBeenCalled());
-    expect(screen.getByRole("button", { name: /aprobar y enviar por whatsapp/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^aprobar y enviar$/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /por whatsapp/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /enviar documento/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /marcar como enviada/i }).getAttribute("title")).toMatch(/no envía nada/i);
   });
 });
 
@@ -141,6 +144,19 @@ describe("Cotizaciones — aprobar y enviar (bot)", () => {
     cleanup();
     await open("approved", { send_error: "SEND_FAILED" });
     expect(await screen.findByText(/no se pudo enviar/i)).toBeTruthy();
+  });
+
+  it("a sent quote offers 'Reenviar por WhatsApp' and sends only after confirming", async () => {
+    auth.isAdmin = true;
+    const { botAPI } = await import("../services/botApi");
+    (botAPI.sendInvoiceWhatsapp as any).mockReset().mockResolvedValue({});
+    await open("sent", { sent_by_bot_at: "2026-10-01T10:00:00Z" });
+    fireEvent.click(await screen.findByRole("button", { name: /^reenviar por whatsapp$/i }));
+    const dlg = await screen.findByRole("dialog", { name: /reenviar/i });
+    expect(within(dlg).getByText(/ya se envió\. ¿enviarla de nuevo al cliente\?/i)).toBeTruthy();
+    expect(botAPI.sendInvoiceWhatsapp).not.toHaveBeenCalled();
+    fireEvent.click(within(dlg).getByRole("button", { name: /^reenviar$/i }));
+    await waitFor(() => expect(botAPI.sendInvoiceWhatsapp).toHaveBeenCalledWith(7));
   });
 
   it("employees never get 'Aprobar y enviar'", async () => {
