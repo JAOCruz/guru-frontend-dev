@@ -109,7 +109,7 @@ export const serviceCatalogAPI = {
   create: (data: any) => api.post("/service-catalog", data),
   update: (id: number, data: any) => api.put(`/service-catalog/${id}`, data),
   delete: (id: number) => api.delete(`/service-catalog/${id}`),
-  calculate: (data: { serviceId: number; assetValue?: number; quantity?: number }) =>
+  calculate: (data: { serviceId: number; assetValue?: number; quantity?: number; fojas?: number; duplicados?: number }) =>
     api.post("/service-catalog/calculate", data),
 };
 
