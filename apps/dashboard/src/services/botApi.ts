@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getAuthToken } from "../utils";
+import { fojaUnitPrice } from "../lib/fojaRates";
 
 export function getBotApiBaseURL(): string {
   if (typeof window === "undefined") return "/api";
@@ -219,11 +220,20 @@ export interface ServiceCatalogItem {
   price_tiers?: Array<{ min?: number; max?: number | null; price: number }> | null;
   unit_type?: string;
   active?: boolean;
+  foja_tipo?: string | null;
+  fojas?: number | null;
   [key: string]: unknown;
 }
 
-/** Suggested unit price for a catalog item: digitación → notarización → first tier. */
+/**
+ * Suggested unit price for a catalog item. A foja service (foja_tipo) costs FOJA_RATES × fojas (1 if unknown),
+ * like the backend's calculatePrice — except a range-only service (precio_rango, no digitación), which never goes by foja.
+ * Otherwise: digitación → notarización → first tier.
+ */
 export function catalogUnitPrice(item: ServiceCatalogItem): number | null {
+  const soloRango = item.precio_rango != null && (item.digitacion_price == null || item.digitacion_price === "");
+  const porFoja = soloRango ? null : fojaUnitPrice(item.foja_tipo, item.fojas);
+  if (porFoja !== null) return porFoja;
   const dig = Number(item.digitacion_price);
   if (dig > 0) return dig;
   const nota = Number(item.notarizacion_price);

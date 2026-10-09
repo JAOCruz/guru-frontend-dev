@@ -9,6 +9,7 @@ import { preventDecimalInput } from "../utils";
 import { useAuth } from "../context/AuthContext";
 import { NeoCard, NeoButton, NeoInput, NeoSelect, NeoBadge } from "@guru/ui";
 import { confirmDialog, notify } from "../lib/dialogs";
+import { FOJA_RATES } from "../lib/fojaRates";
 
 interface PriceTier { min: number; max: number | null; label: string; price: number; }
 interface Service {
@@ -21,14 +22,6 @@ interface Service {
   foja_tipo?: string | null; fojas?: number | null;
 }
 interface Category { id: number; name: string; }
-
-// Mirrors src/models/fojaRates.js in the backend (guruweb-backend). Keep in sync.
-const FOJA_RATES: Record<string, { label: string; rate: number }> = {
-  carta_simple: { label: "Carta simple", rate: 150 },
-  carta_motivada: { label: "Carta motivada", rate: 300 },
-  legal_simple: { label: "Legal simple", rate: 250 },
-  legal_motivada: { label: "Legal motivada", rate: 350 },
-};
 
 const fojaSummary = (svc: Service) => {
   const r = svc.foja_tipo ? FOJA_RATES[svc.foja_tipo] : undefined;
