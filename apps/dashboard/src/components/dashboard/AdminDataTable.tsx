@@ -343,12 +343,12 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
             </h3>
             <div className="flex flex-wrap gap-4 font-mono text-sm">
               <span className="font-bold uppercase tracking-widest opacity-90">
-                Total:{" "}
+                TOTAL (100%) ={" "}
                 <span>{formatCurrency(userTotals[user].total)}</span>
               </span>
               <span className="font-bold uppercase tracking-widest opacity-90">
-                Admin:{" "}
-                <span>{formatCurrency(userTotals[user].adminShare)}</span>
+                DIGITADOR ({employeePercentage}%) ={" "}
+                <span>{formatCurrency(userTotals[user].userShare)}</span>
               </span>
             </div>
           </div>
@@ -404,16 +404,13 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
                         <td className="p-5">
                           <div className="flex flex-col gap-1 font-mono text-sm">
                             <span className="font-bold tracking-widest text-foreground/60 uppercase">
-                              Admin:{" "}
+                              TOTAL (100%) ={" "}
                               <span className="text-foreground">
-                                {formatCurrency(
-                                  item.earnings *
-                                    (1 - employeePercentage / 100),
-                                )}
+                                {formatCurrency(item.earnings)}
                               </span>
                             </span>
                             <span className="font-bold tracking-widest text-foreground/60 uppercase">
-                              User:{" "}
+                              DIGITADOR ({employeePercentage}%) ={" "}
                               <span className="text-main">
                                 {formatCurrency(
                                   item.earnings * (employeePercentage / 100),
