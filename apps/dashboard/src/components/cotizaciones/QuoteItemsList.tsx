@@ -44,7 +44,9 @@ const QuoteItemsList: React.FC<QuoteItemsListProps> = ({ items, editable = false
   const save = () => {
     onSave?.(items.map((line, idx) => {
       const n = Number(drafts[idx]);
-      return { ...line, precio: drafts[idx] !== "" && Number.isFinite(n) && n > 0 ? n : null };
+      if (drafts[idx] !== "" && Number.isFinite(n) && n > 0) return { ...line, precio: n };
+      // Empty: a pending line stays without a price; a line that had one keeps it
+      return { ...line, precio: line.por_confirmar ? null : priceOf(line) };
     }));
   };
 

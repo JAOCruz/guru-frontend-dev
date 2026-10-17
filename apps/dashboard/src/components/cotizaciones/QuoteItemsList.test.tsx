@@ -52,4 +52,13 @@ describe("QuoteItemsList", () => {
     expect(saved[0].precio).toBe(650);
     expect(saved[1].precio).toBeNull();
   });
+
+  it("a line that already had a price keeps it if its field is emptied", () => {
+    const onSave = vi.fn();
+    render(<QuoteItemsList items={ITEMS} editable onSave={onSave} />);
+    fireEvent.change(screen.getAllByRole("spinbutton")[0], { target: { value: "" } });
+    fireEvent.change(screen.getAllByRole("spinbutton")[1], { target: { value: "260" } });
+    fireEvent.click(screen.getByRole("button", { name: /guardar precios/i }));
+    expect(onSave.mock.calls[0][0][0].precio).toBe(700);
+  });
 });
