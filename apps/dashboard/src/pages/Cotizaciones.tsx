@@ -32,16 +32,9 @@ import UserBadge from "../components/UserBadge";
 import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
 import { fetchAuthenticatedFile, preventDecimalInput } from "../utils";
 import { notify, confirmDialog } from "../lib/dialogs";
+import QuoteItemsList, { pendingCount, type QuoteLine } from "../components/cotizaciones/QuoteItemsList";
 
-interface QuotationItem {
-  desc?: string;
-  name?: string;
-  cantidad?: number;
-  quantity?: number;
-  precio?: number;
-  unitPrice?: number;
-  itbis?: boolean;
-}
+type QuotationItem = QuoteLine;
 
 interface Quotation {
   id: number;
@@ -64,6 +57,7 @@ interface Quotation {
   created_at: string;
   created_by?: number;
   created_by_name?: string;
+  source?: string | null;
   rejected_by?: number;
   rejected_by_name?: string;
   rejected_at?: string;
@@ -384,8 +378,41 @@ export default function Cotizaciones() {
       // Refresh selected quotation data (use the freshly returned list, not stale state)
       const refreshed = list.find((q) => q.id === selectedQuotation.id);
       if (refreshed) setSelectedQuotation(refreshed);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      if (err?.response?.data?.code === "PRICES_PENDING") notify("Faltan precios por confirmar: ponlos antes de aprobar.");
+    }
+  };
+
+  // Prices of the bot's "por confirmar" lines: the client's assigned digitador or the admin, before approval
+  const [savingPrices, setSavingPrices] = useState(false);
+  const canSetPrices = (q: Quotation | null) =>
+    !!q && ["draft", "pending_approval"].includes(q.status) &&
+    (isAdmin || (q.source === "bot" && q.created_by !== user?.id));
+  const handleSavePrices = async (items: QuotationItem[]) => {
+    if (!selectedQuotation) return;
+    setSavingPrices(true);
+    try {
+      const q = selectedQuotation;
+      // The admin's PUT rewrites the whole document: send what it already has so nothing else changes
+      const payload: any = isAdmin
+        ? {
+            type: q.type, clientName: q.client_name, clientPhone: q.client_phone || undefined, notes: q.notes ?? "", items,
+            discountType: q.discount_type || undefined, discountValue: q.discount_type ? Number(q.discount_value) || 0 : undefined,
+            discountCode: q.discount_code || undefined, discountReason: q.discount_reason || undefined,
+          }
+        : { items: items.map((i) => ({ precio: i.precio ?? null })) };
+      await api.put(`/invoices/${q.id}`, payload);
+      const list = await fetchQuotations();
+      const refreshed = list.find((x) => x.id === q.id);
+      if (refreshed) setSelectedQuotation(refreshed);
+      const left = pendingCount(refreshed?.items);
+      notify(left ? `Precios guardados. Quedan ${left} por confirmar.` : "Precios guardados.", "success");
+    } catch (err: any) {
+      console.error(err);
+      notify(err?.response?.data?.error || "No se pudieron guardar los precios");
+    } finally {
+      setSavingPrices(false);
     }
   };
 
@@ -452,6 +479,7 @@ export default function Cotizaciones() {
     setCreateItems(
       Array.isArray(quote.items) && quote.items.length > 0
         ? quote.items.map((item) => ({
+            ...item,
             desc: item.desc || item.name || "",
             cantidad: item.cantidad || item.quantity || 1,
             precio: item.precio || item.unitPrice || 0,
@@ -478,8 +506,9 @@ export default function Cotizaciones() {
       setCreateError("El nombre del cliente es obligatorio");
       return;
     }
+    // A "por confirmar" line without a price stays (the price is set later)
     const validItems = createItems.filter(
-      (item) => item.desc?.trim() && (Number(item.precio) || 0) > 0
+      (item) => item.desc?.trim() && ((Number(item.precio) || 0) > 0 || item.por_confirmar)
     );
     if (validItems.length === 0) {
       setCreateError("Agrega al menos un artículo válido");
@@ -494,9 +523,10 @@ export default function Cotizaciones() {
         clientName: createClientName.trim(),
         clientPhone: createClientPhone.trim() || undefined,
         items: validItems.map((item) => ({
+          ...(item.por_confirmar ? { por_confirmar: true, rango: item.rango ?? null, precio_sugerido: item.precio_sugerido ?? null, nota: item.nota ?? null } : {}),
           desc: item.desc,
           cantidad: Number(item.cantidad) || 1,
-          precio: Number(item.precio) || 0,
+          precio: (Number(item.precio) || 0) > 0 ? Number(item.precio) : item.por_confirmar ? null : 0,
           itbis: !!item.itbis,
         })),
         notes: createNotes.trim() || undefined,
@@ -1102,34 +1132,13 @@ export default function Cotizaciones() {
                 </div>
               </NeoCard>
 
-              {/* Items */}
-              <div className="mb-4">
-                <p className="mb-2 text-base font-black uppercase tracking-widest text-foreground/60">
-                  Artículos ({selectedQuotation.items?.length || 0})
-                </p>
-                <div className="space-y-2">
-                  {selectedQuotation.items?.map((item, i) => (
-                    <NeoCard key={i} className="p-3">
-                      <p className="text-base font-medium">
-                        {item.desc || item.name || `Artículo ${i + 1}`}
-                      </p>
-                      <div className="mt-1 flex items-center justify-between text-base text-foreground/70">
-                        <span>
-                          {item.cantidad || item.quantity || 1} x RD${" "}
-                          {(item.precio || item.unitPrice || 0).toLocaleString("es-DO")}
-                        </span>
-                        <span className="font-semibold text-foreground">
-                          RD${" "}
-                          {(
-                            (item.cantidad || item.quantity || 1) *
-                            (item.precio || item.unitPrice || 0)
-                          ).toLocaleString("es-DO")}
-                        </span>
-                      </div>
-                    </NeoCard>
-                  ))}
-                </div>
-              </div>
+              {/* Items (the assignee or the admin sets the "por confirmar" prices here) */}
+              <QuoteItemsList
+                items={selectedQuotation.items || []}
+                editable={canSetPrices(selectedQuotation)}
+                saving={savingPrices}
+                onSave={handleSavePrices}
+              />
 
               {/* Totals */}
               <NeoCard variant="main" className="mb-4 p-4">
@@ -1226,13 +1235,20 @@ export default function Cotizaciones() {
 
               {/* Actions */}
               {isAdmin &&
+                ["draft", "pending_approval"].includes(selectedQuotation.status) &&
+                pendingCount(selectedQuotation.items) > 0 && (
+                  <p className="mt-4 rounded-base border-2 border-amber-500 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900">
+                    No se puede aprobar ni enviar hasta poner los precios por confirmar.
+                  </p>
+                )}
+              {isAdmin &&
                 ["draft", "pending_approval"].includes(selectedQuotation.status) && (
                   <div className="mt-auto flex gap-2 pt-4">
-                    <NeoButton onClick={handleApprove} className="flex-1">
+                    <NeoButton onClick={handleApprove} disabled={pendingCount(selectedQuotation.items) > 0} className="flex-1">
                       <CheckCircle size={16} />
                       Aprobar
                     </NeoButton>
-                    <NeoButton onClick={handleApproveAndSend} disabled={approvingSend} className="flex-1">
+                    <NeoButton onClick={handleApproveAndSend} disabled={approvingSend || pendingCount(selectedQuotation.items) > 0} className="flex-1">
                       {approvingSend ? <RefreshCw size={16} className="mr-1 animate-spin" /> : <Send size={16} />}
                       Aprobar y enviar
                     </NeoButton>
@@ -1301,7 +1317,7 @@ export default function Cotizaciones() {
                   <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
                     <NeoButton
                       onClick={handleSendInvoice}
-                      disabled={sending}
+                      disabled={sending || pendingCount(selectedQuotation.items) > 0}
                       className="flex-1"
                       title="No envía nada al cliente; solo la marca como enviada"
                     >

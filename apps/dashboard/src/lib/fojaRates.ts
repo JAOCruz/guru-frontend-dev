@@ -4,6 +4,7 @@ export const FOJA_RATES: Record<string, { label: string; rate: number }> = {
   carta_motivada: { label: "Carta motivada", rate: 300 },
   legal_simple: { label: "Legal simple", rate: 250 },
   legal_motivada: { label: "Legal motivada", rate: 350 },
+  modificacion: { label: "Modificación", rate: 150 }, // de 3 fojas en adelante el backend lo deja como rango 100–150
 };
 
 /** Precio de un servicio por foja: tarifa × fojas (1 si no se sabe); null si foja_tipo no es válido. */

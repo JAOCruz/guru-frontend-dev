@@ -5,7 +5,7 @@ import { catalogUnitPrice } from "../services/botApi";
 describe("FOJA_RATES", () => {
   it("mirrors the backend rates", () => {
     expect(Object.fromEntries(Object.entries(FOJA_RATES).map(([k, r]) => [k, r.rate]))).toEqual({
-      carta_simple: 150, carta_motivada: 300, legal_simple: 250, legal_motivada: 350,
+      carta_simple: 150, carta_motivada: 300, legal_simple: 250, legal_motivada: 350, modificacion: 150,
     });
   });
 });
@@ -32,5 +32,12 @@ describe("catalogUnitPrice", () => {
     expect(catalogUnitPrice({ id: 4, name: "Notaría", digitacion_price: 0, notarizacion_price: "800" })).toBe(800);
     expect(catalogUnitPrice({ id: 5, name: "Venta", price_tiers: [{ min: 0, max: null, price: 500 }] })).toBe(500);
     expect(catalogUnitPrice({ id: 6, name: "Nada" })).toBeNull();
+  });
+});
+
+describe("modificación", () => {
+  it("is a foja type at 150, like the backend", () => {
+    expect(FOJA_RATES.modificacion).toEqual({ label: "Modificación", rate: 150 });
+    expect(fojaUnitPrice("modificacion", 2)).toBe(300);
   });
 });
