@@ -36,6 +36,11 @@ api.interceptors.request.use(
       // Axios 1.x uses AxiosHeaders — use .set() to be safe
       config.headers.set("Authorization", `Bearer ${token}`);
     }
+    // A file upload goes as multipart: with the default JSON Content-Type, axios turns a FormData
+    // into JSON and the file never reaches the server. Without it, the browser sets the boundary.
+    if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+      config.headers.delete("Content-Type");
+    }
     return config;
   },
   (error) => Promise.reject(error),
