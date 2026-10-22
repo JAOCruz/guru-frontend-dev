@@ -3,7 +3,7 @@
   publish = "apps/dashboard/dist"
 
 [build.environment]
-  NODE_VERSION = "20.11.1"
+  NODE_VERSION = "24.22.1"
   NPM_FLAGS = "--no-package-lock"
   CI = "false"
 
