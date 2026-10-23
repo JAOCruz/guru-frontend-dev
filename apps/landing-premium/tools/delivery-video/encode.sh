@@ -1,18 +1,26 @@
 #!/bin/sh
-# Frames from capture.cjs → the scroll-scrubbed videos + posters in public/video.
-# Keyframe every 8 frames so seeking backwards stays smooth.
+# Frames from capture.cjs (rendered 1.5× for supersampling) → the scroll-scrubbed videos in public/video:
+# AV1 (Chrome, Android, new iPhones), HEVC (Safari / iPhone) and H.264 (fallback), plus the
+# first/last frame as posters. Keyframe every 8 frames so seeking backwards stays smooth.
 # Usage: sh tools/delivery-video/encode.sh <desktopFramesDir> <mobileFramesDir>
 set -e
 OUT="$(dirname "$0")/../../public/video"
 mkdir -p "$OUT"
+rm -f "$OUT"/delivery-*
 enc() { # frames size name
-  ffmpeg -v error -y -framerate 30 -i "$1/f%04d.png" -vf "scale=$2:flags=lanczos" -c:v libx264 -preset slow -crf 29 \
-    -g 8 -keyint_min 8 -sc_threshold 0 -pix_fmt yuv420p -movflags +faststart -an "$OUT/$3.mp4"
-  first=$(ls "$1" | head -1); last=$(ls "$1" | tail -1)
+  in="$1/f%04d.png"; vf="scale=$2:flags=lanczos"
+  ffmpeg -v error -y -framerate 30 -i "$in" -vf "$vf" -c:v libsvtav1 -preset 4 -crf 36 -g 8 -svtav1-params "log-level=0" \
+    -pix_fmt yuv420p -movflags +faststart -an "$OUT/$3-av1.mp4"
+  ffmpeg -v error -y -framerate 30 -i "$in" -vf "$vf" -c:v libx265 -preset slow -crf 27 \
+    -x265-params "keyint=8:min-keyint=8:scenecut=0:log-level=error" -tag:v hvc1 -pix_fmt yuv420p -movflags +faststart -an "$OUT/$3-hevc.mp4"
+  ffmpeg -v error -y -framerate 30 -i "$in" -vf "$vf" -c:v libx264 -preset slow -crf 25 -g 8 -keyint_min 8 -sc_threshold 0 \
+    -pix_fmt yuv420p -movflags +faststart -an "$OUT/$3-h264.mp4"
   w=${2%x*}; h=${2#*x}
-  python3 -c "import sys; from PIL import Image; Image.open(sys.argv[1]).convert('RGB').resize((int(sys.argv[3]), int(sys.argv[4])), Image.LANCZOS).save(sys.argv[2], 'WEBP', quality=72)" "$1/$first" "$OUT/$3-start.webp" $w $h
-  python3 -c "import sys; from PIL import Image; Image.open(sys.argv[1]).convert('RGB').resize((int(sys.argv[3]), int(sys.argv[4])), Image.LANCZOS).save(sys.argv[2], 'WEBP', quality=72)" "$1/$last" "$OUT/$3-end.webp" $w $h
+  for f in "$(ls "$1" | head -1):start" "$(ls "$1" | tail -1):end"; do
+    python3 -c "import sys; from PIL import Image; Image.open(sys.argv[1]).convert('RGB').resize((int(sys.argv[3]), int(sys.argv[4])), Image.LANCZOS).save(sys.argv[2], 'WEBP', quality=80, method=6)" \
+      "$1/${f%%:*}" "$OUT/$3-${f#*:}.webp" $w $h
+  done
 }
-enc "$1" 1120x630 delivery-desktop
-enc "$2" 540x960 delivery-mobile
+enc "$1" 1920x1080 delivery-desktop
+enc "$2" 1080x1920 delivery-mobile
 ls -la "$OUT"

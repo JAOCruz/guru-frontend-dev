@@ -8,8 +8,17 @@ import { prefersReducedMotion } from "../three/owl/webgl";
 import ScrollVideo from "./ScrollVideo";
 
 // Pre-rendered from the 3D scene (tools/delivery-video): plays with the scroll
-const LANDSCAPE = { video: "/video/delivery-desktop.mp4", start: "/video/delivery-desktop-start.webp", end: "/video/delivery-desktop-end.webp" };
-const PORTRAIT = { video: "/video/delivery-mobile.mp4", start: "/video/delivery-mobile-start.webp", end: "/video/delivery-mobile-end.webp" };
+const v = (name: string, focus: string) => ({
+  av1: `/video/${name}-av1.mp4`,
+  hevc: `/video/${name}-hevc.mp4`,
+  h264: `/video/${name}-h264.mp4`,
+  start: `/video/${name}-start.webp`,
+  end: `/video/${name}-end.webp`,
+  focus,
+});
+// the owl is framed right of the text panel (desktop) / below it (phones): crop toward it
+const LANDSCAPE = v("delivery-desktop", "72% 50%");
+const PORTRAIT = v("delivery-mobile", "50% 78%");
 const DELIVERED_AT = 0.93;
 
 const COPY = {
