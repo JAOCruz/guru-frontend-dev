@@ -4,9 +4,10 @@ import { whatsappLink } from "../data";
 import WhatsAppIcon from "./WhatsAppIcon";
 
 const LINKS = [
+  { href: "#nosotros", label: "Nosotros" },
+  { href: "#modelos", label: "Modelos" },
   { href: "#servicios", label: "Servicios" },
   { href: "#historia", label: "Historia" },
-  { href: "#nosotros", label: "Nosotros" },
   { href: "#ubicacion", label: "Ubicación" },
 ];
 // Team login to the dashboard, same link as the previous site's menu

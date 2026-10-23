@@ -4,9 +4,8 @@ import Marquee from "./components/Marquee";
 import TypewriterBlock from "./components/TypewriterBlock";
 import About from "./components/About";
 import VideoBlock from "./components/VideoBlock";
-import GuruOwl from "./components/GuruOwl";
+import Templates from "./components/Templates";
 import BriefcaseServices from "./components/BriefcaseServices";
-import Delivery from "./components/Delivery";
 import Testimonials from "./components/Testimonials";
 import Dominican from "./components/Dominican";
 import CtaBand from "./components/CtaBand";
@@ -15,25 +14,24 @@ import Footer from "./components/Footer";
 import WhatsAppFab from "./components/WhatsAppFab";
 import ConsentBanner from "./components/ConsentBanner";
 
-// Production skeleton, reordered per Leandro: services right after the slogan,
-// then the Gurú video and owl, then the typewriter with the story
+// Order per Leandro: cover (slogan + the owl's delivery flight), who we are, the templates window,
+// the services briefcase, the typewriter story, the Gurú group video, testimonials, where we are, the rest
 export default function App() {
   return (
     <>
       <Nav />
       <main>
         <Hero />
-        <BriefcaseServices />
-        <Delivery />
-        <VideoBlock />
-        <GuruOwl />
-        <Marquee />
-        <TypewriterBlock />
         <About />
+        <Templates />
+        <BriefcaseServices />
+        <TypewriterBlock />
+        <VideoBlock />
+        <Marquee />
         <Testimonials />
+        <Location />
         <Dominican />
         <CtaBand />
-        <Location />
       </main>
       <Footer />
       <WhatsAppFab />

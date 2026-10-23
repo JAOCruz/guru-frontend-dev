@@ -49,8 +49,10 @@ interface ScrollVideoProps {
   rests?: number[];
   /** start downloading once the stage is this close (IntersectionObserver rootMargin) */
   preloadMargin?: string;
-  /** reduced motion: just the last frame */
+  /** reduced motion: just one picture */
   still?: boolean;
+  /** which picture `still` shows */
+  stillFrame?: "start" | "end";
   label: string;
 }
 
@@ -66,7 +68,7 @@ const LEAD = 0.5;
 // A pre-rendered animation driven by the scroll. Instead of seeking frame by frame it *plays* toward
 // the scroll position (the reversed copy when going up), faster when far and slower when close, and
 // when the scroll stops it glides on to the next resting pose. The first frame shows at once as a poster.
-export default function ScrollVideo({ progress, landscape, portrait, rests = [], preloadMargin = "150% 0px", still = false, label }: ScrollVideoProps) {
+export default function ScrollVideo({ progress, landscape, portrait, rests = [], preloadMargin = "150% 0px", still = false, stillFrame = "end", label }: ScrollVideoProps) {
   const wrap = useRef<HTMLDivElement>(null);
   const fwd = useRef<HTMLVideoElement>(null);
   const rev = useRef<HTMLVideoElement>(null);
@@ -281,7 +283,7 @@ export default function ScrollVideo({ progress, landscape, portrait, rests = [],
   }, []);
 
   if (!src) return <div ref={wrap} className="absolute inset-0" />;
-  if (still) return <img src={src.end} alt={label} style={{ objectPosition: src.focus }} className="absolute inset-0 h-full w-full object-cover" />;
+  if (still) return <img src={src[stillFrame]} alt={label} style={{ objectPosition: src.focus }} className="absolute inset-0 h-full w-full object-cover" />;
   const cls = "absolute inset-0 h-full w-full object-cover";
   return (
     <div ref={wrap} className="absolute inset-0">

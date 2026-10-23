@@ -9,9 +9,9 @@ const { chromium } = require(pwPath || 'playwright-core');
 const SIZE = { desktop: [1920, 1080], mobile: [1080, 1920] }[layout];
 // rendered 1.5× and scaled down by encode.sh (supersampling = clean edges)
 const SCALE = 1.5;
-// where the subject moves so the page's text panel never covers it (desktop → right, phone → down);
+// where the subject moves so the page's text panel never covers it (desktop → right and down, under the title; phone → down);
 // [x, y] at take-off → at the landing
-const SHIFT = { desktop: [[0.16, 0.02], [0.02, 0]], mobile: [[0, 0.2], [0, 0.04]] }[layout];
+const SHIFT = { desktop: [[0.16, 0.13], [0.02, 0]], mobile: [[0, 0.2], [0, 0.04]] }[layout];
 // 60 fps so that playing slower than 1× (slow scrolling) still shows a new frame on most screen refreshes
 const FPS = 60;
 const MOVE = 300; // frames while the section scrolls 0 → 1
