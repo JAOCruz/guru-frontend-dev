@@ -1,14 +1,13 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Canvas } from "@react-three/fiber";
 import { motion, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from "framer-motion";
 import { Send } from "lucide-react";
 import { useSectionProgress } from "../lib/useSectionProgress";
 import { whatsappLink } from "../data";
 import WhatsAppIcon from "./WhatsAppIcon";
 import { useStageVisibility } from "../three/owl/useStageVisibility";
-import { dprRange, hasWebGL, isMobileViewport, prefersReducedMotion } from "../three/owl/webgl";
+import { hasWebGL, isMobileViewport, prefersReducedMotion } from "../three/owl/webgl";
 
-const DeliveryScene = lazy(() => import("../three/city/DeliveryScene"));
+const DeliveryCanvas = lazy(() => import("../three/city/DeliveryCanvas"));
 const DELIVERED_AT = 0.93;
 
 const COPY = {
@@ -103,20 +102,9 @@ export default function Delivery() {
       <div ref={stage} className="sticky top-16 h-[calc(100svh-4rem)] overflow-hidden md:top-20 md:h-[calc(100svh-5rem)]">
         <div className="absolute inset-0">
           {gl && near && (
-            <Canvas
-              frameloop={reduced ? "demand" : visible ? "always" : "never"}
-              dpr={dprRange()}
-              camera={{ fov: mobile ? 52 : 44, near: 0.3, far: 400, position: [-30, 5, 20] }}
-              gl={{ antialias: !mobile, alpha: false, powerPreference: "high-performance" }}
-              onCreated={({ gl }) => {
-                gl.toneMapping = 3; // ACESFilmic
-                gl.setClearColor("#060a2b");
-              }}
-            >
-              <Suspense fallback={null}>
-                <DeliveryScene progress={progress} mobile={mobile} instant={reduced} />
-              </Suspense>
-            </Canvas>
+            <Suspense fallback={null}>
+              <DeliveryCanvas progress={progress} mobile={mobile} reduced={reduced} visible={visible} />
+            </Suspense>
           )}
         </div>
         {/* readability scrim behind the panel side */}
