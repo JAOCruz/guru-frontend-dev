@@ -1,13 +1,15 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from "framer-motion";
 import { Send } from "lucide-react";
 import { useSectionProgress } from "../lib/useSectionProgress";
 import { whatsappLink } from "../data";
 import WhatsAppIcon from "./WhatsAppIcon";
-import { useStageVisibility } from "../three/owl/useStageVisibility";
-import { hasWebGL, isMobileViewport, prefersReducedMotion } from "../three/owl/webgl";
+import { prefersReducedMotion } from "../three/owl/webgl";
+import ScrollVideo from "./ScrollVideo";
 
-const DeliveryCanvas = lazy(() => import("../three/city/DeliveryCanvas"));
+// Pre-rendered from the 3D scene (tools/delivery-video): plays with the scroll
+const LANDSCAPE = { video: "/video/delivery-desktop.mp4", start: "/video/delivery-desktop-start.webp", end: "/video/delivery-desktop-end.webp" };
+const PORTRAIT = { video: "/video/delivery-mobile.mp4", start: "/video/delivery-mobile-start.webp", end: "/video/delivery-mobile-end.webp" };
 const DELIVERED_AT = 0.93;
 
 const COPY = {
@@ -36,7 +38,7 @@ function Panel({ progress }: { progress: MotionValue<number> }) {
   return (
     <div className="brut absolute left-3 right-3 top-3 z-10 rounded-[22px] bg-paper p-4 md:left-8 md:right-auto md:top-1/2 md:w-[420px] md:-translate-y-1/2 md:rounded-[26px] md:p-8">
       <span className="brut-sm inline-block rounded-full bg-guru px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">{COPY.eyebrow}</span>
-      <h2 className="mt-3 font-display text-[clamp(1.25rem,3.2vw,2.5rem)] font-black uppercase leading-[1] md:mt-4">{COPY.title}</h2>
+      <h2 className="mt-3 font-display text-[clamp(1.25rem,5.4vw,1.75rem)] font-black uppercase leading-[1.02] md:mt-4 md:text-[clamp(1.5rem,2.3vw,2.1rem)]">{COPY.title}</h2>
       <p className="mt-2 text-[16px] leading-snug text-ink/80 md:mt-5 md:text-lg md:leading-relaxed">{COPY.text}</p>
       {/* route progress */}
       <div className="mt-4 hidden items-center gap-3 text-xs font-bold uppercase tracking-wider text-ink/70 md:flex">
@@ -58,55 +60,20 @@ function Panel({ progress }: { progress: MotionValue<number> }) {
   );
 }
 
-// No WebGL: the same composition as a still (mascot + badge)
-function StaticStage() {
-  const done = useMotionValue(1);
-  return (
-    <div className="relative h-[calc(100svh-4rem)] overflow-hidden bg-[#060a2b] md:h-[calc(100svh-5rem)]">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_60%,rgb(31_61_255/0.6),rgb(6_10_43)_65%)]" />
-      <img src="/img/mascot_1.webp" alt="El Búho de Gurú entrega tu maletín de documentos" className="absolute bottom-0 right-[6%] h-[70%] w-auto rounded-t-[28px] border-2 border-b-0 border-ink object-cover md:right-[12%]" />
-      <Panel progress={done} />
-      <Badge show />
-    </div>
-  );
-}
-
 export default function Delivery() {
   const section = useRef<HTMLElement>(null);
-  const stage = useRef<HTMLDivElement>(null);
   const progress = useSectionProgress(section);
-  const { near, visible } = useStageVisibility(stage, "400px 0px");
-  const [gl, setGl] = useState<boolean | null>(null);
   const [reduced, setReduced] = useState(false);
-  const [mobile, setMobile] = useState(false);
   const [delivered, setDelivered] = useState(false);
   const done = useMotionValue(1);
 
-  useEffect(() => {
-    setGl(hasWebGL());
-    setReduced(prefersReducedMotion());
-    setMobile(isMobileViewport());
-  }, []);
+  useEffect(() => setReduced(prefersReducedMotion()), []);
   useMotionValueEvent(progress, "change", (v) => setDelivered(v > DELIVERED_AT));
-
-  if (gl === false) {
-    return (
-      <section id="mensajeria" className="border-y-2 border-ink">
-        <StaticStage />
-      </section>
-    );
-  }
 
   return (
     <section id="mensajeria" ref={section} className={`relative border-y-2 border-ink bg-[#060a2b] ${reduced ? "" : "h-[240vh]"}`}>
-      <div ref={stage} className="sticky top-16 h-[calc(100svh-4rem)] overflow-hidden md:top-20 md:h-[calc(100svh-5rem)]">
-        <div className="absolute inset-0">
-          {gl && near && (
-            <Suspense fallback={null}>
-              <DeliveryCanvas progress={progress} mobile={mobile} reduced={reduced} visible={visible} />
-            </Suspense>
-          )}
-        </div>
+      <div className="sticky top-16 h-[calc(100svh-4rem)] overflow-hidden md:top-20 md:h-[calc(100svh-5rem)]">
+        <ScrollVideo progress={progress} landscape={LANDSCAPE} portrait={PORTRAIT} still={reduced} label="El Búho de Gurú vuela con tu maletín de documentos desde La Feria hasta tu puerta" />
         {/* readability scrim behind the panel side */}
         <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[520px] bg-[linear-gradient(90deg,rgb(6_10_43/0.55),transparent)] md:block" />
         <Panel progress={reduced ? done : progress} />
