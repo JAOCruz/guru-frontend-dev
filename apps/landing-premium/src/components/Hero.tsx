@@ -121,9 +121,9 @@ function Panel({ progress, className }: { progress: MotionValue<number>; classNa
   );
 }
 
-const SLOGAN_SIZE = "text-[clamp(1.9rem,8.2vw,2.6rem)] md:text-[clamp(2.1rem,min(4vw,6.2vh),4rem)]";
-// centered at the top, over the night sky above the owl, like a game title screen
-const SLOGAN_SPOT = "inset-x-4 top-6 text-center md:top-[4.5%]";
+const SLOGAN_SIZE = "text-[clamp(2.2rem,10vw,3rem)] md:text-[clamp(3rem,min(5.4vw,9.5vh),6.2rem)]";
+// on the left, vertically centered (top on phones); the owl is framed a little to the right
+const SLOGAN_SPOT = "inset-x-5 top-6 text-left md:inset-x-auto md:left-10 md:top-1/2 md:-translate-y-1/2 lg:left-16";
 
 export default function Hero() {
   const section = useRef<HTMLElement>(null);
@@ -151,7 +151,7 @@ export default function Hero() {
       <section id="top" className="border-b-2 border-ink bg-[#060a2b]">
         <div className="relative h-[calc(100svh-4rem)] overflow-hidden md:h-[calc(100svh-5rem)]">
           <ScrollVideo progress={progress} landscape={LANDSCAPE} portrait={PORTRAIT} still stillFrame="start" label={label} />
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(6_10_43/0.65),transparent_40%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(6_10_43/0.65),transparent_40%)] md:bg-[linear-gradient(90deg,rgb(6_10_43/0.6),transparent_55%)]" />
           <div className={`absolute z-10 ${SLOGAN_SPOT}`}>
             <TypedSlogan className={SLOGAN_SIZE} />
           </div>
@@ -167,7 +167,7 @@ export default function Hero() {
     <section id="top" ref={section} className="relative h-[200vh] border-b-2 border-ink bg-[#060a2b]">
       <div className="sticky top-16 h-[calc(100svh-4rem)] overflow-hidden md:top-20 md:h-[calc(100svh-5rem)]">
         <ScrollVideo progress={progress} landscape={LANDSCAPE} portrait={PORTRAIT} rests={RESTS} preloadMargin="0px" label={label} />
-        {/* readability scrim behind the title (top) */}
+        {/* readability scrim behind the title (top on phones, left on desktop) */}
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(6_10_43/0.65),transparent_40%)]" />
 
         <div className={`pointer-events-none absolute z-10 ${SLOGAN_SPOT}`}>
@@ -177,8 +177,8 @@ export default function Hero() {
         </div>
 
         {/* the real office, like a photo pinned to the scene; leaves with the slogan */}
-        <div className="pointer-events-none absolute bottom-10 left-8 z-10 hidden md:block lg:left-12">
-          <motion.figure style={{ opacity: sloganOpacity, y: sloganY }} className="brut w-[180px] -rotate-6 rounded-xl bg-paper p-2 pb-3 lg:w-[210px]">
+        <div className="pointer-events-none absolute bottom-10 right-8 z-10 hidden md:block lg:right-12">
+          <motion.figure style={{ opacity: sloganOpacity, y: sloganY }} className="brut w-[170px] rotate-6 rounded-xl bg-paper p-2 pb-3 lg:w-[200px]">
             <img src="/img/oficina-sm.webp" alt="La oficina de Gurú Soluciones en La Feria, frente a la OGM" className="aspect-[4/5] w-full rounded-lg object-cover object-[50%_35%]" />
             <figcaption className="mt-2 text-center leading-tight">
               <span className="block font-display text-[11px] font-bold uppercase tracking-wider text-ink">Nuestra oficina</span>
