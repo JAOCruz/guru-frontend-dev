@@ -38,7 +38,7 @@ function Badge({ show }: { show: boolean }) {
       initial={false}
       animate={show ? { opacity: 1, scale: 1, rotate: -8 } : { opacity: 0, scale: 2.4, rotate: -20 }}
       transition={{ type: "spring", stiffness: 420, damping: 22, mass: 0.8 }}
-      className="brut pointer-events-none absolute bottom-24 right-4 z-20 rounded-2xl bg-mint px-5 py-3 font-display text-xl font-black uppercase text-ink shadow-[var(--shadow-hard-lg)] md:bottom-12 md:right-12 md:px-7 md:py-4 md:text-3xl"
+      className="brut pointer-events-none absolute inset-x-0 bottom-4 z-20 mx-auto w-max rounded-2xl bg-mint px-4 py-2 font-display text-lg font-black uppercase text-ink shadow-[var(--shadow-hard-lg)] md:inset-x-auto md:bottom-12 md:right-12 md:mx-0 md:px-7 md:py-4 md:text-3xl"
     >
       Entregado ✓
     </motion.div>
@@ -83,7 +83,7 @@ export default function Delivery() {
   useMotionValueEvent(progress, "change", (v) => setDelivered(v > DELIVERED_AT));
 
   return (
-    <section id="mensajeria" ref={section} className={`relative border-y-2 border-ink bg-[#060a2b] ${reduced ? "" : "h-[240vh]"}`}>
+    <section id="mensajeria" ref={section} className={`relative border-y-2 border-ink bg-[#060a2b] ${reduced ? "" : "h-[200vh]"}`}>
       <div className="sticky top-16 h-[calc(100svh-4rem)] overflow-hidden md:top-20 md:h-[calc(100svh-5rem)]">
         <ScrollVideo progress={progress} landscape={LANDSCAPE} portrait={PORTRAIT} rests={RESTS} still={reduced} label="El Búho de Gurú vuela con tu maletín de documentos desde La Feria hasta tu puerta" />
         {/* readability scrim behind the panel side */}

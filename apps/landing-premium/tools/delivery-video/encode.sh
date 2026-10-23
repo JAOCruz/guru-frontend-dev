@@ -2,18 +2,18 @@
 # Frames from capture.cjs (rendered 1.5× for supersampling) → the scroll-scrubbed videos in public/video:
 # AV1 (Chrome, Android, new iPhones), HEVC (Safari / iPhone) and H.264 (fallback), plus the
 # first/last frame as posters. Each video also gets a reversed copy (-rev) so scrolling up plays
-# backwards smoothly instead of seeking. Keyframe every 8 frames so the occasional seek stays quick.
+# backwards smoothly instead of seeking. Keyframe every 16 frames (60 fps) so the occasional seek stays quick.
 # Usage: sh tools/delivery-video/encode.sh <desktopFramesDir> <mobileFramesDir>
 set -e
 OUT="$(dirname "$0")/../../public/video"
 mkdir -p "$OUT"
 rm -f "$OUT"/delivery-*
 codecs() { # input filter out
-  ffmpeg -v error -y -framerate 30 -i "$1" -vf "$2" -c:v libsvtav1 -preset 4 -crf 36 -g 8 -svtav1-params "log-level=0" \
+  ffmpeg -v error -y -framerate 60 -i "$1" -vf "$2" -c:v libsvtav1 -preset 4 -crf 36 -g 16 -svtav1-params "log-level=0" \
     -pix_fmt yuv420p -movflags +faststart -an "$3-av1.mp4"
-  ffmpeg -v error -y -framerate 30 -i "$1" -vf "$2" -c:v libx265 -preset slow -crf 27 \
-    -x265-params "keyint=8:min-keyint=8:scenecut=0:log-level=error" -tag:v hvc1 -pix_fmt yuv420p -movflags +faststart -an "$3-hevc.mp4"
-  ffmpeg -v error -y -framerate 30 -i "$1" -vf "$2" -c:v libx264 -preset slow -crf 25 -g 8 -keyint_min 8 -sc_threshold 0 \
+  ffmpeg -v error -y -framerate 60 -i "$1" -vf "$2" -c:v libx265 -preset slow -crf 27 \
+    -x265-params "keyint=16:min-keyint=16:scenecut=0:log-level=error" -tag:v hvc1 -pix_fmt yuv420p -movflags +faststart -an "$3-hevc.mp4"
+  ffmpeg -v error -y -framerate 60 -i "$1" -vf "$2" -c:v libx264 -preset slow -crf 25 -g 16 -keyint_min 16 -sc_threshold 0 \
     -pix_fmt yuv420p -movflags +faststart -an "$3-h264.mp4"
 }
 enc() { # frames size name

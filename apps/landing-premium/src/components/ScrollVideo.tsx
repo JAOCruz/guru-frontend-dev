@@ -17,8 +17,8 @@ export interface Source {
 type Files = Pick<Source, "av1" | "hevc" | "h264">;
 
 const CODECS: [keyof Files, string][] = [
-  ["av1", 'video/mp4; codecs="av01.0.08M.08"'],
-  ["hevc", 'video/mp4; codecs="hvc1.1.6.L120.90"'],
+  ["av1", 'video/mp4; codecs="av01.0.09M.08"'],
+  ["hevc", 'video/mp4; codecs="hvc1.1.6.L123.90"'],
   ["h264", 'video/mp4; codecs="avc1.640032"'],
 ];
 
@@ -31,7 +31,7 @@ async function bestCodec(width: number, height: number): Promise<keyof Files> {
     if (name === "h264") break;
     if (probe.canPlayType(type) !== "probably" || !mc) continue;
     try {
-      const info = await mc.decodingInfo({ type: "file", video: { contentType: type, width, height, bitrate: 3_000_000, framerate: 30 } });
+      const info = await mc.decodingInfo({ type: "file", video: { contentType: type, width, height, bitrate: 4_000_000, framerate: 60 } });
       if (info.supported && info.smooth && info.powerEfficient) return name;
     } catch {
       /* unknown: keep looking */
@@ -56,6 +56,12 @@ interface ScrollVideoProps {
 
 const IDLE_MS = 160; // no scroll for this long = the user stopped
 const ARRIVED = 0.035; // seconds: close enough to the goal to stop
+// The videos are 60 fps, so even at half speed a new frame shows about 30 times a second; slower than
+// that it would look like jumping frame by frame. While scrolling it may run this far ahead (seconds) in
+// the scroll's direction, so slow scrolling is one continuous flight instead of stop-and-go.
+const MIN_RATE = 0.5;
+const MAX_RATE = 6;
+const LEAD = 0.5;
 
 // A pre-rendered animation driven by the scroll. Instead of seeking frame by frame it *plays* toward
 // the scroll position (the reversed copy when going up), faster when far and slower when close, and
@@ -175,11 +181,12 @@ export default function ScrollVideo({ progress, landscape, portrait, rests = [],
     const pos = position();
     const target = st.target * dur;
     let goal = target;
+    if (!idle && st.dir !== 0) goal = Math.min(dur, Math.max(0, target + LEAD * st.dir));
     if (idle) {
       // glide on to the next resting pose in the direction of travel
       const rs = restList.current.map((r) => r * dur);
       goal = st.dir < 0 ? [...rs].reverse().find((r) => r <= target + 0.02) ?? 0 : rs.find((r) => r >= target - 0.02) ?? dur;
-    } else if (st.dir !== 0 && Math.sign(target - pos) !== st.dir) {
+    } else if (st.dir !== 0 && Math.sign(goal - pos) !== st.dir) {
       goal = pos; // the animation is already ahead in this direction: wait for the scroll to catch up
     }
     const dist = goal - pos;
@@ -236,11 +243,12 @@ export default function ScrollVideo({ progress, landscape, portrait, rests = [],
       return;
     }
 
-    // speed from the distance: far = fast, close = slow (a soft stop); gentler while gliding to a rest
-    const goalRate = idle ? Math.min(1.1, Math.max(0.3, Math.abs(dist) * 0.9)) : Math.min(6, Math.max(0.35, Math.abs(dist) * 2.2));
+    // speed from the distance: far = faster, close = slower (never below MIN_RATE); finishing the move
+    // to a resting pose at normal speed, easing down only at the very end
+    const goalRate = idle ? Math.min(1, Math.max(MIN_RATE, Math.abs(dist) * 1.6)) : Math.min(MAX_RATE, Math.max(MIN_RATE, Math.abs(dist) * 2.2));
     st.rate += (goalRate - st.rate) * 0.18;
     const v = st.active === "fwd" ? f : rev.current!;
-    v.playbackRate = Math.max(0.25, st.rate);
+    v.playbackRate = Math.max(MIN_RATE, st.rate);
     if (v.paused) {
       v.play().catch(() => {
         st.seekOnly = true; // e.g. iOS Low Power Mode blocks playback: seek instead

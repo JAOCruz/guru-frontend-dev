@@ -150,7 +150,7 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
     if (g) {
       const hoverY = landing * (0.45 + 0.12 * Math.sin(performance.now() * 0.003)) + settle * 0.35 - crouch * 0.12 + push * 0.18;
       // after letting go, the owl comes down and lands beside the case
-      const lx = DOOR.x + (mobile ? 1.15 : 2.4), ly = 0.02, lz = DOOR.z + (mobile ? 1.3 : 2.4);
+      const lx = DOOR.x + (mobile ? 1.5 : 2.4), ly = 0.02, lz = DOOR.z + (mobile ? 2.5 : 2.4); // in front of the facade
       g.position.set(
         THREE.MathUtils.lerp(_p.x, lx, aside),
         THREE.MathUtils.lerp(_p.y + hoverY, ly, aside) + Math.sin(aside * Math.PI) * 0.3,
@@ -204,9 +204,9 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
       _lookT.lerp(_p2, approach);
       // dolly in on the mat while the case is set down, so the open lid and the sheet read
       const closeUp = easeInOut(drop);
-      _p2.set(DOOR.x + (mobile ? 0.6 : 3.2), 3.2, DOOR.z + (mobile ? 9.5 : 7.2));
+      _p2.set(DOOR.x + (mobile ? 2.4 : 3.2), 3.2, DOOR.z + (mobile ? 10 : 7.2));
       _camT.lerp(_p2, closeUp);
-      _p2.set(DOOR.x + 0.3, 1.5 + (mobile ? 1.0 : 0), DOOR.z + 1.6);
+      _p2.set(DOOR.x + (mobile ? 0.8 : 0.3), 1.5 + (mobile ? 0.9 : 0), DOOR.z + (mobile ? 2.2 : 1.6));
       _lookT.lerp(_p2, closeUp);
     }
     if (!camInit.current) {

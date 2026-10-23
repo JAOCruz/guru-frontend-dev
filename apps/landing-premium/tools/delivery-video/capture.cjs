@@ -1,5 +1,5 @@
 // Renders the delivery flight (dev page ?capture=desktop|mobile) into PNG frames with a fixed
-// 30 fps clock while the scroll progress moves at constant speed, then the frames become the
+// 60 fps clock while the scroll progress moves at constant speed, then the frames become the
 // scroll-scrubbed video (see encode.sh).
 // Usage (frames are ~1.5× the final size): npx vite --port 5180  (in another terminal), then
 //   node tools/delivery-video/capture.cjs desktop|mobile <outDir> [playwright-core path]
@@ -12,10 +12,12 @@ const SCALE = 1.5;
 // where the subject moves so the page's text panel never covers it (desktop → right, phone → down);
 // [x, y] at take-off → at the landing
 const SHIFT = { desktop: [[0.16, 0.02], [0.02, 0]], mobile: [[0, 0.2], [0, 0.04]] }[layout];
-const MOVE = 150; // frames while the section scrolls 0 → 1
-const SETTLE = 24; // extra frames at the end so the landing settles
-const WARM = 20; // unrecorded frames at the start
-const DT = 1 / 30;
+// 60 fps so that playing slower than 1× (slow scrolling) still shows a new frame on most screen refreshes
+const FPS = 60;
+const MOVE = 300; // frames while the section scrolls 0 → 1
+const SETTLE = 48; // extra frames at the end so the landing settles
+const WARM = 40; // unrecorded frames at the start
+const DT = 1 / FPS;
 
 function chromiumPath() {
   const base = path.join(os.homedir(), 'Library/Caches/ms-playwright');
