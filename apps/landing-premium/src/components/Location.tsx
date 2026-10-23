@@ -1,4 +1,4 @@
-import { MapPin, Navigation } from "lucide-react";
+import { Clock, MapPin, Navigation } from "lucide-react";
 import { MAPS_URL } from "../data";
 
 const EMBED = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3784.731960779048!2d-69.9315891239499!3d18.450475282629593!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8ea5635fabab61a7%3A0x1cc6b9e0dfa32f93!2sGuru%20Soluciones!5e0!3m2!1ses-419!2sdo!4v1759434493649!5m2!1ses-419!2sdo";
@@ -15,6 +15,7 @@ export default function Location() {
           <div className="brut mt-8 rounded-3xl bg-paper p-6">
             <p className="flex items-start gap-3 text-lg font-bold"><MapPin className="mt-1 shrink-0 text-guru" /> Av. Independencia 1607, Santo Domingo 10101, La Feria, frente a la OGM.</p>
             <p className="mt-3 pl-9 text-ink/70"><b>Referencia:</b> entrando por el callejón del Plaspilito.</p>
+            <p className="mt-4 flex items-start gap-3 text-lg font-bold"><Clock className="mt-1 shrink-0 text-guru" /> Lunes a viernes, 9:00 a.m. a 6:00 p.m.</p>
             <a href={MAPS_URL} target="_blank" rel="noopener" className="brut-sm press ml-9 mt-5 inline-flex items-center gap-2 rounded-full bg-guru px-4 py-2 font-bold text-white">
               <Navigation size={16} /> Cómo llegar
             </a>

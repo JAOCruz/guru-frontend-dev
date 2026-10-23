@@ -13,6 +13,7 @@ import CtaBand from "./components/CtaBand";
 import Location from "./components/Location";
 import Footer from "./components/Footer";
 import WhatsAppFab from "./components/WhatsAppFab";
+import ConsentBanner from "./components/ConsentBanner";
 
 // Production skeleton, reordered per Leandro: services right after the slogan,
 // then the Gurú video and owl, then the typewriter with the story
@@ -36,6 +37,7 @@ export default function App() {
       </main>
       <Footer />
       <WhatsAppFab />
+      <ConsentBanner />
     </>
   );
 }

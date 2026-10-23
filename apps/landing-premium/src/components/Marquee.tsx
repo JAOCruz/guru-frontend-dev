@@ -16,11 +16,14 @@ function Row({ reverse = false, className = "" }: { reverse?: boolean; className
 }
 
 export default function Marquee() {
+  // the tilted bands are wider than the page: clip them sideways only
   return (
-    <div className="relative -rotate-1 border-y-[2.5px] border-ink bg-guru py-3 text-white" aria-hidden="true">
-      <Row />
-      <div className="absolute inset-x-0 -bottom-[46px] rotate-2 border-y-[2.5px] border-ink bg-mint py-2 text-ink">
-        <Row reverse />
+    <div className="overflow-x-clip">
+      <div className="relative -rotate-1 border-y-[2.5px] border-ink bg-guru py-3 text-white" aria-hidden="true">
+        <Row />
+        <div className="absolute inset-x-0 -bottom-[46px] rotate-2 border-y-[2.5px] border-ink bg-mint py-2 text-ink">
+          <Row reverse />
+        </div>
       </div>
     </div>
   );
