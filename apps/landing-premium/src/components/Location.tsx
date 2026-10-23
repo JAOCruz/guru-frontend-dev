@@ -20,6 +20,10 @@ export default function Location() {
               <Navigation size={16} /> Cómo llegar
             </a>
           </div>
+          <figure className="brut mt-6 overflow-hidden rounded-3xl bg-paper">
+            <img src="/img/oficina.webp" alt="Entrada de Gurú Soluciones: el letrero, la puerta con el horario y la vitrina con el búho" loading="lazy" className="aspect-[4/5] w-full object-cover object-[50%_12%] sm:aspect-[4/3] sm:object-[50%_20%]" />
+            <figcaption className="border-t-2 border-ink px-5 py-3 font-display text-sm font-bold uppercase tracking-wider">Así nos encuentras</figcaption>
+          </figure>
         </div>
         <div className="brut min-h-[340px] overflow-hidden rounded-3xl bg-paper-2 shadow-[var(--shadow-hard-lg)]">
           <iframe title="Mapa de Gurú Soluciones" src={EMBED} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-full min-h-[340px] w-full border-0 grayscale-[35%] contrast-[1.05]" />

@@ -176,6 +176,17 @@ export default function Hero() {
           </motion.div>
         </div>
 
+        {/* the real office, like a photo pinned to the scene; leaves with the slogan */}
+        <div className="pointer-events-none absolute bottom-10 left-8 z-10 hidden md:block lg:left-12">
+          <motion.figure style={{ opacity: sloganOpacity, y: sloganY }} className="brut w-[180px] -rotate-6 rounded-xl bg-paper p-2 pb-3 lg:w-[210px]">
+            <img src="/img/oficina-sm.webp" alt="La oficina de Gurú Soluciones en La Feria, frente a la OGM" className="aspect-[4/5] w-full rounded-lg object-cover object-[50%_35%]" />
+            <figcaption className="mt-2 text-center leading-tight">
+              <span className="block font-display text-[11px] font-bold uppercase tracking-wider text-ink">Nuestra oficina</span>
+              <span className="block text-[11px] text-ink/70">La Feria, frente a la OGM</span>
+            </figcaption>
+          </motion.figure>
+        </div>
+
         <div className="absolute inset-x-3 top-3 z-10 md:inset-x-auto md:left-8 md:top-1/2 md:w-[420px] md:-translate-y-1/2">
           <motion.div style={{ opacity: cardOpacity, y: cardY, pointerEvents: cardEvents }}>
             <Panel progress={progress} className="" />
