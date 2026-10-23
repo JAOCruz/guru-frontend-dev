@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getAuthToken } from "../utils";
+import { fojaUnitPrice } from "../lib/fojaRates";
 
 export function getBotApiBaseURL(): string {
   if (typeof window === "undefined") return "/api";
@@ -63,6 +64,10 @@ export interface BotStatus {
   mode?: BotMode;
   assignmentMode?: AssignmentMode;
   phone?: string;
+  /** "meta" = official WhatsApp Cloud API (no QR session), "baileys" = linked device by QR */
+  provider?: "meta" | "baileys";
+  /** Mensajes lists only chats with messages from this moment (ISO); null = all */
+  chatsSince?: string | null;
 }
 
 export interface BotMessage {
@@ -195,6 +200,14 @@ export interface Invoice {
   [key: string]: unknown;
 }
 
+/** approve-and-send / send-whatsapp: the quote as it is now, whether it went out, and why not */
+export interface SendQuoteResult {
+  invoice: Invoice;
+  sent: boolean;
+  code?: string;
+  message?: string;
+}
+
 // ─── Service catalog types ──────────────────────────────────────────────────
 
 export interface ServiceCatalogItem {
@@ -207,11 +220,20 @@ export interface ServiceCatalogItem {
   price_tiers?: Array<{ min?: number; max?: number | null; price: number }> | null;
   unit_type?: string;
   active?: boolean;
+  foja_tipo?: string | null;
+  fojas?: number | null;
   [key: string]: unknown;
 }
 
-/** Suggested unit price for a catalog item: digitación → notarización → first tier. */
+/**
+ * Suggested unit price for a catalog item. A foja service (foja_tipo) costs FOJA_RATES × fojas (1 if unknown),
+ * like the backend's calculatePrice — except a range-only service (precio_rango, no digitación), which never goes by foja.
+ * Otherwise: digitación → notarización → first tier.
+ */
 export function catalogUnitPrice(item: ServiceCatalogItem): number | null {
+  const soloRango = item.precio_rango != null && (item.digitacion_price == null || item.digitacion_price === "");
+  const porFoja = soloRango ? null : fojaUnitPrice(item.foja_tipo, item.fojas);
+  if (porFoja !== null) return porFoja;
   const dig = Number(item.digitacion_price);
   if (dig > 0) return dig;
   const nota = Number(item.notarizacion_price);
@@ -235,6 +257,8 @@ export interface ChatMessage {
   handledBy?: HandledBy;
   fromMe?: boolean;
   read?: boolean;
+  /** tools the bot used for this reply (outbound bot messages only) */
+  tools?: { herramienta: string; ok: boolean }[];
 }
 
 export interface Conversation {
@@ -364,6 +388,10 @@ export const botAPI = {
   setAssignmentMode: (mode: AssignmentMode) =>
     botApi.post("/whatsapp/assignment-mode", { mode }),
 
+  /** POST /api/whatsapp/archive-chats — Mensajes shows only chats from now on (nothing is deleted) */
+  archiveChats: () =>
+    botApi.post<{ chatsSince: string; manualCleared: number }>("/whatsapp/archive-chats"),
+
   /** GET /api/whatsapp/profile-pic/:phone — fetch WhatsApp profile picture URL */
   getProfilePic: (phone: string) =>
     botApi.get<{ url: string | null }>(`/whatsapp/profile-pic/${encodeURIComponent(phone)}`),
@@ -428,9 +456,10 @@ export const botAPI = {
     });
   },
 
-  /** POST /api/messages/manual-toggle/:phone — toggle manual takeover (Bot ↔ Manual) */
+  /** POST /api/messages/bot-toggle/:phone — the chat's 🤖 button: in "Seleccionados" turns the bot
+   *  on/off for this chat, in "Todos" is the agent takeover (Bot ↔ Manual) */
   toggleChatAI: (phone: string) =>
-    botApi.post(`/messages/manual-toggle/${encodeURIComponent(phone)}`),
+    botApi.post<{ phone: string; botActive: boolean }>(`/messages/bot-toggle/${encodeURIComponent(phone)}`),
 
   /** GET /api/messages/phone-status/:phone — get AI/manual status */
   getPhoneStatus: (phone: string) =>
@@ -468,9 +497,11 @@ export const botAPI = {
   generateInvoicePdf: (id: number | string) =>
     botApi.post<{ invoice: Invoice; pdfPath: string }>(`/invoices/${id}/generate-pdf`),
 
-  /** POST /api/invoices/:id/send-whatsapp — send the PDF to the client's WhatsApp chat and mark as sent */
-  sendInvoiceWhatsapp: (id: number | string) =>
-    botApi.post<{ invoice: Invoice; message: string }>(`/invoices/${id}/send-whatsapp`),
+  /** POST /api/invoices/:id/send-whatsapp — send the PDF to the client's WhatsApp chat (through the delivery
+   *  service: one send per quote; `resend: true` only after the panel confirmed a deliberate resend).
+   *  Answers { invoice, sent, code? } like approve-and-send. */
+  sendInvoiceWhatsapp: (id: number | string, opts?: { resend?: boolean }) =>
+    botApi.post<SendQuoteResult>(`/invoices/${id}/send-whatsapp`, ...(opts?.resend ? [{ resend: true }] : [])),
 
   /** POST /api/invoices/:id/request-approval — employee draft -> pending_approval (admin must approve before sending) */
   requestInvoiceApproval: (id: number | string) =>

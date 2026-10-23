@@ -14,6 +14,7 @@ import {
   Play,
   Power,
   RefreshCw,
+  Archive,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import botApi, { botAPI, BotStatus, BotMode } from "../services/botApi";
@@ -79,6 +80,7 @@ const WhatsAppBot: React.FC = () => {
     assignmentMode: "manual",
   });
   const [qr, setQr] = useState<string | null>(null);
+  const isMeta = status.provider === "meta";
   const [loading, setLoading] = useState(false);
   const [resyncing, setResyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +118,8 @@ const WhatsAppBot: React.FC = () => {
         mode: raw.botMode ?? "all",
         assignmentMode: raw.assignmentMode ?? "manual",
         phone: raw.phone,
+        provider: raw.provider ?? "baileys",
+        chatsSince: raw.chatsSince ?? null,
       }));
     } catch (e: any) {
       logDebug(`Error consultando estado: ${describeError(e)}`);
@@ -289,6 +293,23 @@ const WhatsAppBot: React.FC = () => {
     }
   };
 
+  const handleArchiveChats = async () => {
+    setError(null);
+    if (
+      !(await confirmDialog(
+        "Mensajes mostrará solo los chats con mensajes desde ahora. No se borra nada: los chats viejos quedan archivados en el sistema, el buscador los sigue encontrando y si un cliente viejo escribe, su chat vuelve a aparecer. También se quita el modo Manual a todos los chats.",
+        { title: "¿Archivar los chats anteriores?", confirmLabel: "Sí, archivar" },
+      ))
+    )
+      return;
+    try {
+      const res = await botAPI.archiveChats();
+      setStatus((prev) => ({ ...prev, chatsSince: res.data.chatsSince }));
+    } catch (e: any) {
+      setError(e?.response?.data?.error || "Error al archivar los chats");
+    }
+  };
+
   const currentMode = status.mode ?? "all";
   const currentAssignmentMode = status.assignmentMode ?? "manual";
 
@@ -339,6 +360,11 @@ const WhatsAppBot: React.FC = () => {
             {/* Status badge */}
             <div className="mb-6">
               <StatusBadge status={status.status} paused={status.paused} />
+              {isMeta && (
+                <p className="mt-2 font-base text-base text-foreground/70">
+                  Conectado por la <span className="font-semibold text-foreground">API oficial de Meta</span>
+                </p>
+              )}
               {status.phone && status.status === "connected" && (
                 <p className="mt-2 font-base text-base text-foreground/70">
                   Número:{" "}
@@ -392,6 +418,8 @@ const WhatsAppBot: React.FC = () => {
                       </>
                     )}
                   </NeoButton>
+                  {!isMeta && (
+                    <>
                   <NeoButton
                     onClick={handleResync}
                     disabled={resyncing}
@@ -431,6 +459,8 @@ const WhatsAppBot: React.FC = () => {
                     )}
                     Desconectar
                   </NeoButton>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -462,6 +492,11 @@ const WhatsAppBot: React.FC = () => {
                 </NeoButton>
               </div>
 
+              {currentMode === "selected" && status.status === "connected" && (
+                <div className="mt-3 rounded-base border-2 border-border bg-secondary-background p-3 font-base text-base text-foreground/80 shadow-shadow">
+                  💡 El bot solo responde en los chats que actives con el botón 🤖 de cada chat en Mensajes
+                </div>
+              )}
               {currentMode === "selected" && status.status === "disconnected" && (
                 <div className="mt-3 rounded-base border-2 border-border bg-secondary-background p-3 font-base text-base text-foreground/80 shadow-shadow">
                   💡 Conecta para gestionar contactos habilitados
@@ -502,6 +537,25 @@ const WhatsAppBot: React.FC = () => {
                   : "🤖 Los nuevos casos se asignan automáticamente según disponibilidad."}
               </div>
             </div>
+
+            {/* Divider */}
+            <div className="mb-5 mt-6 border-t-2 border-border" />
+
+            {/* Archive old chats */}
+            <div>
+              <p className="mb-3 font-base text-base font-bold uppercase tracking-widest text-foreground/60">
+                Chats en Mensajes
+              </p>
+              <p className="mb-3 font-base text-base text-foreground/80">
+                {status.chatsSince
+                  ? `Se ven los chats desde el ${new Date(status.chatsSince).toLocaleString("es-DO", { dateStyle: "long", timeStyle: "short" })}. Los anteriores están archivados.`
+                  : "Se ven todos los chats."}
+              </p>
+              <NeoButton onClick={handleArchiveChats} variant="neutral" className="w-full">
+                <Archive size={16} />
+                Archivar chats anteriores
+              </NeoButton>
+            </div>
           </NeoCard>
         </motion.div>
 
@@ -516,7 +570,21 @@ const WhatsAppBot: React.FC = () => {
               Código QR
             </h3>
 
-            {status.status === "connected" ? (
+            {isMeta ? (
+              <div className="flex flex-col items-center gap-4 py-6">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-border bg-secondary-background shadow-button">
+                  <CheckCircle2 size={40} className="text-main" />
+                </div>
+                <div className="text-center">
+                  <p className="font-heading text-xl font-bold text-foreground md:text-2xl">
+                    Sin QR
+                  </p>
+                  <p className="mt-1 font-base text-base text-foreground/70">
+                    El número está conectado directo con Meta; no hay que escanear nada
+                  </p>
+                </div>
+              </div>
+            ) : status.status === "connected" ? (
               <div className="flex flex-col items-center gap-4 py-6">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-border bg-secondary-background shadow-button">
                   <CheckCircle2 size={40} className="text-main" />

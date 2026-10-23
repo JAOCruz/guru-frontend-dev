@@ -36,6 +36,11 @@ api.interceptors.request.use(
       // Axios 1.x uses AxiosHeaders — use .set() to be safe
       config.headers.set("Authorization", `Bearer ${token}`);
     }
+    // A file upload goes as multipart: with the default JSON Content-Type, axios turns a FormData
+    // into JSON and the file never reaches the server. Without it, the browser sets the boundary.
+    if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+      config.headers.delete("Content-Type");
+    }
     return config;
   },
   (error) => Promise.reject(error),
@@ -109,7 +114,7 @@ export const serviceCatalogAPI = {
   create: (data: any) => api.post("/service-catalog", data),
   update: (id: number, data: any) => api.put(`/service-catalog/${id}`, data),
   delete: (id: number) => api.delete(`/service-catalog/${id}`),
-  calculate: (data: { serviceId: number; assetValue?: number; quantity?: number }) =>
+  calculate: (data: { serviceId: number; assetValue?: number; quantity?: number; fojas?: number; duplicados?: number }) =>
     api.post("/service-catalog/calculate", data),
 };
 
@@ -166,6 +171,8 @@ export const avatarsAPI = {
 export const adminUsersAPI = {
   setAvatar: (id: number, avatar: string | null, opts: { force: boolean; label?: string }) =>
     api.put<{ user: AdminUser }>(`/admin/users/${id}/avatar`, { avatar, ...opts }),
+  setColor: (id: number, color: string, opts: { force: boolean; label?: string }) =>
+    api.put<{ user: AdminUser }>(`/admin/users/${id}/color`, { color, ...opts }),
   list: (status: "active" | "inactive" | "all" = "active") =>
     api.get<{ users: AdminUser[] }>("/admin/users", { params: { status } }),
   create: (data: AdminUserInput & { temp_password: string }) =>
@@ -179,7 +186,7 @@ export const adminUsersAPI = {
   reactivate: (id: number) => api.post<{ user: AdminUser }>(`/admin/users/${id}/reactivate`),
 };
 
-export type ActivityCategory = "usuarios" | "facturas" | "asignaciones" | "servicios" | "seguridad" | "documentos";
+export type ActivityCategory = "usuarios" | "facturas" | "asignaciones" | "servicios" | "seguridad" | "documentos" | "whatsapp";
 
 export interface ActivityItem {
   id: number;

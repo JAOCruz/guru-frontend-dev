@@ -16,6 +16,7 @@
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
+    "docx-preview": "^0.4.1",
     "framer-motion": "^12.23.0",
     "lucide-react": "^0.544.0",
     "qrcode.react": "^4.2.0",

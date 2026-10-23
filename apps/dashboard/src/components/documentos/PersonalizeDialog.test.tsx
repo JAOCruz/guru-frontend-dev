@@ -6,6 +6,7 @@ const { gen, docs } = vi.hoisted(() => ({
   gen: { fields: vi.fn(), extract: vi.fn(), generate: vi.fn(), aiEdit: vi.fn() },
   docs: { searchAllClients: vi.fn(), createClient: vi.fn() },
 }));
+vi.mock("./SaveAsModelButton", () => ({ default: (p: { documentId: number }) => <button>{`modelo:${p.documentId}`}</button> }));
 vi.mock("../../services/documentosApi", () => ({
   generacionAPI: gen,
   documentosAPI: docs,
@@ -60,17 +61,21 @@ describe("Personalizar — llenar con los datos del cliente", () => {
     expect(await screen.findByText(/guardado como borrador/i)).toBeTruthy();
     expect(screen.getByText("Yo, JUAN PÉREZ")).toBeTruthy();
     expect(onSaved).toHaveBeenCalledWith(DOC);
+    // only placing the client's data: nothing new to keep in the model
+    expect(screen.queryByText(/^modelo:/)).toBeNull();
   });
 });
 
 describe("Personalizar — cambios específicos", () => {
   it("from a history version: instructions → new version with the list of changes", async () => {
-    gen.aiEdit.mockResolvedValue({ data: { document: { ...DOC, versions: [] }, changes: [{ op: "insert_after", i: 2, before: null, after: "SEGUNDO: Penalidad del 10%." }] } });
+    gen.aiEdit.mockResolvedValue({ data: { document: { ...DOC, template_id: 7, versions: [] }, changes: [{ op: "insert_after", i: 2, before: null, after: "SEGUNDO: Penalidad del 10%." }] } });
     render(<PersonalizeDialog source={{ version_id: 40 }} title="Venta Corolla v1" fixedClient={{ id: 1, name: "Juan Pérez", phone: null }} onClose={() => {}} onSaved={() => {}} />);
     fireEvent.click(screen.getByRole("tab", { name: /cambios específicos/i }));
     fireEvent.change(screen.getByLabelText(/qué cambios/i), { target: { value: "Agrega una penalidad del 10%" } });
     fireEvent.click(screen.getByRole("button", { name: /aplicar cambios/i }));
     await waitFor(() => expect(gen.aiEdit).toHaveBeenCalledWith(expect.objectContaining({ version_id: 40, instructions: "Agrega una penalidad del 10%" })));
     expect(await screen.findByText("SEGUNDO: Penalidad del 10%.")).toBeTruthy();
+    // the new wording can become the model's next version
+    expect(screen.getByText("modelo:30")).toBeTruthy();
   });
 });

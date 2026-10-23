@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import UserBadge from "../components/UserBadge";
-import { Briefcase, Search, RefreshCw, ChevronLeft, Filter, AlertCircle, Tag } from "lucide-react";
+import { Search, RefreshCw, ChevronLeft, AlertCircle, Tag, SlidersHorizontal, X } from "lucide-react";
 import api from "../services/api";
 import { getAuthToken } from "../utils";
 import { useAuth } from "../context/AuthContext";
-import { NeoCard, NeoButton, NeoInput, NeoBadge } from "@guru/ui";
+import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
 import { notify } from "../lib/dialogs";
 
 const getAPIUrl = () => {
@@ -206,7 +206,6 @@ const Cases: React.FC = () => {
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
-  const [expandReclamaciones, setExpandReclamaciones] = useState(false);
   const [users, setUsers] = useState<Array<{ id: number; name: string; role: string }>>([]);
   const [assigning, setAssigning] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -298,11 +297,8 @@ const Cases: React.FC = () => {
     }
   };
 
-  const filtered = cases.filter((c) => {
-    // Status filter
-    const statusMatch = showResolved ? c.status === 'resolved' : c.status !== 'resolved';
-    if (!statusMatch) return false;
-
+  // Search + complaint types first; the Abiertos/Resueltos tabs (and their counts) work on that list
+  const narrowed = cases.filter((c) => {
     // Search filter
     const q = search.toLowerCase();
     const matchSearch =
@@ -319,6 +315,19 @@ const Cases: React.FC = () => {
 
     return matchSearch;
   });
+  const statusCounts = {
+    open: narrowed.filter((c) => c.status !== 'resolved').length,
+    resolved: narrowed.filter((c) => c.status === 'resolved').length,
+  };
+  const filtered = narrowed.filter((c) => (showResolved ? c.status === 'resolved' : c.status !== 'resolved'));
+
+  const pickSection = (id: string) => {
+    const section = SECTIONS.find((x) => x.id === id);
+    if (!section) return;
+    setActiveSection(section);
+    setSelectedTags(new Set());
+    setSearch("");
+  };
 
   const toggleTag = (tagValue: string) => {
     const newTags = new Set(selectedTags);
@@ -341,150 +350,130 @@ const Cases: React.FC = () => {
           showRightPanel ? "hidden md:flex" : "flex"
         } w-full flex-shrink-0 md:w-80`}
       >
-        {/* Header */}
-        <div className="flex-shrink-0 border-b-2 border-border p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-base border-2 border-border bg-main text-main-foreground shadow-button">
-              <Briefcase size={20} />
-            </div>
-            <h2 className="font-heading text-4xl md:text-5xl font-black">Casos</h2>
-            <NeoBadge variant="neutral" className="ml-auto text-base">
-              {filtered.length}
-            </NeoBadge>
+        {/* Header: title, section, search, folded complaint filters, status tabs with counts */}
+        <div className="flex-shrink-0 border-b-2 border-border bg-secondary-background px-3 pb-2 pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-heading text-2xl font-black">Casos</h2>
+            <span className="text-xs font-semibold tabular-nums text-foreground/60">{cases.length} en esta sección</span>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50"
-            />
-            <NeoInput
+          <label className="mt-2 block font-base text-xs font-semibold text-foreground/70">
+            Sección
+            <select
+              value={activeSection.id}
+              onChange={(e) => pickSection(e.target.value)}
+              className="mt-1 w-full rounded-base border-2 border-border bg-background px-2 py-1.5 text-sm font-semibold text-foreground outline-none focus:border-main"
+            >
+              <optgroup label="Reclamaciones">
+                {reclamacionesSections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.id === "reclamaciones" ? "Todas las reclamaciones" : section.name.replace(/^Reclamaciones - /, "Reclamaciones · ")}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Casos">
+                {normalCasesSections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.name}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
+
+          <div className="relative mt-2">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50" />
+            <input
               type="text"
-              placeholder="Buscar caso..."
+              placeholder="Buscar caso, número o cliente…"
+              aria-label="Buscar"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
+              className="w-full rounded-base border-2 border-border bg-background py-2 pl-9 pr-3 font-base text-sm text-foreground outline-none focus:border-main"
             />
           </div>
-        </div>
 
-        {/* Status Tabs */}
-        <div className="flex-shrink-0 border-b-2 border-border p-3 flex gap-2">
-          <NeoButton
-            onClick={() => setShowResolved(false)}
-            variant={!showResolved ? "default" : "neutral"}
-            className="flex-1"
-          >
-            Abiertos
-          </NeoButton>
-          <NeoButton
-            onClick={() => setShowResolved(true)}
-            variant={showResolved ? "default" : "neutral"}
-            className="flex-1"
-          >
-            Resueltos
-          </NeoButton>
-        </div>
-
-        {/* Sections Tabs - Grouped */}
-        <div className="flex-shrink-0 border-b-2 border-border p-3 space-y-2 overflow-y-auto max-h-96 custom-scroll">
-          {/* RECLAMACIONES GROUP */}
-          <div>
-            <NeoButton
-              onClick={() => setExpandReclamaciones(!expandReclamaciones)}
-              variant="outline"
-              className="w-full justify-start text-base"
-            >
-              <span
-                style={{ transform: expandReclamaciones ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }}
-              >
-                ▼
-              </span>
-              📋 RECLAMACIONES
-            </NeoButton>
-
-            {expandReclamaciones && (
-              <div className="space-y-2 mt-2 pl-2 border-l-2 border-border">
-                {reclamacionesSections.slice(1).map((section) => (
-                  <NeoButton
-                    key={section.id}
-                    onClick={() => {
-                      setActiveSection(section);
-                      setSelectedTags(new Set());
-                      setSearch("");
-                    }}
-                    variant={activeSection.id === section.id ? "default" : "ghost"}
-                    className="w-full justify-start text-base"
-                  >
-                    {section.label}
-                  </NeoButton>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* NORMAL CASES GROUP */}
-          <div className="pt-2">
-            <div className="text-xs font-base uppercase text-foreground/60 px-2 py-2">
-              Casos
-            </div>
-            {normalCasesSections.map((section) => (
-              <NeoButton
-                key={section.id}
-                onClick={() => {
-                  setActiveSection(section);
-                  setSelectedTags(new Set());
-                  setSearch("");
-                }}
-                variant={activeSection.id === section.id ? "default" : "ghost"}
-                className="w-full justify-start text-base"
-              >
-                {section.label}
-              </NeoButton>
-            ))}
-          </div>
-        </div>
-
-        {/* Complaint Tags Filter (for Reclamaciones) */}
-        {activeSection.complaint_tags.length > 0 && (
-          <div className="flex-shrink-0 border-b-2 border-border p-4 space-y-3">
-            <NeoButton
-              onClick={() => setShowFilters(!showFilters)}
-              variant="ghost"
-              className="w-full justify-start text-base"
-            >
-              <Filter size={18} />
-              Filtrar por tipo
-            </NeoButton>
-
-            {showFilters && (
-              <div className="space-y-2">
-                <NeoButton
-                  onClick={() => setSelectedTags(new Set())}
-                  variant={selectedTags.size === 0 ? "default" : "outline"}
-                  className="w-full justify-start text-base"
+          {/* Complaint types, folded by default */}
+          {activeSection.complaint_tags.length > 0 && (
+            <>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(!showFilters)}
+                  aria-expanded={showFilters}
+                  className={`inline-flex items-center gap-1.5 rounded-base border-2 border-border px-2.5 py-1 text-xs font-bold ${
+                    showFilters || selectedTags.size ? "bg-main text-main-foreground" : "bg-background"
+                  }`}
                 >
-                  Todos
-                </NeoButton>
-
-                {activeSection.complaint_tags.map((tag) => (
-                  <NeoButton
-                    key={tag.id}
-                    onClick={() => toggleTag(tag.label)}
-                    variant={selectedTags.has(tag.label) ? "default" : "outline"}
-                    className="w-full justify-start text-base"
+                  <SlidersHorizontal size={14} />
+                  {selectedTags.size ? `Filtros · ${selectedTags.size}` : "Filtros"}
+                </button>
+                {[...selectedTags].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleTag(t)}
+                    aria-label={`Quitar filtro: ${t}`}
+                    className="inline-flex max-w-[11rem] items-center gap-1 rounded-full border-2 border-border bg-background px-2 py-0.5 text-xs font-semibold"
                   >
-                    {tag.label}
-                  </NeoButton>
+                    <span className="truncate">{t}</span>
+                    <X size={12} className="shrink-0" />
+                  </button>
                 ))}
+                {selectedTags.size > 1 && (
+                  <button type="button" onClick={() => setSelectedTags(new Set())} className="text-xs font-semibold underline">
+                    Limpiar
+                  </button>
+                )}
               </div>
-            )}
+              {showFilters && (
+                <fieldset className="mt-2 space-y-1.5 rounded-base border-2 border-border bg-background p-2.5">
+                  <legend className="px-1 text-xs font-semibold text-foreground/70">Tipo de reclamación</legend>
+                  {activeSection.complaint_tags.map((tag) => (
+                    <label key={tag.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedTags.has(tag.label)}
+                        onChange={() => toggleTag(tag.label)}
+                        className="h-4 w-4 accent-[var(--main)]"
+                      />
+                      {tag.label}
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+            </>
+          )}
+
+          <div role="tablist" aria-label="Estado" className="custom-scroll -mx-3 mt-2 flex gap-1 overflow-x-auto px-3 pb-1">
+            {(
+              [
+                [false, "Abiertos", statusCounts.open],
+                [true, "Resueltos", statusCounts.resolved],
+              ] as const
+            ).map(([resolved, label, count]) => {
+              const active = showResolved === resolved;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setShowResolved(resolved)}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-base border-2 px-2 py-1 text-xs font-bold ${
+                    active ? "border-border bg-main text-main-foreground shadow-button" : "border-transparent hover:border-border"
+                  }`}
+                >
+                  {label}
+                  <span className={`rounded-full px-1.5 text-[11px] ${active ? "bg-main-foreground/15" : "bg-foreground/10"}`}>{count}</span>
+                </button>
+              );
+            })}
           </div>
-        )}
+        </div>
 
         {/* Cases List */}
-        <div className="flex-1 overflow-y-auto custom-scroll p-3 space-y-2">
+        <div className="flex-1 overflow-y-auto custom-scroll bg-background">
           {loading ? (
             <div className="flex items-center justify-center py-8 text-foreground/50">
               <RefreshCw size={20} className="animate-spin" />
@@ -492,31 +481,44 @@ const Cases: React.FC = () => {
           ) : filtered.length === 0 ? (
             <div className="py-8 text-center text-foreground/50">
               <AlertCircle size={32} className="mx-auto mb-2 opacity-40" />
-              <p className="text-base">Sin casos</p>
+              <p className="text-base">{cases.length ? "Ningún caso con estos filtros" : "Sin casos"}</p>
             </div>
           ) : (
-            filtered.map((caseItem) => (
-              <div
-                key={caseItem.id}
-                onClick={() => {
-                  setSelectedCase(caseItem);
-                  setShowRightPanel(true);
-                }}
-                className={`cursor-pointer rounded-base border-2 px-4 py-3 transition-all ${
-                  selectedCase?.id === caseItem.id
-                    ? "border-border bg-secondary-background shadow-shadow"
-                    : "border-transparent hover:border-border hover:bg-secondary-background"
-                }`}
-              >
-                <p className="font-semibold text-base truncate">{caseItem.title}</p>
-                <p className="text-base text-foreground/70 mt-1">{caseItem.case_number}</p>
-                {caseItem.user_id != null && (
-                  <div className="mt-1">
-                    <UserBadge userId={caseItem.user_id} />
-                  </div>
-                )}
-              </div>
-            ))
+            <ul className="divide-y-2 divide-border/15">
+              {filtered.map((caseItem) => {
+                const selected = selectedCase?.id === caseItem.id;
+                return (
+                  <li key={caseItem.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCase(caseItem);
+                        setShowRightPanel(true);
+                      }}
+                      className={`w-full px-3 py-2.5 text-left transition-colors ${
+                        selected ? "bg-main/15 shadow-[inset_4px_0_0_0_var(--main)]" : "hover:bg-secondary-background"
+                      }`}
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="min-w-0 truncate text-sm font-bold">{caseItem.title}</p>
+                        <span className="shrink-0 text-[11px] tabular-nums text-foreground/50">
+                          {new Date(caseItem.created_at).toLocaleDateString("es-DO", { day: "numeric", month: "short" })}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-foreground/65">
+                        <span className="shrink-0 font-semibold">{caseItem.case_number}</span>
+                        {caseItem.client_name && <span className="min-w-0 truncate">· {caseItem.client_name}</span>}
+                      </div>
+                      {caseItem.user_id != null && (
+                        <div className="mt-1">
+                          <UserBadge userId={caseItem.user_id} />
+                        </div>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
       </div>

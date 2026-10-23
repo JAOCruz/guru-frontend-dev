@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Eye, FileDown, FileText, Search, Sparkles, UserPlus } from "lucide-react";
+import { Eye, FileDown, FileText, PenLine, Search, Sparkles, UserPlus } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { documentosAPI, downloadFile, modelFileUrl, type Model } from "../../services/documentosApi";
 import { notify } from "../../lib/dialogs";
 import PdfPreview from "./PdfPreview";
 import PersonalizeDialog from "./PersonalizeDialog";
+import TagEditor from "./TagEditor";
+import { useAuth } from "../../context/AuthContext";
+import { STATUS_LABEL } from "../../services/etiquetasApi";
 
 // "Buscar por nombre": our curated selection of models. They are used as they are and are
 // never saved to anyone's history; personalizing one is Generación (Fase 2).
@@ -18,6 +21,10 @@ export default function ModelSearch() {
   const [preview, setPreview] = useState<Model | null>(null);
   const [personalize, setPersonalize] = useState<Model | null>(null);
   const [saved, setSaved] = useState<{ client_id: number } | null>(null);
+  const [fill, setFill] = useState<Model | null>(null);
+  const { isAdmin } = useAuth();
+  // approved models are filled tag by tag; the admin can also try pending ones
+  const canFill = (m: Model) => m.tag_status === "approved" || (isAdmin && m.tag_status === "pending");
   const [, setParams] = useSearchParams();
 
   useEffect(() => {
@@ -91,6 +98,8 @@ export default function ModelSearch() {
               <div className="min-w-0">
                 <p className="break-words text-sm font-bold">{m.name}</p>
                 <p className="text-xs text-foreground/60">{m.category || "Sin categoría"}</p>
+                {m.tag_status === "approved" && <p className="mt-0.5 text-xs font-semibold text-green-700">✓ Listo para llenar</p>}
+                {isAdmin && m.tag_status === "pending" && <p className="mt-0.5 text-xs font-semibold text-amber-700">{STATUS_LABEL.pending}</p>}
                 {m.reason && <p className="mt-1 text-xs font-semibold text-main">✨ {m.reason}</p>}
               </div>
             </div>
@@ -104,7 +113,12 @@ export default function ModelSearch() {
               <NeoButton size="sm" variant="neutral" onClick={() => download(m, "pdf")} aria-label={`Descargar PDF de ${m.name}`}>
                 <FileDown size={14} /> PDF
               </NeoButton>
-              <NeoButton size="sm" onClick={() => setPersonalize(m)} title="Llenarlo con los datos de un cliente o pedir cambios a la IA">
+              {canFill(m) && (
+                <NeoButton size="sm" onClick={() => setFill(m)} title="Llenar etiqueta por etiqueta, viendo el documento">
+                  <PenLine size={14} /> Llenar
+                </NeoButton>
+              )}
+              <NeoButton size="sm" variant={canFill(m) ? "neutral" : "default"} onClick={() => setPersonalize(m)} title="Llenarlo con los datos de un cliente o pedir cambios a la IA">
                 <UserPlus size={14} /> Personalizar
               </NeoButton>
             </div>
@@ -121,6 +135,18 @@ export default function ModelSearch() {
           onClose={() => {
             setPersonalize(null);
             // after saving, go to that client's history
+            if (saved) setParams({ tab: "historial", client: String(saved.client_id) });
+          }}
+        />
+      )}
+
+      {fill && (
+        <TagEditor
+          modelId={fill.id}
+          mode="fill"
+          onSaved={(doc) => setSaved({ client_id: doc.client_id })}
+          onClose={() => {
+            setFill(null);
             if (saved) setParams({ tab: "historial", client: String(saved.client_id) });
           }}
         />

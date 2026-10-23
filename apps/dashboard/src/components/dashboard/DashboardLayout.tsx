@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { NeoBadge } from "@guru/ui";
@@ -7,6 +7,8 @@ import GuruAdvisor from "../GuruAdvisor";
 import { cn } from "@guru/ui";
 import api, { getAPIUrl } from "../../services/api";
 import UserAvatar from "../UserAvatar";
+import NotificationAlarm from "./NotificationAlarm";
+import { notificationPath } from "../../lib/notificationLinks";
 import { applyRootTheme, themeFor, toAppearance } from "../../lib/userColors";
 import {
   Menu,
@@ -60,26 +62,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   // Pending invoice approval badge (admin only)
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
 
-  useEffect(() => {
-    const fetchCount = async () => {
-      try {
-        const res = await fetch(`${getAPIUrl()}/api/notifications/unread-count`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || sessionStorage.getItem("token") || ""}`,
-          },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setUnreadCount(data.count || 0);
-        }
-      } catch {
-        // ignore
-      }
-    };
-    fetchCount();
-    const interval = setInterval(fetchCount, 60000);
-    return () => clearInterval(interval);
-  }, []);
+  // The unread count comes from NotificationAlarm, which polls every 15 s and opens the alarm window.
 
   // Poll unread WhatsApp message count for the "Mensajes" badge
   useEffect(() => {
@@ -119,9 +102,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     return () => clearInterval(interval);
   }, [isAdmin]);
 
-  const openNotifications = async () => {
-    setShowNotifications((v) => !v);
-    if (!showNotifications) {
+  const navigate = useNavigate();
+  const openNotifications = async (forceOpen = false) => {
+    const opening = forceOpen || !showNotifications;
+    setShowNotifications(opening);
+    if (opening) {
       try {
         const res = await fetch(`${getAPIUrl()}/api/notifications?limit=10`, {
           headers: {
@@ -456,7 +441,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
             <div className="relative">
               <button
-                onClick={openNotifications}
+                onClick={() => openNotifications()}
                 className="relative rounded-base border-2 border-border bg-secondary-background p-2 text-foreground shadow-button transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none"
                 title="Notificaciones"
               >
@@ -479,8 +464,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                           key={n.id}
                           onClick={() => {
                             markRead(n.id);
-                            if (n.link) {
-                              window.location.href = n.link.startsWith("/") ? n.link : `/dashboard${n.link}`;
+                            const path = notificationPath(n.link);
+                            if (path) {
+                              setShowNotifications(false);
+                              navigate(path);
                             }
                           }}
                           className={`cursor-pointer rounded-base border-2 p-2 transition-all hover:bg-secondary-background ${
@@ -539,6 +526,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       </div>
 
       {<GuruAdvisor isOpen={advisorMessageOpen}  onOpenChange={setAdvisorMessageOpen}/>}
+      <NotificationAlarm onUnreadCountChange={setUnreadCount} onOpenList={() => openNotifications(true)} />
     </div>
   );
 };

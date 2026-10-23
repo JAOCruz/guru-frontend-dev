@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft,
   Download,
@@ -24,24 +24,17 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import api, { getAPIUrl } from "../services/api";
-import { botAPI, BotClient } from "../services/botApi";
+import { botAPI, BotClient, type SendQuoteResult } from "../services/botApi";
 import { useAuth } from "../context/AuthContext";
 import { whatsappAction, canViewDocument } from "../lib/quoteActions";
 import { useUserColors } from "../context/UserColorsContext";
 import UserBadge from "../components/UserBadge";
 import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
 import { fetchAuthenticatedFile, preventDecimalInput } from "../utils";
-import { notify } from "../lib/dialogs";
+import { notify, confirmDialog } from "../lib/dialogs";
+import QuoteItemsList, { pendingCount, type QuoteLine } from "../components/cotizaciones/QuoteItemsList";
 
-interface QuotationItem {
-  desc?: string;
-  name?: string;
-  cantidad?: number;
-  quantity?: number;
-  precio?: number;
-  unitPrice?: number;
-  itbis?: boolean;
-}
+type QuotationItem = QuoteLine;
 
 interface Quotation {
   id: number;
@@ -64,12 +57,15 @@ interface Quotation {
   created_at: string;
   created_by?: number;
   created_by_name?: string;
+  source?: string | null;
   rejected_by?: number;
   rejected_by_name?: string;
   rejected_at?: string;
   notes?: string;
   payment_method?: string | null;
   payment_reference?: string | null;
+  sent_by_bot_at?: string | null;
+  send_error?: string | null;
 }
 
 // Status tabs, most actionable first
@@ -141,9 +137,18 @@ export default function Cotizaciones() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  // Deep link from Documentos ("Preparado por el bot"): /cotizaciones?invoice=7
+  const [searchParams] = useSearchParams();
+  const wantedInvoice = Number(searchParams.get("invoice")) || null;
   useEffect(() => {
-    fetchQuotations();
-  }, []);
+    fetchQuotations().then((list) => {
+      const wanted = wantedInvoice && list.find((q) => q.id === wantedInvoice);
+      if (wanted) {
+        setSelectedQuotation(wanted);
+        setShowRightPanel(true);
+      }
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showCreateModal && !editingQuotation) return;
@@ -373,8 +378,70 @@ export default function Cotizaciones() {
       // Refresh selected quotation data (use the freshly returned list, not stale state)
       const refreshed = list.find((q) => q.id === selectedQuotation.id);
       if (refreshed) setSelectedQuotation(refreshed);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      if (err?.response?.data?.code === "PRICES_PENDING") notify("Faltan precios por confirmar: ponlos antes de aprobar.");
+    }
+  };
+
+  // Prices of the bot's "por confirmar" lines: the client's assigned digitador or the admin, before approval
+  const [savingPrices, setSavingPrices] = useState(false);
+  const canSetPrices = (q: Quotation | null) =>
+    !!q && ["draft", "pending_approval"].includes(q.status) &&
+    (isAdmin || (q.source === "bot" && q.created_by !== user?.id));
+  const handleSavePrices = async (items: QuotationItem[]) => {
+    if (!selectedQuotation) return;
+    setSavingPrices(true);
+    try {
+      const q = selectedQuotation;
+      // The admin's PUT rewrites the whole document: send what it already has so nothing else changes
+      const payload: any = isAdmin
+        ? {
+            type: q.type, clientName: q.client_name, clientPhone: q.client_phone || undefined, notes: q.notes ?? "", items,
+            discountType: q.discount_type || undefined, discountValue: q.discount_type ? Number(q.discount_value) || 0 : undefined,
+            discountCode: q.discount_code || undefined, discountReason: q.discount_reason || undefined,
+          }
+        : { items: items.map((i) => ({ precio: i.precio ?? null })) };
+      await api.put(`/invoices/${q.id}`, payload);
+      const list = await fetchQuotations();
+      const refreshed = list.find((x) => x.id === q.id);
+      if (refreshed) setSelectedQuotation(refreshed);
+      const left = pendingCount(refreshed?.items);
+      notify(left ? `Precios guardados. Quedan ${left} por confirmar.` : "Precios guardados.", "success");
+    } catch (err: any) {
+      console.error(err);
+      notify(err?.response?.data?.error || "No se pudieron guardar los precios");
+    } finally {
+      setSavingPrices(false);
+    }
+  };
+
+  // What the delivery service answered (approve-and-send and send-whatsapp share the codes)
+  const reportSend = (data: { sent?: boolean; code?: string }, approved: boolean) => {
+    const window = "sin enviar: pasaron más de 24 h desde el último mensaje del cliente.";
+    if (data.sent) notify(approved ? "Aprobada y enviada por WhatsApp." : "Enviada por WhatsApp.", "success");
+    else if (data.code === "WINDOW_CLOSED") notify(approved ? `Aprobada, pero ${window}` : `Sin enviar${window.slice(10)}`, "info");
+    else if (data.code === "ALREADY_SENT") notify("Esta cotización ya se había enviado.", "info");
+    else if (approved) notify("Aprobada, pero no se pudo enviar por WhatsApp. Puedes reintentar con el botón de enviar.");
+    else notify("No se pudo enviar por WhatsApp. Verifica que el bot esté conectado.");
+  };
+
+  // Admin: approves and delivers the PDF by WhatsApp in one go (the server reports why it could not send)
+  const [approvingSend, setApprovingSend] = useState(false);
+  const handleApproveAndSend = async () => {
+    if (!selectedQuotation) return;
+    setApprovingSend(true);
+    try {
+      const { data } = await api.post(`/invoices/${selectedQuotation.id}/approve-and-send`);
+      const list = await fetchQuotations();
+      const refreshed = list.find((q) => q.id === selectedQuotation.id) ?? data.invoice;
+      if (refreshed) setSelectedQuotation(data.invoice ? { ...refreshed, ...data.invoice } : refreshed);
+      reportSend(data, true);
+    } catch (err: any) {
+      console.error(err);
+      notify(err?.response?.data?.error || "No se pudo aprobar y enviar");
+    } finally {
+      setApprovingSend(false);
     }
   };
 
@@ -382,7 +449,7 @@ export default function Cotizaciones() {
     if (!selectedQuotation) return;
     setConfirmingPayment(true);
     try {
-      await api.post(`/invoices/${selectedQuotation.id}/confirm-payment`, {
+      const { data } = await api.post(`/invoices/${selectedQuotation.id}/confirm-payment`, {
         payment_method: "manual",
         payment_reference: paymentReference.trim() || undefined,
       });
@@ -392,6 +459,9 @@ export default function Cotizaciones() {
       const refreshed = list.find((q) => q.id === selectedQuotation.id);
       if (refreshed) setSelectedQuotation(refreshed);
       else setSelectedQuotation((prev) => (prev ? { ...prev, status: "paid" } : prev));
+      // documents approved with "Enviar cuando pague" go out with the payment
+      const n = Number(data?.documents_sent) || 0;
+      notify(n > 0 ? `Pago confirmado · ${n} documento${n === 1 ? "" : "s"} enviado${n === 1 ? "" : "s"} por WhatsApp` : "Pago confirmado.", "success");
     } catch (err: any) {
       console.error(err);
       notify(err?.response?.data?.error || "Error confirmando pago");
@@ -409,6 +479,7 @@ export default function Cotizaciones() {
     setCreateItems(
       Array.isArray(quote.items) && quote.items.length > 0
         ? quote.items.map((item) => ({
+            ...item,
             desc: item.desc || item.name || "",
             cantidad: item.cantidad || item.quantity || 1,
             precio: item.precio || item.unitPrice || 0,
@@ -435,8 +506,9 @@ export default function Cotizaciones() {
       setCreateError("El nombre del cliente es obligatorio");
       return;
     }
+    // A "por confirmar" line without a price stays (the price is set later)
     const validItems = createItems.filter(
-      (item) => item.desc?.trim() && (Number(item.precio) || 0) > 0
+      (item) => item.desc?.trim() && ((Number(item.precio) || 0) > 0 || item.por_confirmar)
     );
     if (validItems.length === 0) {
       setCreateError("Agrega al menos un artículo válido");
@@ -451,9 +523,10 @@ export default function Cotizaciones() {
         clientName: createClientName.trim(),
         clientPhone: createClientPhone.trim() || undefined,
         items: validItems.map((item) => ({
+          ...(item.por_confirmar ? { por_confirmar: true, rango: item.rango ?? null, precio_sugerido: item.precio_sugerido ?? null, nota: item.nota ?? null } : {}),
           desc: item.desc,
           cantidad: Number(item.cantidad) || 1,
-          precio: Number(item.precio) || 0,
+          precio: (Number(item.precio) || 0) > 0 ? Number(item.precio) : item.por_confirmar ? null : 0,
           itbis: !!item.itbis,
         })),
         notes: createNotes.trim() || undefined,
@@ -576,17 +649,30 @@ export default function Cotizaciones() {
       setGeneratingPdf(false);
     }
   };
-  // Delivers the PDF to the client's WhatsApp (admin, or the employee once approved)
+  // Delivers the PDF to the client's WhatsApp (admin, or the employee once approved). The server sends
+  // through the delivery service: a first send (also after WINDOW_CLOSED) happens once; a quote that already
+  // went out is only resent after confirming here.
+  const alreadySent = (q: Quotation) => !!q.sent_by_bot_at || q.status === "sent";
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
   const handleSendWhatsapp = async () => {
     if (!selectedQuotation) return;
     setSendingWhatsapp(true);
     try {
-      await botAPI.sendInvoiceWhatsapp(selectedQuotation.id);
+      const resend = alreadySent(selectedQuotation);
+      if (resend) {
+        const ok = await confirmDialog("Esta cotización ya se envió. ¿Enviarla de nuevo al cliente?", {
+          title: "Reenviar por WhatsApp",
+          confirmLabel: "Reenviar",
+        });
+        if (!ok) return;
+      }
+      const res = resend ? await botAPI.sendInvoiceWhatsapp(selectedQuotation.id, { resend: true }) : await botAPI.sendInvoiceWhatsapp(selectedQuotation.id);
+      const data: Partial<SendQuoteResult> = res?.data ?? { sent: false };
+      const fresh = data.invoice as Partial<Quotation> | undefined;
       const list = await fetchQuotations();
-      const refreshed = list.find((q) => q.id === selectedQuotation.id);
-      if (refreshed) setSelectedQuotation(refreshed);
-      notify("Documento enviado al cliente por WhatsApp.", "success");
+      const refreshed = list.find((q) => q.id === selectedQuotation.id) ?? (fresh as Quotation | undefined);
+      if (refreshed) setSelectedQuotation(fresh ? { ...refreshed, ...fresh } : refreshed);
+      reportSend(data, false);
     } catch (err: any) {
       console.error(err);
       notify(err?.response?.data?.error || "No se pudo enviar por WhatsApp. Verifica que el bot esté conectado.");
@@ -1046,34 +1132,13 @@ export default function Cotizaciones() {
                 </div>
               </NeoCard>
 
-              {/* Items */}
-              <div className="mb-4">
-                <p className="mb-2 text-base font-black uppercase tracking-widest text-foreground/60">
-                  Artículos ({selectedQuotation.items?.length || 0})
-                </p>
-                <div className="space-y-2">
-                  {selectedQuotation.items?.map((item, i) => (
-                    <NeoCard key={i} className="p-3">
-                      <p className="text-base font-medium">
-                        {item.desc || item.name || `Artículo ${i + 1}`}
-                      </p>
-                      <div className="mt-1 flex items-center justify-between text-base text-foreground/70">
-                        <span>
-                          {item.cantidad || item.quantity || 1} x RD${" "}
-                          {(item.precio || item.unitPrice || 0).toLocaleString("es-DO")}
-                        </span>
-                        <span className="font-semibold text-foreground">
-                          RD${" "}
-                          {(
-                            (item.cantidad || item.quantity || 1) *
-                            (item.precio || item.unitPrice || 0)
-                          ).toLocaleString("es-DO")}
-                        </span>
-                      </div>
-                    </NeoCard>
-                  ))}
-                </div>
-              </div>
+              {/* Items (the assignee or the admin sets the "por confirmar" prices here) */}
+              <QuoteItemsList
+                items={selectedQuotation.items || []}
+                editable={canSetPrices(selectedQuotation)}
+                saving={savingPrices}
+                onSave={handleSavePrices}
+              />
 
               {/* Totals */}
               <NeoCard variant="main" className="mb-4 p-4">
@@ -1157,13 +1222,35 @@ export default function Cotizaciones() {
                 </NeoCard>
               )}
 
+              {/* WhatsApp delivery status (bot) */}
+              {selectedQuotation.sent_by_bot_at ? (
+                <p className="mt-2 text-sm font-bold text-green-700">Enviada por WhatsApp</p>
+              ) : selectedQuotation.send_error === "WINDOW_CLOSED" ? (
+                <p className="mt-2 text-sm font-bold text-amber-700">
+                  Lista, sin enviar: pasaron más de 24 h desde el último mensaje del cliente
+                </p>
+              ) : selectedQuotation.send_error ? (
+                <p className="mt-2 text-sm font-bold text-red-600">No se pudo enviar</p>
+              ) : null}
+
               {/* Actions */}
+              {isAdmin &&
+                ["draft", "pending_approval"].includes(selectedQuotation.status) &&
+                pendingCount(selectedQuotation.items) > 0 && (
+                  <p className="mt-4 rounded-base border-2 border-amber-500 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900">
+                    No se puede aprobar ni enviar hasta poner los precios por confirmar.
+                  </p>
+                )}
               {isAdmin &&
                 ["draft", "pending_approval"].includes(selectedQuotation.status) && (
                   <div className="mt-auto flex gap-2 pt-4">
-                    <NeoButton onClick={handleApprove} className="flex-1">
+                    <NeoButton onClick={handleApprove} disabled={pendingCount(selectedQuotation.items) > 0} className="flex-1">
                       <CheckCircle size={16} />
                       Aprobar
+                    </NeoButton>
+                    <NeoButton onClick={handleApproveAndSend} disabled={approvingSend || pendingCount(selectedQuotation.items) > 0} className="flex-1">
+                      {approvingSend ? <RefreshCw size={16} className="mr-1 animate-spin" /> : <Send size={16} />}
+                      Aprobar y enviar
                     </NeoButton>
                     <NeoButton
                       variant="outline"
@@ -1230,17 +1317,16 @@ export default function Cotizaciones() {
                   <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
                     <NeoButton
                       onClick={handleSendInvoice}
-                      disabled={sending}
+                      disabled={sending || pendingCount(selectedQuotation.items) > 0}
                       className="flex-1"
+                      title="No envía nada al cliente; solo la marca como enviada"
                     >
                       {sending ? (
                         <RefreshCw size={16} className="mr-1 animate-spin" />
                       ) : (
                         <Send size={16} />
                       )}
-                      {selectedQuotation.status === "pending_approval"
-                        ? "Aprobar y enviar"
-                        : "Enviar documento"}
+                      Marcar como enviada
                     </NeoButton>
                   </div>
                 )}
@@ -1274,18 +1360,21 @@ export default function Cotizaciones() {
                       onClick={handleSendInvoice}
                       disabled={sending}
                       className="flex-1"
+                      title="No envía nada al cliente; solo la marca como enviada"
                     >
                       {sending ? (
                         <RefreshCw size={16} className="mr-1 animate-spin" />
                       ) : (
                         <Send size={16} />
                       )}
-                      Enviar documento
+                      Marcar como enviada
                     </NeoButton>
                   </div>
                 )}
 
+              {/* draft / pending: "Aprobar y enviar" is the only WhatsApp path */}
               {selectedQuotation.client_phone &&
+                !["draft", "pending_approval"].includes(selectedQuotation.status) &&
                 whatsappAction({
                   isAdmin,
                   isOwner: selectedQuotation.created_by === user?.id,
@@ -1303,9 +1392,7 @@ export default function Cotizaciones() {
                       ) : (
                         <Send size={16} />
                       )}
-                      {isAdmin && selectedQuotation.status === "pending_approval"
-                        ? "Aprobar y enviar por WhatsApp"
-                        : "Enviar por WhatsApp"}
+                      {alreadySent(selectedQuotation) ? "Reenviar por WhatsApp" : "Enviar por WhatsApp"}
                     </NeoButton>
                   </div>
                 )}

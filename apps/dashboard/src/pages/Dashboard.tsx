@@ -263,10 +263,10 @@ const Dashboard: React.FC = () => {
               {isAdmin && (
                 <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
                   <StatsCard
-                    label="Total Admin"
+                    label="TOTAL (100%)"
                     value={formatCurrency(
                       services.reduce(
-                        (acc, s: any) => acc + (Number(s.earnings) || 0) * (1 - employeePercentage / 100),
+                        (acc, s: any) => acc + (Number(s.earnings) || 0),
                         0,
                       ),
                     )}
@@ -277,9 +277,9 @@ const Dashboard: React.FC = () => {
                     visible={showEarnings}
                   />
 
-                  {/* Total Users (Sum of their earnings/shares) */}
+                  {/* Total of the digitadores' share */}
                   <StatsCard
-                    label="Total Users"
+                    label={`DIGITADORES (${employeePercentage}%)`}
                     value={formatCurrency(
                       services
                         .filter((s: any) =>

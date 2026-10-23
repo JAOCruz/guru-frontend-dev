@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from "react";
 import { NeoButton } from "@guru/ui";
 import Modal, { fieldCls, labelCls } from "./Modal";
+import TakeColorDialog from "./TakeColorDialog";
 import { adminUsersAPI, type AdminUser, type AdminUserInput } from "../../services/api";
 import { apiError, generateTempPassword } from "../../lib/users";
-import { ADMIN_ONLY_AVATAR, AVATARS, AVATAR_KEYS, type AvatarKey } from "../../lib/userColors";
+import { ADMIN_ONLY_AVATAR, AVATARS, AVATAR_KEYS, COLOR_KEYS, COLOR_PALETTE, type AvatarKey, type ColorKey } from "../../lib/userColors";
 import { useUserColors } from "../../context/UserColorsContext";
 import TakeAvatarDialog from "./TakeAvatarDialog";
 import { todayISO } from "../../lib/dates";
@@ -25,13 +26,23 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
   const [inPayroll, setInPayroll] = useState(user?.in_payroll ?? true);
   const [birthDate, setBirthDate] = useState(user?.birth_date ?? "");
   // Edit mode: the admin can change this person's animal, even taking one someone else has
-  const { users } = useUserColors();
+  const { users, refresh } = useUserColors();
   const [avatarSel, setAvatarSel] = useState<AvatarKey | null>((user?.avatar as AvatarKey) ?? null);
   const [pendingTake, setPendingTake] = useState<{ key: AvatarKey; owner: string } | null>(null);
   const [takeConfirmed, setTakeConfirmed] = useState<AvatarKey | null>(null);
   const owners = useMemo(() => {
     const m = new Map<string, string>();
     users.forEach((u) => u.id !== user?.id && u.avatar && m.set(u.avatar, u.name || u.username || ""));
+    return m;
+  }, [users, user?.id]);
+  // …and their color: one per person; taking someone's gives them the color this person had
+  const initialColor = (user?.color as ColorKey | null) ?? null;
+  const [colorSel, setColorSel] = useState<ColorKey | null>(initialColor);
+  const [pendingColor, setPendingColor] = useState<{ key: ColorKey; owner: string } | null>(null);
+  const [colorConfirmed, setColorConfirmed] = useState<ColorKey | null>(null);
+  const colorOwners = useMemo(() => {
+    const m = new Map<string, string>();
+    users.forEach((u) => u.id !== user?.id && u.color && m.set(u.color, u.name || u.username || ""));
     return m;
   }, [users, user?.id]);
   const avatarChoices = AVATAR_KEYS.filter((k) => k !== ADMIN_ONLY_AVATAR || user?.role === "admin");
@@ -61,6 +72,10 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
             label: avatarSel ? AVATARS[avatarSel].label : undefined,
           });
         }
+        if (colorSel && colorSel !== initialColor) {
+          await adminUsersAPI.setColor(user!.id, colorSel, { force: colorSel === colorConfirmed, label: COLOR_PALETTE[colorSel].label });
+        }
+        refresh().catch(() => {});
         onSaved();
         onClose();
       } else {
@@ -148,6 +163,51 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
                   setAvatarSel(pendingTake.key);
                   setTakeConfirmed(pendingTake.key);
                   setPendingTake(null);
+                }}
+              />
+            )}
+          </div>
+        )}
+        {editing && (
+          <div>
+            <p className={labelCls}>Color</p>
+            <div className="mt-1 grid grid-cols-6 gap-1.5 rounded-base border-2 border-border bg-white p-1.5" role="group" aria-label="Color">
+              {COLOR_KEYS.map((key) => {
+                const owner = colorOwners.get(key);
+                const selected = colorSel === key;
+                const c = COLOR_PALETTE[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => (owner && !selected ? setPendingColor({ key, owner }) : setColorSel(key))}
+                    title={`${c.label}${owner ? ` · lo tiene ${owner}` : ""}`}
+                    aria-label={`${c.label}${owner ? ` (lo tiene ${owner})` : ""}`}
+                    aria-pressed={selected}
+                    style={{ background: c.bg, color: c.text }}
+                    className={`relative flex h-9 items-center justify-center rounded-base border-2 text-[10px] font-black ${
+                      selected ? "border-border ring-2 ring-main ring-offset-1" : "border-transparent hover:border-border"
+                    } ${owner && !selected ? "opacity-45" : ""}`}
+                  >
+                    {selected ? "✓" : owner ? (owner.trim()[0] || "").toUpperCase() : ""}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-xs text-foreground/60">
+              {colorSel ? COLOR_PALETTE[colorSel].label : "Sin color"} · los colores con letra ya los usa otra persona.
+            </p>
+            {pendingColor && (
+              <TakeColorDialog
+                colorKey={pendingColor.key}
+                owner={pendingColor.owner}
+                person={user!.name || user!.username}
+                replaced={initialColor}
+                onCancel={() => setPendingColor(null)}
+                onConfirm={() => {
+                  setColorSel(pendingColor.key);
+                  setColorConfirmed(pendingColor.key);
+                  setPendingColor(null);
                 }}
               />
             )}

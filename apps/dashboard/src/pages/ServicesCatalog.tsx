@@ -9,6 +9,7 @@ import { preventDecimalInput } from "../utils";
 import { useAuth } from "../context/AuthContext";
 import { NeoCard, NeoButton, NeoInput, NeoSelect, NeoBadge } from "@guru/ui";
 import { confirmDialog, notify } from "../lib/dialogs";
+import { FOJA_RATES } from "../lib/fojaRates";
 
 interface PriceTier { min: number; max: number | null; label: string; price: number; }
 interface Service {
@@ -18,8 +19,16 @@ interface Service {
   notarizacion_price: string | number | null;
   price_tiers: PriceTier[] | null;
   unit_type: string | null; active: boolean;
+  foja_tipo?: string | null; fojas?: number | null;
 }
 interface Category { id: number; name: string; }
+
+const fojaSummary = (svc: Service) => {
+  const r = svc.foja_tipo ? FOJA_RATES[svc.foja_tipo] : undefined;
+  if (!r) return null;
+  const n = Number(svc.fojas) || 1;
+  return `RD$${r.rate} × ${n} ${n === 1 ? "foja" : "fojas"} = RD$${r.rate * n}`;
+};
 
 const DEFAULT_TIER: PriceTier = { min: 0, max: null, label: "", price: 0 };
 
@@ -118,6 +127,7 @@ export default function ServicesCatalog() {
   const [form, setForm] = useState<Partial<Service> & { price_tiers: PriceTier[] }>({
     name: "", description: "", category_id: null,
     digitacion_price: 0, notarizacion_price: 0, price_tiers: [], unit_type: "por documento",
+    foja_tipo: null, fojas: null,
   });
   const [saving, setSaving] = useState(false);
 
@@ -192,7 +202,7 @@ export default function ServicesCatalog() {
 
   const openCreate = () => {
     setEditingService(null);
-    setForm({ name: "", description: "", category_id: categories[0]?.id || null, digitacion_price: 0, notarizacion_price: 0, price_tiers: [], unit_type: "por documento" });
+    setForm({ name: "", description: "", category_id: categories[0]?.id || null, digitacion_price: 0, notarizacion_price: 0, price_tiers: [], unit_type: "por documento", foja_tipo: null, fojas: null });
     setShowModal(true);
   };
   const openEdit = (svc: Service) => {
@@ -202,6 +212,7 @@ export default function ServicesCatalog() {
       digitacion_price: Number(svc.digitacion_price) || 0, notarizacion_price: Number(svc.notarizacion_price) || 0,
       price_tiers: Array.isArray(svc.price_tiers) ? svc.price_tiers.map((t) => ({ min: Number(t.min) || 0, max: t.max === null || t.max === undefined ? null : Number(t.max), label: t.label || "", price: Number(t.price) || 0 })) : [],
       unit_type: svc.unit_type || "por documento",
+      foja_tipo: svc.foja_tipo || null, fojas: svc.foja_tipo ? (svc.fojas ?? 1) : null,
     });
     setShowModal(true);
   };
@@ -220,6 +231,8 @@ export default function ServicesCatalog() {
         notarizacion_price: Number(form.notarizacion_price) || 0,
         price_tiers: form.price_tiers.map((t) => ({ min: Number(t.min), max: t.max === null || t.max === undefined ? null : Number(t.max), label: t.label, price: Number(t.price) })),
         unit_type: form.unit_type || "por documento",
+        foja_tipo: form.foja_tipo || null,
+        fojas: form.foja_tipo ? Number(form.fojas) || 1 : null,
         active: true,
       };
 
@@ -298,7 +311,12 @@ export default function ServicesCatalog() {
           </div>
           {svc.description && <p className="mb-3 text-base text-main-foreground/70 line-clamp-2">{svc.description}</p>}
 
-          {showNota ? (
+          {fojaSummary(svc) ? (
+            <NeoCard className="p-5 text-center">
+              <p className="text-xs font-black uppercase tracking-wider text-foreground/60">Precio por foja</p>
+              <p className="mt-1 text-lg font-black text-foreground">{fojaSummary(svc)}</p>
+            </NeoCard>
+          ) : showNota ? (
             <div className="grid grid-cols-2 gap-2">
               <NeoCard className="p-5 text-center">
                 <p className="text-xs font-black uppercase tracking-wider text-foreground/60">Digitación</p>
@@ -537,11 +555,12 @@ export default function ServicesCatalog() {
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-base font-black uppercase tracking-wider text-foreground/60">Precio / Digitación (RD$) *</label>
+                <label htmlFor="svc-digitacion" className="mb-1 block text-base font-black uppercase tracking-wider text-foreground/60">Precio / Digitación (RD$) *</label>
                 <div className="relative">
                   <DollarSign size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-foreground/50" />
-                  <NeoInput type="number" min={0} step="1" onKeyDown={preventDecimalInput} value={form.digitacion_price} onChange={(e) => setForm((p) => ({ ...p, digitacion_price: Number(e.target.value) }))} className="pl-9" />
+                  <NeoInput id="svc-digitacion" type="number" min={0} step="1" onKeyDown={preventDecimalInput} value={form.digitacion_price} onChange={(e) => setForm((p) => ({ ...p, digitacion_price: Number(e.target.value) }))} className="pl-9" />
                 </div>
+                {form.foja_tipo && <p className="mt-1 text-sm font-bold text-foreground/60">Con precio por foja se ignora la digitación fija</p>}
               </div>
               <div>
                 <label className="mb-1 block text-base font-black uppercase tracking-wider text-foreground/60">Notarización (RD$)</label>
@@ -557,6 +576,21 @@ export default function ServicesCatalog() {
                   <NeoInput type="text" value={form.unit_type || ""} onChange={(e) => setForm((p) => ({ ...p, unit_type: e.target.value }))} className="pl-9" placeholder="por documento" />
                 </div>
               </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="svc-foja-tipo" className="mb-1 block text-base font-black uppercase tracking-wider text-foreground/60">Precio por foja</label>
+                <NeoSelect id="svc-foja-tipo" value={form.foja_tipo || ""} onChange={(e) => setForm((p) => ({ ...p, foja_tipo: e.target.value || null, fojas: e.target.value ? (p.fojas ?? 1) : null }))}>
+                  <option value="">No va por foja</option>
+                  {Object.entries(FOJA_RATES).map(([k, r]) => <option key={k} value={k}>{r.label} — RD${r.rate}</option>)}
+                </NeoSelect>
+              </div>
+              {form.foja_tipo && (
+                <div>
+                  <label htmlFor="svc-fojas" className="mb-1 block text-base font-black uppercase tracking-wider text-foreground/60">Fojas estimadas</label>
+                  <NeoInput id="svc-fojas" type="number" min={1} step="1" onKeyDown={preventDecimalInput} value={form.fojas ?? ""} onChange={(e) => setForm((p) => ({ ...p, fojas: e.target.value === "" ? null : Number(e.target.value) }))} />
+                </div>
+              )}
             </div>
             <NeoCard variant="outline" className="p-5">
               <div className="mb-3 flex items-center justify-between">

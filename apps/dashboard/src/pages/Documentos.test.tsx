@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 const { api, auth, downloadFile } = vi.hoisted(() => ({
   api: {
     models: vi.fn(), aiSearch: vi.fn(), clients: vi.fn(), searchAllClients: vi.fn(), createClient: vi.fn(),
-    documents: vi.fn(), document: vi.fn(), upload: vi.fn(), uploadVersion: vi.fn(), approve: vi.fn(),
+    documents: vi.fn(), document: vi.fn(), upload: vi.fn(), uploadVersion: vi.fn(), approve: vi.fn(), send: vi.fn(),
   },
   auth: { isAdmin: false, user: { id: 2, username: "hengi", role: "digitador" } },
   downloadFile: vi.fn(),
@@ -22,6 +22,14 @@ vi.mock("../context/AuthContext", () => ({ useAuth: () => auth }));
 vi.mock("../context/UserColorsContext", () => ({
   useUserColors: () => ({ users: [{ id: 2, name: "Hengi", username: "hengi", role: "digitador" }], refresh: vi.fn() }),
 }));
+
+vi.mock("../components/documentos/TagEditor", () => ({
+  default: (p: { modelId: number; mode: string }) => <div data-testid="tag-editor">{`${p.mode}:${p.modelId}`}</div>,
+}));
+vi.mock("../components/documentos/TagReview", () => ({
+  default: (p: { initialModel?: number | null }) => <div data-testid="tag-review">{p.initialModel ?? ""}</div>,
+}));
+vi.mock("../components/documentos/SaveAsModelButton", () => ({ default: (p: { documentId: number }) => <button>{`como-modelo:${p.documentId}`}</button> }));
 
 import Documentos from "./Documentos";
 import DialogHost from "../components/DialogHost";
@@ -76,6 +84,26 @@ describe("Documentos — Buscar por nombre", () => {
 });
 
 describe("Documentos — Mi historial", () => {
+  it("a document made from a model can become the model's next version; an uploaded one cannot", async () => {
+    api.document.mockResolvedValueOnce({ data: { document: { ...DOC, template_id: 3, versions: VERSIONS } } });
+    renderAt("/documents?tab=historial");
+    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /contrato de alquiler/i }));
+    expect(await screen.findByText("como-modelo:10")).toBeTruthy();
+    cleanup();
+    renderAt("/documents?tab=historial");
+    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /contrato de alquiler/i }));
+    expect(await screen.findByText("v2")).toBeTruthy();
+    expect(screen.queryByText(/^como-modelo:/)).toBeNull();
+  });
+
+  it("the admin's notification link opens that model in Revisión de etiquetas", async () => {
+    auth.isAdmin = true;
+    renderAt("/documents?tab=etiquetas&model=3");
+    expect((await screen.findByTestId("tag-review")).textContent).toBe("3");
+  });
+
   it("client → documents → versions; employees cannot approve", async () => {
     renderAt("/documents?tab=historial");
     fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
@@ -96,7 +124,7 @@ describe("Documentos — Mi historial", () => {
     fireEvent.click(await screen.findByRole("button", { name: /^aprobar v2/i }));
     const confirm = await screen.findByRole("dialog", { name: /¿aprobar v2\?/i });
     fireEvent.click(within(confirm).getByRole("button", { name: /^aprobar$/i }));
-    await waitFor(() => expect(api.approve).toHaveBeenCalledWith(10, 21));
+    await waitFor(() => expect(api.approve).toHaveBeenCalledWith(10, 21, "manual"));
     expect((await screen.findAllByText(/aprobada/i)).length).toBeGreaterThan(0);
   });
 
@@ -111,5 +139,177 @@ describe("Documentos — Mi historial", () => {
     expect((within(dialog).getByLabelText(/nombre del documento/i) as HTMLInputElement).value).toBe("poder firmado");
     fireEvent.click(within(dialog).getByRole("button", { name: /^subir$/i }));
     await waitFor(() => expect(api.upload).toHaveBeenCalledWith({ file, client_id: 1, title: "poder firmado", notes: "" }));
+  });
+});
+
+describe("Documentos — Etiquetas", () => {
+  const TAGGED = [
+    { ...MODELS[0], tag_status: "approved" },
+    { ...MODELS[1], tag_status: "pending" },
+  ];
+
+  it("employees get 'Llenar' only on approved models; it opens the fill editor", async () => {
+    api.models.mockResolvedValue({ data: { models: TAGGED } });
+    renderAt();
+    const approved = (await screen.findByText("DECLARACIÓN JURADA DE INGRESOS")).closest("li")!;
+    const pending = screen.getByText("PODER ESPECIAL").closest("li")!;
+    expect(within(approved).getByText(/listo para llenar/i)).toBeTruthy();
+    expect(within(pending).queryByRole("button", { name: /^llenar/i })).toBeNull();
+    fireEvent.click(within(approved).getByRole("button", { name: /^llenar/i }));
+    expect(screen.getByTestId("tag-editor").textContent).toBe("fill:1");
+  });
+
+  it("the admin also fills pending models and sees their status", async () => {
+    auth.isAdmin = true;
+    api.models.mockResolvedValue({ data: { models: TAGGED } });
+    renderAt();
+    const pending = (await screen.findByText("PODER ESPECIAL")).closest("li")!;
+    expect(within(pending).getByText(/pendiente de revisión/i)).toBeTruthy();
+    expect(within(pending).getByRole("button", { name: /^llenar/i })).toBeTruthy();
+  });
+
+  it("only the admin has the 'Revisión de etiquetas' tab", async () => {
+    renderAt();
+    await screen.findByText("PODER ESPECIAL");
+    expect(screen.queryByRole("tab", { name: /revisión de etiquetas/i })).toBeNull();
+    cleanup();
+    auth.isAdmin = true;
+    renderAt();
+    fireEvent.click(await screen.findByRole("tab", { name: /revisión de etiquetas/i }));
+    expect(await screen.findByTestId("tag-review")).toBeTruthy();
+  });
+});
+
+describe("Documentos — enviado por el bot", () => {
+  const BOT = { ...DOC, prepared_by_bot: true, invoice_id: 7, send_mode: null, sent_at: null, send_error: null, can_approve: true };
+  const openBotDoc = async (doc: Record<string, unknown>) => {
+    api.documents.mockResolvedValue({ data: { documents: [doc] } });
+    api.document.mockResolvedValue({ data: { document: { ...doc, versions: VERSIONS } } });
+    renderAt("/documents?tab=historial");
+    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /contrato de alquiler/i }));
+    await screen.findByText("v2");
+  };
+
+  it("shows 'Preparado por el bot' with a link to the cotización", async () => {
+    await openBotDoc(BOT);
+    expect(screen.getAllByText(/preparado por el bot/i).length).toBeGreaterThan(0);
+    const link = screen.getByRole("link", { name: /cotización/i });
+    expect(link.getAttribute("href")).toContain("7");
+  });
+
+  it("approve dialog defaults to 'Enviar cuando pague' with a cotización and sends al_pagar", async () => {
+    render(<DialogHost />);
+    api.approve.mockResolvedValue({ data: { document: { ...BOT, approved_version: 2, versions: VERSIONS }, sent: false } });
+    await openBotDoc(BOT);
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    const dialog = await screen.findByRole("dialog");
+    expect((within(dialog).getByLabelText(/enviar cuando pague/i) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(within(dialog).getByRole("button", { name: /^aprobar$/i }));
+    await waitFor(() => expect(api.approve).toHaveBeenCalledWith(10, 21, "al_pagar"));
+  });
+
+  it("'Enviar ya' and 'Solo aprobar' map to ya / manual; no cotización defaults to manual", async () => {
+    api.approve.mockResolvedValue({ data: { document: { ...BOT, approved_version: 2, versions: VERSIONS }, sent: true } });
+    await openBotDoc(BOT);
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    let dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByLabelText(/enviar ya/i));
+    fireEvent.click(within(dialog).getByRole("button", { name: /^aprobar$/i }));
+    await waitFor(() => expect(api.approve).toHaveBeenCalledWith(10, 21, "ya"));
+    cleanup();
+    api.approve.mockClear();
+    await openBotDoc({ ...BOT, invoice_id: null });
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    dialog = await screen.findByRole("dialog");
+    expect((within(dialog).getByLabelText(/solo aprobar/i) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(within(dialog).getByRole("button", { name: /^aprobar$/i }));
+    await waitFor(() => expect(api.approve).toHaveBeenCalledWith(10, 21, "manual"));
+  });
+
+  it("a linked cotización already paid: warns under 'Enviar cuando pague' and defaults to 'Solo aprobar'", async () => {
+    api.approve.mockResolvedValue({ data: { document: { ...BOT, approved_version: 2, versions: VERSIONS }, sent: false } });
+    await openBotDoc({ ...BOT, invoice_status: "paid" });
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("La cotización ya está pagada: se envía al aprobar.")).toBeTruthy();
+    expect((within(dialog).getByLabelText(/solo aprobar/i) as HTMLInputElement).checked).toBe(true);
+    expect((within(dialog).getByLabelText(/enviar cuando pague/i) as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(within(dialog).getByRole("button", { name: /^aprobar$/i }));
+    await waitFor(() => expect(api.approve).toHaveBeenCalledWith(10, 21, "manual"));
+  });
+
+  it("a pending cotización keeps the normal hint and 'Enviar cuando pague' default", async () => {
+    await openBotDoc({ ...BOT, invoice_status: "pending_approval" });
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText(/ya está pagada/i)).toBeNull();
+    expect((within(dialog).getByLabelText(/enviar cuando pague/i) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("approve controls follow can_approve (digitador without permission sees none)", async () => {
+    await openBotDoc({ ...BOT, can_approve: false });
+    expect(screen.queryByRole("button", { name: /^aprobar v/i })).toBeNull();
+  });
+
+  it("a digitador with can_approve can approve", async () => {
+    await openBotDoc(BOT);
+    expect(screen.getByRole("button", { name: /^aprobar v2/i })).toBeTruthy();
+  });
+
+  it("'Enviar al cliente' on approved, unsent docs calls send", async () => {
+    render(<DialogHost />);
+    api.send.mockResolvedValue({ data: { document: { ...BOT, approved_version: 2, sent_at: "2026-10-02T10:00:00Z", versions: VERSIONS }, sent: true } });
+    await openBotDoc({ ...BOT, approved_version: 2, send_mode: "manual" });
+    fireEvent.click(screen.getByRole("button", { name: /^enviar al cliente$/i }));
+    await waitFor(() => expect(api.send).toHaveBeenCalledWith(10));
+    expect(screen.queryByRole("dialog")).toBeNull(); // approved with a send mode: no question
+    expect((await screen.findAllByText(/^Enviado /)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /^enviar al cliente$/i })).toBeNull();
+  });
+
+  // M2: a document approved before phase 2 has no send_mode; sending it is a deliberate choice
+  it("'Enviar al cliente' on a document approved before phase 2 (no send_mode) asks first", async () => {
+    render(<DialogHost />);
+    api.send.mockResolvedValue({ data: { document: { ...BOT, approved_version: 2, sent_at: "2026-10-02T10:00:00Z", versions: VERSIONS }, sent: true } });
+    await openBotDoc({ ...BOT, approved_version: 2, send_mode: null });
+    fireEvent.click(screen.getByRole("button", { name: /^enviar al cliente$/i }));
+    const dlg = await screen.findByRole("dialog", { name: /enviar al cliente/i });
+    expect(within(dlg).getByText(/este documento se aprobó antes; ¿enviarlo ahora al cliente por whatsapp\?/i)).toBeTruthy();
+    expect(api.send).not.toHaveBeenCalled();
+    fireEvent.click(within(dlg).getByRole("button", { name: /^cancelar$/i }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(api.send).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /^enviar al cliente$/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /^enviar al cliente$/i }));
+    const again = await screen.findByRole("dialog", { name: /enviar al cliente/i });
+    fireEvent.click(within(again).getByRole("button", { name: /^enviar$/i }));
+    await waitFor(() => expect(api.send).toHaveBeenCalledWith(10));
+    expect((await screen.findAllByText(/^Enviado /)).length).toBeGreaterThan(0);
+  });
+
+  // T3: "Enviar cuando pague" needs a cotización to wait for
+  it("the approve dialog hides 'Enviar cuando pague' when the document has no cotización", async () => {
+    api.approve.mockResolvedValue({ data: { document: { ...BOT, invoice_id: null, approved_version: 2, versions: VERSIONS }, sent: false } });
+    await openBotDoc({ ...BOT, invoice_id: null });
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByLabelText(/enviar cuando pague/i)).toBeNull();
+    expect(within(dialog).getByLabelText(/enviar ya/i)).toBeTruthy();
+    expect((within(dialog).getByLabelText(/solo aprobar/i) as HTMLInputElement).checked).toBe(true);
+    cleanup();
+    await openBotDoc(BOT);
+    fireEvent.click(screen.getByRole("button", { name: /^aprobar v2/i }));
+    expect(within(await screen.findByRole("dialog")).getByLabelText(/enviar cuando pague/i)).toBeTruthy();
+  });
+
+  it("shows 'Enviado {fecha}' and the 24 h notice", async () => {
+    await openBotDoc({ ...BOT, approved_version: 2, sent_at: "2026-10-02T10:00:00Z" });
+    expect(screen.getByText(/^Enviado /)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^enviar al cliente$/i })).toBeNull();
+    cleanup();
+    await openBotDoc({ ...BOT, approved_version: 2, send_error: "WINDOW_CLOSED" });
+    expect(screen.getByText(/pasaron más de 24 h/i)).toBeTruthy();
   });
 });
