@@ -52,6 +52,11 @@ describe("Revisión de etiquetas", () => {
     expect(screen.getByTestId("editor").textContent).toBe("review:2");
   });
 
+  it("a notification link opens that model straight in the editor", async () => {
+    render(<TagReview initialModel={2} />);
+    expect((await screen.findByTestId("editor")).textContent).toBe("review:2");
+  });
+
   it("AI-tags one model, then opens it for review", async () => {
     tags.aiTag.mockResolvedValue({ data: { model: { id: 3 } } });
     render(<TagReview />);

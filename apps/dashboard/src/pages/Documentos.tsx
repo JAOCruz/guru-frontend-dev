@@ -62,7 +62,7 @@ export default function Documentos() {
         })}
       </div>
 
-      {tab === "buscar" ? <ModelSearch /> : tab === "historial" ? <History /> : <TagReview />}
+      {tab === "buscar" ? <ModelSearch /> : tab === "historial" ? <History /> : <TagReview key={params.get("model") || "list"} initialModel={Number(params.get("model")) || null} />}
     </div>
   );
 }

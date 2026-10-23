@@ -25,7 +25,7 @@ interface Props {
 }
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString("es-DO", { day: "numeric", month: "short", year: "numeric" }) : "");
-const SOURCE_LABEL: Record<TagVersion["source"], string> = { ai: "IA", edit: "Edición", restore: "Restaurada" };
+const SOURCE_LABEL: Record<TagVersion["source"], string> = { ai: "IA", edit: "Edición", restore: "Restaurada", client: "Desde documento" };
 const toKey = (s: string) => s.toUpperCase().replace(/[^\p{L}\p{N}_ ]+/gu, "").replace(/\s+/g, " ").trim().slice(0, 80);
 
 function groupsOf(tags: TagMeta[]) {
@@ -629,6 +629,7 @@ function ReviewHeader({ model, shown, isLatest, busy, onView, onRestore }: {
                   className={`w-full rounded-base border-2 px-2 py-1 text-left text-xs ${v.id === shown.id ? "border-main bg-main/10" : "border-border/30 bg-background hover:bg-main/5"}`}
                 >
                   <b>v{v.version_number}{inUse ? " · en uso" : ""}</b> · {SOURCE_LABEL[v.source]} · {v.created_by_name || "—"} · {fmtDate(v.created_at)}
+                  {v.origin_client && <span className="block truncate text-foreground/60">De «{v.origin_title}» · {v.origin_client}</span>}
                   {v.notes && <span className="block truncate text-foreground/60">{v.notes}</span>}
                 </button>
               </li>

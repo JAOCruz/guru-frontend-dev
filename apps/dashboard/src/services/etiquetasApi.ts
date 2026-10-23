@@ -18,10 +18,12 @@ export interface TagVersion {
   version_number: number;
   tags: TagMeta[];
   skipped: { i: number; text: string }[];
-  source: "ai" | "edit" | "restore";
+  source: "ai" | "edit" | "restore" | "client"; // client: saved from a personalized client document
   notes: string | null;
   created_at: string;
   created_by_name: string | null;
+  origin_title?: string | null; // admin only: the client document it came from
+  origin_client?: string | null;
   approved_at: string | null;
   approved_by_name: string | null;
 }
@@ -76,6 +78,11 @@ export const etiquetasAPI = {
   startBatch: () => api.post<{ batch: TagBatch }>("/documentos/tags/batch"),
   aiTag: (id: number) => api.post<{ model: TagModel }>(`/documentos/tags/models/${id}/ai`, {}, { timeout: 180_000 }),
   model: (id: number) => api.get<{ model: TagModel }>(`/documentos/tags/models/${id}`),
+  // a personalized client document → the model's next version (pending until an admin approves it)
+  fromDocument: (documentId: number) =>
+    api.post<{ version: { id: number; version_number: number }; model_name: string; client_data_left: number[] }>(
+      `/documentos/tags/documents/${documentId}/as-model`, {}, { timeout: 180_000 },
+    ),
   edit: (id: number, body: { base_version_id: number; ops: TagEditOp[]; notes?: string }) =>
     api.post<{ model: TagModel }>(`/documentos/tags/models/${id}/edit`, body),
   aiEdit: (id: number, instructions: string) =>

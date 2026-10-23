@@ -4,6 +4,7 @@ import { NeoButton } from "@guru/ui";
 import { fieldCls, labelCls } from "../users/Modal";
 import { ClientPicker } from "./UploadDialog";
 import PdfPreview from "./PdfPreview";
+import SaveAsModelButton from "./SaveAsModelButton";
 import { generacionAPI, versionFileUrl, type Change, type Field, type HistoryClient, type PortfolioDocument, type Source } from "../../services/documentosApi";
 
 interface Props {
@@ -36,7 +37,7 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
   const [instructions, setInstructions] = useState("");
   const [busy, setBusy] = useState<"fields" | "ai" | "save" | null>("fields");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ document: PortfolioDocument; changes: Change[]; exact?: boolean } | null>(null);
+  const [result, setResult] = useState<{ document: PortfolioDocument; changes: Change[]; exact?: boolean; edited?: boolean } | null>(null);
   const [preview, setPreview] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const fromHistory = "version_id" in source;
@@ -81,8 +82,8 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
     }
   };
 
-  const finish = (data: { document: PortfolioDocument; changes: Change[]; exact?: boolean }) => {
-    setResult(data);
+  const finish = (data: { document: PortfolioDocument; changes: Change[]; exact?: boolean }, edited = false) => {
+    setResult({ ...data, edited });
     onSaved(data.document);
   };
 
@@ -107,7 +108,7 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
     setError(null);
     try {
       const { data } = await generacionAPI.aiEdit({ ...source, client_id: client.id, ...(fromHistory ? {} : { title: docTitle }), instructions });
-      finish(data);
+      finish(data, true);
     } catch (err) {
       setError(errorOf(err, "No se pudieron aplicar los cambios"));
     } finally {
@@ -326,7 +327,7 @@ function ResultView({
   onView,
   onClose,
 }: {
-  result: { document: PortfolioDocument; changes: Change[]; exact?: boolean };
+  result: { document: PortfolioDocument; changes: Change[]; exact?: boolean; edited?: boolean };
   clientName?: string | null;
   onView: () => void;
   onClose: () => void;
@@ -357,6 +358,8 @@ function ResultView({
         </div>
       )}
       <div className="flex flex-wrap justify-end gap-2">
+        {/* new wording (Cambios específicos) can become the model's next version */}
+        {result.edited && result.document.template_id ? <SaveAsModelButton documentId={result.document.id} /> : null}
         <NeoButton type="button" variant="neutral" onClick={onView}>
           <Eye size={16} /> Ver documento
         </NeoButton>

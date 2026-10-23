@@ -26,7 +26,10 @@ vi.mock("../context/UserColorsContext", () => ({
 vi.mock("../components/documentos/TagEditor", () => ({
   default: (p: { modelId: number; mode: string }) => <div data-testid="tag-editor">{`${p.mode}:${p.modelId}`}</div>,
 }));
-vi.mock("../components/documentos/TagReview", () => ({ default: () => <div data-testid="tag-review" /> }));
+vi.mock("../components/documentos/TagReview", () => ({
+  default: (p: { initialModel?: number | null }) => <div data-testid="tag-review">{p.initialModel ?? ""}</div>,
+}));
+vi.mock("../components/documentos/SaveAsModelButton", () => ({ default: (p: { documentId: number }) => <button>{`como-modelo:${p.documentId}`}</button> }));
 
 import Documentos from "./Documentos";
 import DialogHost from "../components/DialogHost";
@@ -81,6 +84,26 @@ describe("Documentos — Buscar por nombre", () => {
 });
 
 describe("Documentos — Mi historial", () => {
+  it("a document made from a model can become the model's next version; an uploaded one cannot", async () => {
+    api.document.mockResolvedValueOnce({ data: { document: { ...DOC, template_id: 3, versions: VERSIONS } } });
+    renderAt("/documents?tab=historial");
+    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /contrato de alquiler/i }));
+    expect(await screen.findByText("como-modelo:10")).toBeTruthy();
+    cleanup();
+    renderAt("/documents?tab=historial");
+    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /contrato de alquiler/i }));
+    expect(await screen.findByText("v2")).toBeTruthy();
+    expect(screen.queryByText(/^como-modelo:/)).toBeNull();
+  });
+
+  it("the admin's notification link opens that model in Revisión de etiquetas", async () => {
+    auth.isAdmin = true;
+    renderAt("/documents?tab=etiquetas&model=3");
+    expect((await screen.findByTestId("tag-review")).textContent).toBe("3");
+  });
+
   it("client → documents → versions; employees cannot approve", async () => {
     renderAt("/documents?tab=historial");
     fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));

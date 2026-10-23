@@ -12,6 +12,7 @@ import { notify, confirmDialog } from "../../lib/dialogs";
 import UploadDialog from "./UploadDialog";
 import PdfPreview from "./PdfPreview";
 import PersonalizeDialog from "./PersonalizeDialog";
+import SaveAsModelButton from "./SaveAsModelButton";
 import Modal from "../users/Modal";
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -313,9 +314,13 @@ export default function History() {
                             </li>
                           ))}
                         </ul>
-                        <NeoButton size="sm" variant="neutral" className="mt-3" onClick={() => setUpload({ doc: openDoc })}>
-                          <Upload size={14} /> Subir nueva versión
-                        </NeoButton>
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          <NeoButton size="sm" variant="neutral" onClick={() => setUpload({ doc: openDoc })}>
+                            <Upload size={14} /> Subir nueva versión
+                          </NeoButton>
+                          {/* made from a model and has a Word: its wording can become the model's next version */}
+                          {openDoc.template_id && openDoc.versions?.some((v) => v.mime_type === DOCX) ? <SaveAsModelButton documentId={openDoc.id} /> : null}
+                        </div>
                       </div>
                     )}
                   </li>

@@ -15,14 +15,14 @@ const TONE: Record<TagStatus, string> = {
 };
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-export default function TagReview() {
+export default function TagReview({ initialModel }: { initialModel?: number | null } = {}) {
   const [counts, setCounts] = useState<Record<TagStatus, number> | null>(null);
   const [models, setModels] = useState<TagSummaryModel[]>([]);
   const [batch, setBatch] = useState<TagBatch | null>(null);
   const [filter, setFilter] = useState<TagStatus | null>(null);
   const [q, setQ] = useState("");
   const [tagging, setTagging] = useState<number | null>(null);
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<number | null>(initialModel ?? null);
 
   const load = useCallback(
     () =>
