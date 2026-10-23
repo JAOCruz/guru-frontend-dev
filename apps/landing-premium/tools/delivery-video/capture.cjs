@@ -11,7 +11,7 @@ const SIZE = { desktop: [1920, 1080], mobile: [1080, 1920] }[layout];
 const SCALE = 1.5;
 // where the subject moves so the page's text panel never covers it (take-off: a little right of the title, which sits on the left; landing: right of the card on desktop);
 // [x, y] at take-off → at the landing
-const SHIFT = { desktop: [[0.09, 0.04], [0.02, 0]], mobile: [[0, 0.2], [0, 0.04]] }[layout];
+const SHIFT = { desktop: [[0.27, 0.02], [0.02, 0]], mobile: [[0, 0.2], [0, 0.04]] }[layout];
 // 60 fps so that playing slower than 1× (slow scrolling) still shows a new frame on most screen refreshes
 const FPS = 60;
 const MOVE = 300; // frames while the section scrolls 0 → 1

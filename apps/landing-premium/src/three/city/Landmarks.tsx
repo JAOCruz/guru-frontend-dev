@@ -1,8 +1,10 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { DOOR, MALECON_Z, OFFICE, SEA_Z } from "./layout";
 import { useGlow } from "./SkySea";
+import { frontTexture, signTexture } from "./storefront";
 
 /** Ground, avenues, seawall + lamp posts, the Malecón obelisk. */
 export function Streets({ lamps = 26 }: { lamps?: number }) {
@@ -165,27 +167,49 @@ export function Pin({ position, color, text, bg, fg, pulse }: { position: [numbe
 }
 
 /** Gurú's office in La Feria: paper-coloured block with a blue sign and a lit door. */
+// Gurú's office in La Feria, modelled on the real storefront: blue walls, a white awning with the
+// GURÚ SOLUCIONES sign, the dark door with the logo and the shop window with the services and the owl.
+const SHOP_W = 3.4; // storefront opening (m), facing +z (the take-off camera)
+const SHOP_H = SHOP_W * (768 / 1024);
+
 export function Office() {
   const { x, z, w, d, h } = OFFICE;
+  const sign = useMemo(signTexture, []);
+  const front = useMemo(frontTexture, []);
+  const owlPoster = useTexture("/img/mascot_1.webp");
+  owlPoster.colorSpace = THREE.SRGBColorSpace;
+  const awningY = SHOP_H + 0.32;
   return (
     <group position={[x, 0, z]}>
       <mesh position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color="#e9e4d8" roughness={0.9} />
+        <meshStandardMaterial color="#2747c9" roughness={0.85} />
       </mesh>
       <mesh position={[0, h + 0.15, 0]}>
         <boxGeometry args={[w + 0.3, 0.3, d + 0.3]} />
         <meshStandardMaterial color="#0b0b0c" roughness={0.9} />
       </mesh>
-      {/* sign */}
-      <mesh position={[0, h - 0.7, -d / 2 - 0.06]}>
-        <boxGeometry args={[w - 0.6, 0.9, 0.1]} />
-        <meshStandardMaterial color="#1f3dff" emissive="#1f3dff" emissiveIntensity={0.9} roughness={0.5} />
+      {/* door + shop window */}
+      <mesh position={[0, SHOP_H / 2 + 0.05, d / 2 + 0.01]}>
+        <planeGeometry args={[SHOP_W, SHOP_H]} />
+        <meshStandardMaterial map={front} emissiveMap={front} emissive="#ffffff" emissiveIntensity={0.35} roughness={0.35} metalness={0.1} />
       </mesh>
-      <mesh position={[0, 1.1, -d / 2 - 0.02]}>
-        <planeGeometry args={[1.1, 2.2]} />
-        <meshBasicMaterial color="#ffe6a8" toneMapped={false} />
+      {/* the owl poster in the window */}
+      <mesh position={[SHOP_W * 0.21, SHOP_H * 0.25 + 0.05, d / 2 + 0.02]}>
+        <planeGeometry args={[0.95, 0.95]} />
+        <meshStandardMaterial map={owlPoster} emissiveMap={owlPoster} emissive="#ffffff" emissiveIntensity={0.4} roughness={0.4} />
       </mesh>
+      {/* white awning with the sign on its front */}
+      <mesh position={[0, awningY, d / 2 + 0.6]} rotation={[0.08, 0, 0]}>
+        <boxGeometry args={[w + 0.2, 0.55, 1.2]} />
+        <meshStandardMaterial color="#e9ecf1" roughness={0.6} />
+      </mesh>
+      <mesh position={[0, awningY - 0.05, d / 2 + 1.21]} rotation={[0.08, 0, 0]}>
+        <planeGeometry args={[w + 0.2, 0.55]} />
+        <meshStandardMaterial map={sign} emissiveMap={sign} emissive="#ffffff" emissiveIntensity={0.55} roughness={0.5} />
+      </mesh>
+      {/* warm light under the awning, the shop's glow on the pavement */}
+      <pointLight position={[0, awningY - 0.6, d / 2 + 1.6]} intensity={9} color="#ffe2b0" distance={7} />
       <pointLight position={[0, 2.5, -d / 2 - 2]} intensity={18} color="#1f3dff" distance={12} />
     </group>
   );

@@ -190,8 +190,9 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
     // ---- camera
     const back = mobile ? 11.5 : 9.5, up = mobile ? 5.5 : 4.4, side = mobile ? 1.2 : 3.0;
     if (p < TAKEOFF_END + 0.02 && fly < 0.02) {
-      _camT.set(OFFICE.x + 2.5, 6.6, OFFICE.z + (mobile ? 11 : 8.5));
-      _lookT.set(OFFICE.x, 4.0 + (mobile ? 1.2 : 0), OFFICE.z);
+      // take-off: from the street, in front of the shop (like the photo of the real storefront), the owl on its roof
+      _camT.set(OFFICE.x + 1.6, mobile ? 4.4 : 3.6, OFFICE.z + (mobile ? 12 : 9.5));
+      _lookT.set(OFFICE.x, mobile ? 3.4 : 2.7, OFFICE.z);
     } else {
       // follow cam, blending into the door view during the final approach (before the flare starts)
       _side.crossVectors(_tan, UP).normalize();

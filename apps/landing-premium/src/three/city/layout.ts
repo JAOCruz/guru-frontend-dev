@@ -18,7 +18,7 @@ export const MALECON_Z = -10; // centre of the seaside avenue
 export const CITY = { xMin: -46, xMax: 46, zMin: -7.5, zMax: 34 };
 
 /** Gurú office ("La Feria") and the client's door. */
-export const OFFICE = { x: -24, z: 8, w: 4.2, d: 3.6, h: 4.2 };
+export const OFFICE = { x: -24, z: 8, w: 4.2, d: 3.6, h: 3.4 }; // a one-storey shop, like the real one
 export const DOOR = { x: 22, z: 0.5, w: 3.6, d: 3.2, h: 3.4 };
 
 /** The flight route: office roof → over the Malecón → the client's door. */
@@ -74,7 +74,7 @@ export function buildSkyline(count: number, seed = 7): BuildingSpec[] {
     const p = route.getPointAt(Math.min(0.999, Math.max(0.001, (x - OFFICE.x) / (DOOR.x - OFFICE.x))));
     if (Math.abs(p.z - z) < 8 && h > p.y - 3) h = Math.max(2.5, p.y - 3.2 - r() * 2.5);
     // low blocks around the office so the takeoff / first follow shot stays open
-    if (Math.hypot(x - OFFICE.x, z - OFFICE.z) < 15) h = Math.min(h, 3.6);
+    if (Math.hypot(x - OFFICE.x, z - OFFICE.z) < 15) h = Math.min(h, 3.0);
     if (!clear(x, z, w, d)) continue;
     out.push({ x, z, w, d, h, tone: r() });
   }
