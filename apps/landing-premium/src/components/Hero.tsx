@@ -54,18 +54,22 @@ function TypedSlogan({ className = "" }: { className?: string }) {
 
   let offset = 0;
   return (
-    <h1 aria-label="Una experiencia legal inteligente" className={`uppercase leading-[1.02] ${className}`}>
-      {LINES.map((line, li) => {
+    <h1 aria-label="Una experiencia legal inteligente" className={`metal-3d uppercase leading-[0.95] ${className}`}>
+      {LINES.map((line) => {
         const start = offset;
         offset += line.length;
-        // like the logo: the first line as "GURÚ", the second as "SOLUCIONES"
         return (
-          <span key={line} aria-hidden="true" className={li === 0 ? "title-logo-top" : "title-logo-bottom mt-[0.08em] text-[0.92em]"}>
+          <span key={line} aria-hidden="true" className="block">
             {line.split("").map((ch, ci) => {
               const idx = start + ci;
+              // "legal" goes in Gurú blue, everything else black
+              const blue = line.startsWith("legal") && ci < 5;
               return (
-                <span key={ci} className={idx < typed ? "" : "opacity-0"}>
-                  {ch}
+                <span key={ci} className="relative">
+                  <span className={`${idx < typed ? "opacity-100" : "opacity-0"} ${blue ? "text-guru" : ""}`}>{ch}</span>
+                  {idx === typed - 1 && typed < TOTAL && (
+                    <span className="absolute -right-[0.1em] top-[0.1em] h-[0.78em] w-[0.07em] animate-pulse bg-guru" />
+                  )}
                 </span>
               );
             })}
@@ -117,9 +121,9 @@ function Panel({ progress, className }: { progress: MotionValue<number>; classNa
   );
 }
 
-const SLOGAN_SIZE = "text-[clamp(1.9rem,8vw,2.5rem)] md:text-[clamp(2.1rem,min(3.6vw,6vh),3.6rem)]";
+const SLOGAN_SIZE = "text-[clamp(1.9rem,8.2vw,2.6rem)] md:text-[clamp(2.1rem,min(4vw,6.2vh),4rem)]";
 // centered at the top, over the night sky above the owl, like a game title screen
-const SLOGAN_SPOT = "inset-x-4 top-6 text-center md:top-[6%]";
+const SLOGAN_SPOT = "inset-x-4 top-6 text-center md:top-[4.5%]";
 
 export default function Hero() {
   const section = useRef<HTMLElement>(null);

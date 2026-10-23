@@ -76,34 +76,6 @@ body {
     0.14em 0.16em 0.2em rgb(11 11 12 / 0.35);
 }
 
-/* Hero title, styled after the logo like a video-game title: "GURÚ"'s heavy rounded graphite letters
-   with a light rim on the first line, "SOLUCIONES"'s blue slab serif on the second; both sit on a
-   stepped blue extrusion. (paint-order puts the rim behind the fill.) */
-.title-logo-top,
-.title-logo-bottom {
-  display: block;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  paint-order: stroke fill;
-  filter: drop-shadow(0 0.03em 0 #1f3dff) drop-shadow(0 0.03em 0 #1530c9) drop-shadow(0 0.03em 0 #0e219a)
-    drop-shadow(0 0.12em 0.18em rgb(3 6 30 / 0.65));
-}
-.title-logo-top {
-  font-family: "Fredoka", var(--font-display);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  background-image: linear-gradient(180deg, #8d9299 0%, #3a3d42 48%, #1b1c1f 52%, #4b4f56 100%);
-  -webkit-text-stroke: 0.07em #e6e9ee;
-}
-.title-logo-bottom {
-  font-family: "Ultra", Georgia, serif;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  background-image: linear-gradient(180deg, #6f8dff 0%, #2747e8 45%, #1631c2 100%);
-  -webkit-text-stroke: 0.045em #ffffff;
-}
-
 @keyframes story-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 /* The 3D typewriter shakes a little while it "types" */
 @keyframes type-jitter { 0% { transform: translate(0, 0); } 100% { transform: translate(0.5px, -1px); } }
