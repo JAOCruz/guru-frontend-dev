@@ -13,12 +13,15 @@ const v = (name: string, focus: string) => ({
   hevc: `/video/${name}-hevc.mp4`,
   h264: `/video/${name}-h264.mp4`,
   start: `/video/${name}-start.webp`,
+  rev: { av1: `/video/${name}-rev-av1.mp4`, hevc: `/video/${name}-rev-hevc.mp4`, h264: `/video/${name}-rev-h264.mp4` },
   end: `/video/${name}-end.webp`,
   focus,
 });
 // the owl is framed right of the text panel (desktop) / below it (phones): crop toward it
 const LANDSCAPE = v("delivery-desktop", "72% 50%");
 const PORTRAIT = v("delivery-mobile", "50% 78%");
+// resting poses (share of the flight): wings open, leaving La Feria, over the city — plus start and end
+const RESTS = [0.12, 0.26, 0.52];
 const DELIVERED_AT = 0.93;
 
 const COPY = {
@@ -82,7 +85,7 @@ export default function Delivery() {
   return (
     <section id="mensajeria" ref={section} className={`relative border-y-2 border-ink bg-[#060a2b] ${reduced ? "" : "h-[240vh]"}`}>
       <div className="sticky top-16 h-[calc(100svh-4rem)] overflow-hidden md:top-20 md:h-[calc(100svh-5rem)]">
-        <ScrollVideo progress={progress} landscape={LANDSCAPE} portrait={PORTRAIT} still={reduced} label="El Búho de Gurú vuela con tu maletín de documentos desde La Feria hasta tu puerta" />
+        <ScrollVideo progress={progress} landscape={LANDSCAPE} portrait={PORTRAIT} rests={RESTS} still={reduced} label="El Búho de Gurú vuela con tu maletín de documentos desde La Feria hasta tu puerta" />
         {/* readability scrim behind the panel side */}
         <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[520px] bg-[linear-gradient(90deg,rgb(6_10_43/0.55),transparent)] md:block" />
         <Panel progress={reduced ? done : progress} />
