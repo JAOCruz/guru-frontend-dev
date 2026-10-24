@@ -328,12 +328,12 @@ export default function MotherBrain() {
     <div className="flex flex-col gap-8">
       {/* Header */}
       <div className="text-center">
-        <NeoCard variant="main" className="inline-flex w-auto flex-row items-center gap-3 px-6 py-3">
-          <Brain className="h-8 w-8" />
-          <h1 className="font-heading text-4xl uppercase tracking-wider md:text-5xl">
+        <NeoCard variant="main" className="inline-flex w-auto max-w-full flex-row items-center gap-3 px-4 py-3 md:px-6">
+          <Brain className="h-7 w-7 shrink-0 md:h-8 md:w-8" />
+          <h1 className="font-heading text-[clamp(1.5rem,7vw,2.25rem)] uppercase leading-none tracking-wider md:text-5xl">
             Mother Brain
           </h1>
-          <Sparkles className="h-6 w-6" />
+          <Sparkles className="h-6 w-6 shrink-0" />
         </NeoCard>
         <p className="mt-4 text-base font-base font-bold text-foreground/70">
           🧠 Sistema de Generación de Documentos Legales

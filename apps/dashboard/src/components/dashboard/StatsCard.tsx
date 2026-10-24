@@ -100,6 +100,9 @@ const variantWatermark: Record<StatsVariant, string> = {
   cyan: "text-white/10",
 };
 
+// characters in the label's longest word (at least 6, so short labels keep the normal size)
+const longestWord = (text: string) => Math.max(6, ...text.split(/\s+/).map((w) => w.length));
+
 const StatsCard: React.FC<StatsCardProps> = ({
   label,
   value,
@@ -158,7 +161,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
             }
           : undefined
       }
-      className={`group relative min-w-0 overflow-hidden rounded-base border-2 border-border p-4 shadow-shadow transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none sm:p-5 ${onClick ? "cursor-pointer" : ""} ${cls.card}`}
+      className={`@container group relative min-w-0 overflow-hidden rounded-base border-2 border-border p-4 shadow-shadow transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none sm:p-5 ${onClick ? "cursor-pointer" : ""} ${cls.card}`}
     >
       {/* the animal (or the owl) and the show/hide button on their own row, so the name gets the full width */}
       <div className="mb-2 flex min-h-[1.75rem] items-start justify-between gap-2">
@@ -177,10 +180,11 @@ const StatsCard: React.FC<StatsCardProps> = ({
         )}
       </div>
 
-      {/* whole words only (no hyphens): the size follows the screen so long names still fit */}
+      {/* whole words only (no hyphens): the longest word sets a size that fits the card's width */}
       <p
         lang="es"
-        className={`mb-3 min-w-0 text-[clamp(0.8rem,4vw,1rem)] font-black uppercase leading-tight tracking-tight [overflow-wrap:anywhere] sm:text-2xl xl:text-3xl ${cls.subtle}`}
+        style={{ fontSize: `min(var(--fs), calc(100cqw / ${longestWord(label)} / 0.72))` }}
+        className={`mb-3 min-w-0 font-black uppercase leading-tight tracking-tight [--fs:1rem] sm:[--fs:1.5rem] xl:[--fs:1.875rem] ${cls.subtle}`}
       >
         {label}
       </p>

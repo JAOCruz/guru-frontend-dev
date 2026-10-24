@@ -109,7 +109,9 @@ const BotSimulator: React.FC = () => {
   const [recording, setRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [conversations, setConversations] = useState<StoredConversation[]>([]);
-  const [showSidebar, setShowSidebar] = useState(true);
+  // on phones the conversation list covers the chat, so it starts closed and closes after picking one
+  const isPhone = () => typeof window !== "undefined" && window.innerWidth < 768;
+  const [showSidebar, setShowSidebar] = useState(() => !isPhone());
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -389,11 +391,11 @@ const BotSimulator: React.FC = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-140px)] min-h-[500px] overflow-hidden rounded-base border-2 border-border bg-background shadow-shadow">
+    <div className="relative flex h-[calc(100dvh-140px)] min-h-[500px] overflow-hidden rounded-base border-2 border-border bg-background shadow-shadow">
       {/* Sidebar */}
       <div
-        className={`flex flex-col border-r-2 border-border bg-secondary-background transition-all duration-300 ${
-          showSidebar ? "w-72" : "w-0 overflow-hidden"
+        className={`absolute inset-y-0 left-0 z-20 flex flex-col border-r-2 border-border bg-secondary-background transition-all duration-300 md:static ${
+          showSidebar ? "w-[min(18rem,85%)] md:w-72" : "w-0 overflow-hidden border-r-0"
         }`}
       >
         <div className="flex items-center justify-between border-b-2 border-border p-4">
@@ -410,7 +412,10 @@ const BotSimulator: React.FC = () => {
           {conversations.map((conv) => (
             <button
               key={conv.session_id}
-              onClick={() => setSessionId(conv.session_id)}
+              onClick={() => {
+                setSessionId(conv.session_id);
+                if (isPhone()) setShowSidebar(false);
+              }}
               className={`mb-2 w-full rounded-base border-2 p-3 text-left text-sm font-base transition-all ${
                 conv.session_id === sessionId
                   ? "border-border bg-main text-main-foreground shadow-shadow"
@@ -433,10 +438,10 @@ const BotSimulator: React.FC = () => {
       </div>
 
       {/* Main chat area */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b-2 border-border bg-secondary-background px-5 py-3">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-2 border-b-2 border-border bg-secondary-background px-3 py-3 md:px-5">
+          <div className="flex min-w-0 items-center gap-2 md:gap-3">
             <NeoButton
               variant="neutral"
               size="icon"
@@ -444,10 +449,10 @@ const BotSimulator: React.FC = () => {
             >
               {showSidebar ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
             </NeoButton>
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground">
+            <div className="hidden h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground sm:flex">
               <Bot size={20} />
             </div>
-            <div>
+            <div className="min-w-0">
               <NeoInput
                 type="text"
                 value={title}
@@ -455,23 +460,23 @@ const BotSimulator: React.FC = () => {
                 onBlur={saveMeta}
                 className="h-auto border-0 bg-transparent px-0 py-0 font-heading text-base font-bold shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
               />
-              <p className="text-xs font-base text-foreground/60">{sessionId}</p>
+              <p className="truncate text-xs font-base text-foreground/60">{sessionId}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <NeoButton variant="neutral" size="sm" onClick={startNewChat}>
+          <div className="flex shrink-0 items-center gap-2">
+            <NeoButton variant="neutral" size="sm" onClick={startNewChat} aria-label="Nuevo chat" title="Nuevo chat">
               <Plus size={14} />
-              Nuevo chat
+              <span className="hidden sm:inline">Nuevo chat</span>
             </NeoButton>
-            <NeoButton variant="outline" size="sm" onClick={clearChat}>
+            <NeoButton variant="outline" size="sm" onClick={clearChat} aria-label="Reiniciar" title="Reiniciar">
               <Trash2 size={14} />
-              Reiniciar
+              <span className="hidden sm:inline">Reiniciar</span>
             </NeoButton>
           </div>
         </div>
 
         {/* Notes / status bar */}
-        <div className="border-b-2 border-border bg-background px-5 py-3">
+        <div className="border-b-2 border-border bg-background px-3 py-3 md:px-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-start">
             <div className="flex-1">
               <label className="mb-1 block text-xs font-base font-bold uppercase tracking-wider text-foreground/60">
@@ -649,7 +654,7 @@ const BotSimulator: React.FC = () => {
         )}
 
         {/* Input */}
-        <form onSubmit={sendMessage} className="border-t-2 border-border bg-secondary-background p-4">
+        <form onSubmit={sendMessage} className="border-t-2 border-border bg-secondary-background p-3 md:p-4">
           <div className="flex items-center gap-2">
             <input
               ref={fileInputRef}
@@ -697,7 +702,7 @@ const BotSimulator: React.FC = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Escribe un mensaje de prueba..."
-              className="flex-1"
+              className="min-w-0 flex-1"
             />
             <NeoButton
               type="submit"

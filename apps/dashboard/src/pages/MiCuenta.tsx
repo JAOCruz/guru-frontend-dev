@@ -141,7 +141,7 @@ export default function MiCuenta() {
   const inputCls = "mt-1 w-full rounded-base border-2 border-border bg-white px-3 py-2 font-base text-sm focus:outline-none";
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-6 p-4 md:p-8 lg:grid-cols-2">
+    <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-6 md:p-8 lg:grid-cols-2">
       <section className={card}>
         <div className="border-b-2 border-border bg-main px-5 py-3 font-heading text-lg font-black text-main-foreground">
           Mi avatar y color

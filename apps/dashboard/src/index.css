@@ -517,6 +517,11 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  /* a grid cell may shrink below its content's width, so a wide child (a long word, a table,
+     an avatar picker) scrolls or wraps inside its cell instead of widening the page on phones */
+  .grid > * {
+    min-width: 0;
+  }
   html {
     @apply font-sans;
   }

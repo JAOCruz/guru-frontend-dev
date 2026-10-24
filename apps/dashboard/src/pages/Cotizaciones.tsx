@@ -1027,12 +1027,13 @@ export default function Cotizaciones() {
               {/* Toggle Details (mobile / small screens) */}
               <NeoButton
                 variant="outline"
-                size="icon"
+                size="sm"
                 onClick={() => setShowDetails((v) => !v)}
                 className="lg:hidden"
-                title={showDetails ? "Ocultar detalles" : "Ver detalles"}
+                title={showDetails ? "Ver el PDF" : "Ver detalles"}
               >
-                {showDetails ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showDetails ? <Eye size={16} /> : <EyeOff size={16} />}
+                {showDetails ? "Ver PDF" : "Detalles"}
               </NeoButton>
 
               {/* Download */}
@@ -1092,7 +1093,7 @@ export default function Cotizaciones() {
             <div
               className={`${
                 showDetails ? "flex" : "hidden"
-              } w-full flex-col overflow-y-auto border-r-2 border-border bg-secondary-background p-4 custom-scroll lg:flex lg:w-80`}
+              } w-full min-w-0 flex-col overflow-y-auto border-border bg-secondary-background p-4 custom-scroll lg:flex lg:w-80 lg:shrink-0 lg:border-r-2`}
             >
               {/* Client Card */}
               <NeoCard className="mb-4 p-4">
@@ -1243,7 +1244,7 @@ export default function Cotizaciones() {
                 )}
               {isAdmin &&
                 ["draft", "pending_approval"].includes(selectedQuotation.status) && (
-                  <div className="mt-auto flex gap-2 pt-4">
+                  <div className="mt-auto flex flex-wrap gap-2 pt-4">
                     <NeoButton onClick={handleApprove} disabled={pendingCount(selectedQuotation.items) > 0} className="flex-1">
                       <CheckCircle size={16} />
                       Aprobar
@@ -1265,7 +1266,7 @@ export default function Cotizaciones() {
 
               {/* Admin edit/delete (primary fix path) */}
               {isAdmin && (
-                <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
+                <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t-2 border-border">
                   <NeoButton
                     onClick={() => handleEditOpen(selectedQuotation)}
                     variant="neutral"
@@ -1289,7 +1290,7 @@ export default function Cotizaciones() {
               {!isAdmin &&
                 selectedQuotation.status === "draft" &&
                 selectedQuotation.created_by === user?.id && (
-                  <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
+                  <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t-2 border-border">
                     <NeoButton
                       onClick={() => handleEditOpen(selectedQuotation)}
                       variant="neutral"
@@ -1314,7 +1315,7 @@ export default function Cotizaciones() {
                 ["draft", "pending_approval", "approved"].includes(
                   selectedQuotation.status
                 ) && (
-                  <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
+                  <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t-2 border-border">
                     <NeoButton
                       onClick={handleSendInvoice}
                       disabled={sending || pendingCount(selectedQuotation.items) > 0}
@@ -1335,7 +1336,7 @@ export default function Cotizaciones() {
               {!isAdmin &&
                 selectedQuotation.status === "draft" &&
                 selectedQuotation.created_by === user?.id && (
-                  <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
+                  <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t-2 border-border">
                     <NeoButton
                       onClick={handleSendInvoice}
                       disabled={sending}
@@ -1355,7 +1356,7 @@ export default function Cotizaciones() {
               {!isAdmin &&
                 selectedQuotation.status === "approved" &&
                 selectedQuotation.created_by === user?.id && (
-                  <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
+                  <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t-2 border-border">
                     <NeoButton
                       onClick={handleSendInvoice}
                       disabled={sending}
@@ -1380,7 +1381,7 @@ export default function Cotizaciones() {
                   isOwner: selectedQuotation.created_by === user?.id,
                   status: selectedQuotation.status,
                 }) === "send" && (
-                  <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
+                  <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t-2 border-border">
                     <NeoButton
                       onClick={handleSendWhatsapp}
                       disabled={sendingWhatsapp}
@@ -1398,7 +1399,7 @@ export default function Cotizaciones() {
                 )}
 
               {isAdmin && selectedQuotation.status !== "paid" && (
-                <div className="mt-4 flex gap-2 pt-2 border-t-2 border-border">
+                <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t-2 border-border">
                   <NeoButton
                     onClick={() => setShowPaymentModal(true)}
                     disabled={confirmingPayment}
@@ -1415,8 +1416,8 @@ export default function Cotizaciones() {
               )}
             </div>
 
-            {/* PDF Viewer */}
-            <div className="relative flex flex-1 flex-col bg-secondary-background">
+            {/* PDF Viewer — on phones it takes the place of the details (the eye button switches between them) */}
+            <div className={`relative min-w-0 flex-1 flex-col bg-secondary-background ${showDetails ? "hidden lg:flex" : "flex"}`}>
               {!canView ? (
                 <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-foreground/50">
                   <Lock size={44} className="mb-3 opacity-50" />

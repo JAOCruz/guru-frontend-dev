@@ -55,7 +55,7 @@ const NeoCardTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <CardTitle
     ref={ref}
-    className={cn("font-heading leading-none text-2xl md:text-3xl", className)}
+    className={cn("font-heading leading-tight text-xl sm:text-2xl md:text-3xl", className)}
     {...props}
   />
 ));
