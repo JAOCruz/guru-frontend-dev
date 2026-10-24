@@ -25,6 +25,9 @@ interface StatsCardProps {
   visible?: boolean;
   accent?: PaletteColor;
   icon?: string | null;
+  /** tapping the card (e.g. opens that digitador's services) */
+  onClick?: () => void;
+  actionLabel?: string;
 }
 
 const variantStyles: Record<StatsVariant, string> = {
@@ -107,6 +110,8 @@ const StatsCard: React.FC<StatsCardProps> = ({
   visible = true,
   accent,
   icon,
+  onClick,
+  actionLabel,
 }) => {
   const hiddenValue = "••••••";
   const [revealed, setRevealed] = useState(visible);
@@ -139,16 +144,25 @@ const StatsCard: React.FC<StatsCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
       style={accent ? { backgroundColor: accent.bg, color: accent.text } : undefined}
-      className={`group relative overflow-hidden rounded-base border-2 border-border p-4 shadow-shadow transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none sm:p-5 ${cls.card}`}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? actionLabel || label : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={`group relative min-w-0 overflow-hidden rounded-base border-2 border-border p-4 shadow-shadow transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none sm:p-5 ${onClick ? "cursor-pointer" : ""} ${cls.card}`}
     >
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <p
-          lang="es"
-          className={`min-w-0 break-words text-base font-black uppercase leading-tight tracking-tight [hyphens:auto] sm:text-3xl ${cls.subtle}`}
-        >
-          {icon && <span className="mr-2 not-italic">{icon}</span>}
-          {label}
-        </p>
+      {/* the animal (or the owl) and the show/hide button on their own row, so the name gets the full width */}
+      <div className="mb-2 flex min-h-[1.75rem] items-start justify-between gap-2">
+        {icon ? <span className="text-2xl leading-none sm:text-3xl" aria-hidden="true">{icon}</span> : <span />}
         {sensitive && (
           <button
             onClick={(e) => {
@@ -163,8 +177,16 @@ const StatsCard: React.FC<StatsCardProps> = ({
         )}
       </div>
 
+      {/* whole words only (no hyphens): the size follows the screen so long names still fit */}
+      <p
+        lang="es"
+        className={`mb-3 min-w-0 text-[clamp(0.8rem,4vw,1rem)] font-black uppercase leading-tight tracking-tight [overflow-wrap:anywhere] sm:text-2xl xl:text-3xl ${cls.subtle}`}
+      >
+        {label}
+      </p>
+
       <h3
-        className={`break-words font-heading text-xl font-black tracking-tight sm:text-3xl ${
+        className={`whitespace-nowrap font-heading text-[clamp(1rem,4.6vw,1.25rem)] font-black tracking-tight sm:text-3xl ${
           !isVisible && sensitive ? "tracking-widest" : ""
         }`}
       >

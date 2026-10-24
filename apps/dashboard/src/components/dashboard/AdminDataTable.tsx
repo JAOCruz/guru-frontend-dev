@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { ExcelRow, WorkerKey } from "../../services/excelService";
 import { servicesAPI } from "../../services/api";
 import { NeoButton } from "@guru/ui";
@@ -26,6 +26,8 @@ interface AdminDataTableProps {
   currentEmployee?: string;
   workers: string[];
   inactiveWorkers?: Set<string>;
+  /** set from the dashboard cards: show that digitador's services (or everyone's) and scroll to them */
+  focus?: { worker: WorkerKey | "all"; at: number } | null;
 }
 
 interface UserServiceEntry {
@@ -48,12 +50,24 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
   currentEmployee,
   workers,
   inactiveWorkers,
+  focus,
 }) => {
   const { appearanceOfColumn } = useUserColors();
   // --- ESTADOS ---
   const [activeUser, setActiveUser] = useState<WorkerKey | "all">(
     isEmployeeView && currentEmployee ? (currentEmployee as WorkerKey) : "all",
   );
+  const listsRef = useRef<HTMLDivElement>(null);
+
+  // land on the services list itself (after the filter re-renders), not on the filter buttons
+  useEffect(() => {
+    if (!focus) return;
+    setActiveUser(focus.worker);
+    const id = requestAnimationFrame(() =>
+      listsRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }),
+    );
+    return () => cancelAnimationFrame(id);
+  }, [focus]);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState<string>("");
@@ -267,7 +281,7 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
   const usersToRender = activeUser === "all" || !workers.includes(activeUser) ? workers : [activeUser];
 
   return (
-    <div className="animate-in fade-in space-y-8 duration-500">
+    <div id="servicios-hechos" className="animate-in fade-in space-y-8 duration-500">
       {/* 1. HEADER: Tabs y Botón IA */}
       <div className="flex flex-col items-center justify-between gap-4 rounded-base border-2 border-border bg-main p-5 shadow-shadow md:flex-row">
         {!isEmployeeView && (
@@ -320,6 +334,7 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
       </div>
 
       {/* 2. TABLAS / LISTAS DE SERVICIOS */}
+      <div ref={listsRef} className="scroll-mt-24 space-y-8">
       {usersToRender.map((user) => {
         const a = appearanceOfColumn(user);
         return (
@@ -592,6 +607,7 @@ const AdminDataTable: React.FC<AdminDataTableProps> = ({
         </div>
         );
       })}
+      </div>
 
       {/* MODAL IA */}
       {aiModalOpen && (

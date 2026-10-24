@@ -51,6 +51,9 @@ const Dashboard: React.FC = () => {
   // Fetch employee percentage from settings
   const [employeePercentage, setEmployeePercentage] = useState(50);
   const [showEarnings, setShowEarnings] = useState(false);
+  // tapping a card opens the services done by that digitador (or everyone's) below
+  const [servicesFocus, setServicesFocus] = useState<{ worker: string; at: number } | null>(null);
+  const openServices = (worker: string) => setServicesFocus({ worker, at: Date.now() });
 
   useEffect(() => {
     // Check if on a bot-related route (skip service fetching for these)
@@ -272,9 +275,12 @@ const Dashboard: React.FC = () => {
                     )}
                     subValue={`${services.length} serv.`}
                     variant="main"
+                    icon="🦉"
                     delay={0.1}
                     sensitive
                     visible={showEarnings}
+                    onClick={() => openServices("all")}
+                    actionLabel="Ver todos los servicios hechos"
                   />
 
                   {/* Total of the digitadores' share */}
@@ -296,9 +302,12 @@ const Dashboard: React.FC = () => {
                       ).length
                     } serv.`}
                     variant="main"
+                    icon="🦉"
                     delay={0.15}
                     sensitive
                     visible={showEarnings}
+                    onClick={() => openServices("all")}
+                    actionLabel="Ver los servicios de los digitadores"
                   />
 
                   {/* Dynamic stats for workers - showing their share */}
@@ -324,6 +333,8 @@ const Dashboard: React.FC = () => {
                         delay={0.2 + idx * 0.1}
                         sensitive
                         visible={showEarnings}
+                        onClick={() => openServices(worker)}
+                        actionLabel={`Ver los servicios de ${worker.replace("_", " ")}`}
                       />
                     );
                   })}
@@ -348,6 +359,7 @@ const Dashboard: React.FC = () => {
                   isEmployeeView={false}
                   workers={payroll.columns}
                   inactiveWorkers={payroll.inactive}
+                  focus={servicesFocus}
                 />
               ) : (
                 <div className="space-y-8">
