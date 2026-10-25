@@ -83,7 +83,7 @@ const Dashboard: React.FC = () => {
       fetchData();
       fetchEmployeePercentage();
     }
-  }, [startDate, endDate, location.pathname]);
+  }, [startDate, endDate, location.pathname, location.state]); // a notification's click reloads (its service may be new)
 
   const fetchEmployeePercentage = async () => {
     try {
