@@ -1,25 +1,12 @@
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useTransform, type MotionValue } from "framer-motion";
 import { useSectionProgress } from "../lib/useSectionProgress";
-import { Camera, FileText, Landmark, Languages, Printer, Send, ShieldCheck, ShoppingBag, UserCheck, type LucideIcon } from "lucide-react";
 import { SERVICES, whatsappLink, type Service } from "../data";
-import { STORY, slotPx, type StageLayout } from "../three/briefcase/story";
+import { STORY, cardLayout, slotPx, type StageLayout } from "../three/briefcase/story";
 
 const BriefcaseScene = lazy(() => import("../three/briefcase/BriefcaseScene"));
 
-const ICONS: Record<string, LucideIcon> = {
-  contratos: FileText,
-  notario: UserCheck,
-  certificaciones: ShieldCheck,
-  traduccion: Languages,
-  fotos: Camera,
-  impresion: Printer,
-  impuestos: Landmark,
-  tienda: ShoppingBag,
-  mensajeria: Send,
-};
-
-const SHEET_DATA = SERVICES.map((s) => ({ name: s.name, description: s.description }));
+const SHEET_DATA = SERVICES.map((s) => ({ name: s.name, description: s.description, image: s.image }));
 
 function hasWebGL(): boolean {
   try {
@@ -52,28 +39,31 @@ function useLayout(stage: React.RefObject<HTMLDivElement | null>): StageLayout {
     ro.observe(stage.current);
     return () => ro.disconnect();
   }, [stage]);
-  return useMemo(() => {
-    const compact = size.w < 700;
-    const gap = compact ? 10 : 18;
-    const cardW = compact ? Math.floor((size.w - 32 - 2 * gap) / 3) : Math.min(300, Math.floor((size.w - 64 - 2 * gap) / 3));
-    const cardH = compact ? 118 : 150;
-    return { stageW: size.w, stageH: size.h, cardW, cardH, gap, compact, mobile: compact };
-  }, [size]);
+  return useMemo(() => cardLayout(size.w, size.h), [size]);
 }
 
-function CardBody({ s, i, compact }: { s: Service; i: number; compact: boolean }) {
-  const Icon = ICONS[s.slug] ?? FileText;
+/** The service's image (it carries the name in big letters), then the name and a line of copy when there is room */
+function CardBody({ s, compact }: { s: Service; compact: boolean }) {
   return (
     <>
-      <div className="flex h-7 shrink-0 items-center justify-between bg-guru px-3 text-[11px] font-bold text-white">
-        <span className="font-display">{String(i + 1).padStart(2, "0")}</span>
-        <span className="opacity-80">GURÚ</span>
-      </div>
-      <div className={`flex flex-1 ${compact ? "flex-col items-center justify-center gap-1.5 px-1.5 text-center" : "flex-col gap-2 p-4"}`}>
-        <Icon className={`${compact ? "h-6 w-6" : "h-7 w-7"} shrink-0 text-guru`} strokeWidth={2.2} />
-        <h3 className={`font-display font-bold uppercase leading-tight ${compact ? "text-[10px]" : "text-[15px]"}`}>{s.name}</h3>
-        {!compact && <p className="line-clamp-2 text-[13px] leading-snug text-ink/70">{s.description}</p>}
-      </div>
+      <img
+        src={s.image}
+        alt=""
+        width={720}
+        height={405}
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+        className={`block aspect-[16/9] w-full shrink-0 object-cover ${compact ? "" : "border-b-2 border-ink"}`}
+      />
+      {compact ? (
+        <h3 className="sr-only">{s.name}</h3>
+      ) : (
+        <div className="flex flex-1 flex-col gap-1 px-3 py-2.5">
+          <h3 className="line-clamp-2 font-display text-[12px] font-bold uppercase leading-[15px]">{s.name}</h3>
+          <p className="line-clamp-2 text-[12.5px] leading-4 text-ink/70">{s.description}</p>
+        </div>
+      )}
     </>
   );
 }
@@ -96,7 +86,7 @@ function CardGrid({ layout, smooth, interactive, gridRef }: { layout: StageLayou
             style={{ width: layout.cardW, height: layout.cardH, left: `calc(50% + ${slot.x - layout.cardW / 2}px)`, top: `calc(50% + ${slot.y - layout.cardH / 2}px)` }}
             className="press absolute flex flex-col overflow-hidden rounded-2xl border-2 border-ink bg-white shadow-[4px_4px_0_0_#0b0b0c] hover:shadow-[7px_7px_0_0_#1f3dff]"
           >
-            <CardBody s={s} i={i} compact={layout.compact} />
+            <CardBody s={s} compact={layout.compact} />
           </a>
         );
       })}
@@ -106,18 +96,12 @@ function CardGrid({ layout, smooth, interactive, gridRef }: { layout: StageLayou
 
 function StaticGrid() {
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-      {SERVICES.map((s, i) => {
-        const Icon = ICONS[s.slug] ?? FileText;
-        return (
-          <a key={s.slug} href={whatsappLink(`Hola Gurú, quiero cotizar: ${s.name}.`)} target="_blank" rel="noopener" className="brut press flex flex-col gap-2 rounded-2xl bg-white p-4">
-            <span className="font-display text-xs font-bold text-ink/50">{String(i + 1).padStart(2, "0")}</span>
-            <Icon className="h-7 w-7 text-guru" />
-            <h3 className="font-display text-sm font-bold uppercase">{s.name}</h3>
-            <p className="text-sm text-ink/70">{s.description}</p>
-          </a>
-        );
-      })}
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+      {SERVICES.map((s) => (
+        <a key={s.slug} href={whatsappLink(`Hola Gurú, quiero cotizar: ${s.name}.`)} target="_blank" rel="noopener" className="brut press flex flex-col overflow-hidden rounded-2xl bg-white">
+          <CardBody s={s} compact={false} />
+        </a>
+      ))}
     </div>
   );
 }
@@ -162,7 +146,6 @@ function PinnedSection({ onFail }: { onFail: () => void }) {
   const [interactive, setInteractive] = useState(false);
   const [near, setNear] = useState(false);
   const [active, setActive] = useState(false);
-  const [icons, setIcons] = useState<(string | undefined)[]>([]);
   useMotionValueEvent(progress, "change", (v) => setInteractive(v >= STORY.interactive));
   const hint = useTransform(progress, [0, 0.1], [1, 0]);
 
@@ -180,13 +163,6 @@ function PinnedSection({ onFail }: { onFail: () => void }) {
     return () => io.disconnect();
   }, []);
 
-  // copy the lucide glyphs from the HTML cards so the 3D sheets carry the exact same icons
-  useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-    setIcons(SERVICES.map((s) => el.querySelector(`[data-slug="${s.slug}"] svg`)?.outerHTML));
-  }, []);
-
   return (
     <section id="servicios" ref={section} className="relative h-[250vh] border-y-2 border-ink bg-paper-2">
       <div className="sticky top-16 flex h-[calc(100svh-4rem)] flex-col overflow-hidden md:top-20 md:h-[calc(100svh-5rem)]">
@@ -201,7 +177,7 @@ function PinnedSection({ onFail }: { onFail: () => void }) {
           {near && (
             <SceneBoundary onError={onFail}>
               <Suspense fallback={null}>
-                <BriefcaseScene progress={progress} smooth={smooth} layout={layout} data={SHEET_DATA} icons={icons} active={active} />
+                <BriefcaseScene progress={progress} smooth={smooth} layout={layout} data={SHEET_DATA} active={active} />
               </Suspense>
             </SceneBoundary>
           )}

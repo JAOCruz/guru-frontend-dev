@@ -260,36 +260,35 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number, ma
 }
 
 export interface SheetSpec {
-  index: number;
   name: string;
   description: string;
-  /** Serialized lucide SVG copied from the HTML card so the glyph matches exactly */
-  iconSvg?: string;
+  /** The service's 16:9 image (same file as the HTML card) */
+  image: string;
   cardW: number;
   cardH: number;
   compact: boolean;
 }
 
-const iconCache = new Map<string, Promise<HTMLImageElement>>();
-function loadIcon(svg: string): Promise<HTMLImageElement> {
-  let p = iconCache.get(svg);
+const imageCache = new Map<string, Promise<HTMLImageElement>>();
+function loadImage(src: string): Promise<HTMLImageElement> {
+  let p = imageCache.get(src);
   if (!p) {
     p = new Promise((resolve, reject) => {
       const img = new Image();
+      img.decoding = "async";
       img.onload = () => resolve(img);
       img.onerror = reject;
-      const painted = svg.replace(/stroke="currentColor"/g, `stroke="${GURU}"`).replace(/fill="currentColor"/g, `fill="${GURU}"`);
-      img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(painted)}`;
+      img.src = src;
     });
-    iconCache.set(svg, p);
+    imageCache.set(src, p);
   }
   return p;
 }
 
 /**
  * Draws one service sheet so it matches the HTML card pixel for pixel
- * (2px ink border, 16px radius, blue header with number + GURÚ, icon, title, copy).
- * Resolves once the icon image is drawn; text is drawn synchronously.
+ * (2px ink border, 16px radius, the service image on top, then title + copy unless compact).
+ * Text is drawn at once; resolves after the image is drawn.
  */
 export async function drawSheet(c: HTMLCanvasElement, spec: SheetSpec): Promise<void> {
   const S = c.width / spec.cardW;
@@ -304,78 +303,54 @@ export async function drawSheet(c: HTMLCanvasElement, spec: SheetSpec): Promise<
   roundRect(ctx, 2 * S, 2 * S, W - 4 * S, H - 4 * S, 14 * S);
   ctx.fillStyle = "#ffffff";
   ctx.fill();
-  ctx.save();
-  ctx.clip();
-  // header
-  const headH = 28 * S;
-  ctx.fillStyle = GURU;
-  ctx.fillRect(2 * S, 2 * S, W - 4 * S, headH);
-  ctx.fillStyle = "#ffffff";
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "left";
-  ctx.font = `700 ${11 * S}px Unbounded, system-ui, sans-serif`;
-  ctx.fillText(String(spec.index + 1).padStart(2, "0"), 14 * S, 2 * S + headH / 2 + 0.5 * S);
-  ctx.textAlign = "right";
-  ctx.font = `700 ${11 * S}px "Inter Tight", system-ui, sans-serif`;
-  ctx.globalAlpha = 0.8;
-  ctx.fillText("GURÚ", W - 14 * S, 2 * S + headH / 2 + 0.5 * S);
-  ctx.globalAlpha = 1;
-  ctx.restore();
 
-  const bodyTop = 2 * S + headH;
-  const bodyH = H - 2 * S - bodyTop;
-  let iconBox = { x: 0, y: 0, size: 28 * S };
-  if (spec.compact) {
-    // centred column: icon 24, gap 6, title 10px (≤3 lines)
-    ctx.textAlign = "center";
-    ctx.textBaseline = "alphabetic";
-    ctx.font = `700 ${10 * S}px Unbounded, system-ui, sans-serif`;
-    const lines = wrapLines(ctx, spec.name.toUpperCase(), W - 4 * S - 12 * S, 3);
-    const lh = 12.5 * S;
-    const total = 24 * S + 6 * S + lines.length * lh;
-    let y = bodyTop + (bodyH - total) / 2;
-    iconBox = { x: W / 2 - 12 * S, y, size: 24 * S };
-    y += 24 * S + 6 * S;
-    ctx.fillStyle = INK;
-    for (const l of lines) {
-      ctx.fillText(l, W / 2, y + lh * 0.78);
-      y += lh;
+  const innerW = W - 4 * S;
+  const imgH = innerW * (9 / 16);
+  // until the image arrives, a brand-blue block holds its place
+  const paintImage = (img?: HTMLImageElement) => {
+    ctx.save();
+    roundRect(ctx, 2 * S, 2 * S, innerW, H - 4 * S, 14 * S);
+    ctx.clip();
+    if (img) ctx.drawImage(img, 2 * S, 2 * S, innerW, imgH);
+    else {
+      ctx.fillStyle = GURU;
+      ctx.fillRect(2 * S, 2 * S, innerW, imgH);
     }
-  } else {
-    const pad = 16 * S;
-    const x = 2 * S + pad;
-    let y = bodyTop + pad;
-    iconBox = { x, y, size: 28 * S };
-    y += 28 * S + 8 * S;
+    ctx.restore();
+  };
+  paintImage();
+
+  if (!spec.compact) {
+    // image bottom rule, then the body (px-3 py-2.5, title 12/15 ×2, gap 4, copy 12.5/16 ×2)
+    ctx.fillStyle = INK;
+    ctx.fillRect(2 * S, 2 * S + imgH, innerW, 2 * S);
+    const x = 2 * S + 12 * S;
+    const maxW = innerW - 24 * S;
+    let y = 2 * S + imgH + 2 * S + 10 * S;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.font = `700 ${15 * S}px Unbounded, system-ui, sans-serif`;
-    const maxW = W - 4 * S - 2 * pad;
-    const title = wrapLines(ctx, spec.name.toUpperCase(), maxW, 2);
-    const tlh = 18.75 * S;
+    ctx.font = `700 ${12 * S}px Unbounded, system-ui, sans-serif`;
     ctx.fillStyle = INK;
-    for (const l of title) {
-      ctx.fillText(l, x, y + tlh * 0.78);
+    const tlh = 15 * S;
+    for (const l of wrapLines(ctx, spec.name.toUpperCase(), maxW, 2)) {
+      ctx.fillText(l, x, y + tlh * 0.8);
       y += tlh;
     }
-    y += 8 * S;
-    ctx.font = `400 ${13 * S}px "Inter Tight", system-ui, sans-serif`;
+    y += 4 * S;
+    ctx.font = `400 ${12.5 * S}px "Inter Tight", system-ui, sans-serif`;
     ctx.fillStyle = "rgba(11,11,12,0.7)";
-    const dlh = 17.9 * S;
-    const desc = wrapLines(ctx, spec.description, maxW, 2);
-    for (const l of desc) {
-      if (y + dlh > H - 2 * S - 6 * S) break;
-      ctx.fillText(l, x, y + dlh * 0.76);
+    const dlh = 16 * S;
+    for (const l of wrapLines(ctx, spec.description, maxW, 2)) {
+      if (y + dlh > H - 2 * S) break;
+      ctx.fillText(l, x, y + dlh * 0.78);
       y += dlh;
     }
   }
-  if (spec.iconSvg) {
-    try {
-      const img = await loadIcon(spec.iconSvg);
-      ctx.drawImage(img, iconBox.x, iconBox.y, iconBox.size, iconBox.size);
-    } catch {
-      /* the glyph is decorative; the title carries the meaning */
-    }
+
+  try {
+    paintImage(await loadImage(spec.image));
+  } catch {
+    /* the blue block stays; the title carries the meaning */
   }
 }
 

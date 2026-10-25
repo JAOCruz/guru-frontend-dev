@@ -13,9 +13,9 @@ export const STORY = {
   riseStart: 0.28,
   riseStagger: 0.034,
   riseDur: 0.15,
-  /** sheets fly to the 3×3 grid */
+  /** sheets fly to the grid (5×2 on wide screens, 2×5 on phones) */
   gridStart: 0.705,
-  gridStagger: 0.013,
+  gridStagger: 0.011,
   gridDur: 0.17,
   /** the case drops out of frame */
   caseExit: [0.66, 0.84] as const,
@@ -25,7 +25,10 @@ export const STORY = {
   interactive: 0.95,
 };
 
-export const SHEETS = 9;
+import { SERVICES } from "../../data";
+
+/** One sheet per service */
+export const SHEETS = SERVICES.length;
 
 export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 /** 0→1 as p goes a→b */
@@ -53,13 +56,47 @@ export interface StageLayout {
   cardW: number;
   cardH: number;
   gap: number;
+  /** image only, no title or copy (narrow cards) */
   compact: boolean;
   mobile: boolean;
+  cols: number;
 }
 
-/** Card centre in px from the stage centre (x right, y down) */
-export function slotPx(layout: StageLayout, i: number) {
-  const col = i % 3;
-  const row = Math.floor(i / 3);
-  return { x: (col - 1) * (layout.cardW + layout.gap), y: (row - 1) * (layout.cardH + layout.gap) };
+/** Card centre in px from the stage centre (x right, y down); a short last row is centred */
+export function slotPx(layout: StageLayout, i: number, count = SHEETS) {
+  const { cols } = layout;
+  const rows = Math.ceil(count / cols);
+  const row = Math.floor(i / cols);
+  const inRow = Math.min(cols, count - row * cols);
+  const col = i % cols;
+  return {
+    x: (col - (inRow - 1) / 2) * (layout.cardW + layout.gap),
+    y: (row - (rows - 1) / 2) * (layout.cardH + layout.gap),
+  };
+}
+
+/** Body below the image on full cards: title (2 lines) + copy (2 lines) */
+export const CARD_BODY_H = 92;
+
+/**
+ * Card size for a stage: 5 columns on wide screens, 2 on phones, each card a 16:9 service image
+ * (plus its title and copy when there is room), shrunk until every row fits the stage height.
+ */
+export function cardLayout(w: number, h: number, count = SHEETS): StageLayout {
+  const mobile = w < 640;
+  const cols = mobile ? 2 : 5;
+  const gap = mobile ? 10 : 18;
+  const rows = Math.ceil(count / cols);
+  let cardW = mobile ? Math.floor((w - 32 - (cols - 1) * gap) / cols) : Math.min(250, Math.floor((w - 64 - (cols - 1) * gap) / cols));
+  const heightOf = (cw: number) => {
+    const compact = cw < 200;
+    return { compact, cardH: Math.round((cw - 4) * (9 / 16)) + 4 + (compact ? 0 : CARD_BODY_H) };
+  };
+  let { compact, cardH } = heightOf(cardW);
+  const room = h * 0.94;
+  while (cardW > 80 && rows * cardH + (rows - 1) * gap > room) {
+    cardW -= 4;
+    ({ compact, cardH } = heightOf(cardW));
+  }
+  return { stageW: w, stageH: h, cardW, cardH, gap, compact, mobile, cols };
 }

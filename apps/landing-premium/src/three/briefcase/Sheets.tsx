@@ -11,6 +11,7 @@ export interface SheetsHandle {
 export interface SheetData {
   name: string;
   description: string;
+  image: string;
 }
 
 const VERT = /* glsl */ `
@@ -69,12 +70,10 @@ export function Sheets({
   ref,
   layout,
   data,
-  icons,
 }: {
   ref?: Ref<SheetsHandle>;
   layout: StageLayout;
   data: SheetData[];
-  icons: (string | undefined)[];
 }) {
   const { cardW, cardH, compact, mobile } = layout;
   const ratio = cardH / cardW;
@@ -115,7 +114,7 @@ export function Sheets({
     [textures, backTex],
   );
 
-  // draw the sheet faces (waits for the brand fonts + the icon SVGs from the HTML cards)
+  // draw the sheet faces (redrawn once the brand fonts are in; each image lands when it loads)
   useEffect(() => {
     let alive = true;
     const paint = () => {
@@ -123,10 +122,9 @@ export function Sheets({
         const d = data[i];
         if (!d) return;
         drawSheet(t.image as HTMLCanvasElement, {
-          index: i,
           name: d.name,
           description: d.description,
-          iconSvg: icons[i],
+          image: d.image,
           cardW,
           cardH,
           compact,
@@ -141,7 +139,7 @@ export function Sheets({
     return () => {
       alive = false;
     };
-  }, [textures, data, icons, cardW, cardH, compact]);
+  }, [textures, data, cardW, cardH, compact]);
 
   useEffect(
     () => () => {
@@ -160,7 +158,7 @@ export function Sheets({
     const spread = mobile ? 0.06 : 0.2;
     const seed = (i: number) => Math.sin(i * 12.9898) * 43758.5453 - Math.floor(Math.sin(i * 12.9898) * 43758.5453);
     return Array.from({ length: SHEETS }, (_, i) => {
-      const k = i - 4;
+      const k = i - (SHEETS - 1) / 2;
       return {
         inCase: new THREE.Vector3((seed(i) - 0.5) * 0.02, CASE.floorY + 0.004 + (SHEETS - 1 - i) * 0.0035, (seed(i + 7) - 0.5) * 0.02),
         inCaseYaw: (seed(i + 3) - 0.5) * 0.08,
@@ -209,7 +207,7 @@ export function Sheets({
           _q.copy(_qFlat).slerp(_qFan, easeOutCubic(Math.min(1, r * 1.35)));
           let scale = lerp(pose.inCaseScale, fanScale, rise);
 
-          // 2. fan → 3×3 grid in camera space (exactly where the HTML cards sit)
+          // 2. fan → grid in camera space (exactly where the HTML cards sit)
           if (gt > 0) {
             const slot = slotPx(layout, i);
             _v2.set(slot.x * wpp, -slot.y * wpp, -GRID_Z);

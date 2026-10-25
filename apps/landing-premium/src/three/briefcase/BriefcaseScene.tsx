@@ -15,7 +15,6 @@ export interface BriefcaseSceneProps {
   smooth: MotionValue<number>;
   layout: StageLayout;
   data: SheetData[];
-  icons: (string | undefined)[];
   active: boolean;
 }
 
@@ -73,7 +72,7 @@ function bindPointer() {
   );
 }
 
-function Rig({ progress, smooth, layout, data, icons }: Omit<BriefcaseSceneProps, "active">) {
+function Rig({ progress, smooth, layout, data }: Omit<BriefcaseSceneProps, "active">) {
   const caseRef = useRef<BriefcaseHandle>(null);
   const sheetsRef = useRef<SheetsHandle>(null);
   const stage = useRef<THREE.Group>(null);
@@ -129,7 +128,7 @@ function Rig({ progress, smooth, layout, data, icons }: Omit<BriefcaseSceneProps
   return (
     <group ref={stage}>
       <Briefcase ref={caseRef} mobile={layout.mobile} />
-      <Sheets ref={sheetsRef} layout={layout} data={data} icons={icons} />
+      <Sheets ref={sheetsRef} layout={layout} data={data} />
     </group>
   );
 }

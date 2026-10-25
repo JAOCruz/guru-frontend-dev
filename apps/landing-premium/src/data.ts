@@ -19,6 +19,7 @@ export const SERVICES: Service[] = [
   { slug: "contratos", name: "Digitación de Contratos", description: "Contratos legales redactados con máxima precisión y rapidez.", image: "/img/digitacion_contratos.webp" },
   { slug: "notario", name: "Abogado Notario", description: "Notarización y asesoría legal por abogados certificados.", image: "/img/abogado_notario.webp" },
   { slug: "certificaciones", name: "Solicitud de Certificaciones", description: "Gestionamos certificaciones digitales y legales en instituciones públicas.", image: "/img/solicitud_certificaciones.webp" },
+  { slug: "apostille", name: "Certificación Apostille (Cancillería)", description: "Apostillamos tus documentos en Cancillería para usarlos en el extranjero.", image: "/img/apostille_cancilleria.webp" },
   { slug: "traduccion", name: "Traducción e Intérprete Judicial", description: "Traducción profesional de documentos legales en varios idiomas.", image: "/img/traduccion.webp" },
   { slug: "fotos", name: "Fotos 2x2", description: "Fotografía profesional para documentos oficiales y trámites.", image: "/img/fotos_2x2.webp" },
   { slug: "impresion", name: "Servicio de Impresión", description: "Impresión de alta calidad para contratos y certificaciones.", image: "/img/impresion.webp" },
