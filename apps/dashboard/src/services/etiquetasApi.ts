@@ -26,6 +26,35 @@ export interface TagVersion {
   origin_client?: string | null;
   approved_at: string | null;
   approved_by_name: string | null;
+  corrections?: { id: number; comment: string; created_by_name: string | null }[]; // admin: the corrections it applied
+}
+
+export type CorrectionStatus = "pending" | "applied" | "dismissed";
+
+// What someone reported as wrong (or could be better) in a model, and how the admin resolved it
+export interface Correction {
+  id: number;
+  template_id: number;
+  version_id: number | null;
+  version_number: number | null;
+  excerpt: string | null;
+  comment: string;
+  status: CorrectionStatus;
+  created_by_name: string | null;
+  created_at: string;
+  resolved_by_name: string | null;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  resulting_version_number: number | null;
+}
+
+export interface DeletedModel {
+  id: number;
+  name: string;
+  category: string | null;
+  deleted_at: string;
+  deleted_by_name: string | null;
+  was_approved: boolean;
 }
 
 export interface TagModel {
@@ -45,6 +74,7 @@ export interface TagSummaryModel {
   status: TagStatus;
   latest_version: number | null;
   taggable: boolean;
+  pending_corrections: number;
 }
 
 export interface TagBatch {
@@ -83,7 +113,8 @@ export const etiquetasAPI = {
     api.post<{ version: { id: number; version_number: number }; model_name: string; client_data_left: number[] }>(
       `/documentos/tags/documents/${documentId}/as-model`, {}, { timeout: 180_000 },
     ),
-  edit: (id: number, body: { base_version_id: number; ops: TagEditOp[]; notes?: string }) =>
+  // correction_id: the reported correction this save applies
+  edit: (id: number, body: { base_version_id: number; ops: TagEditOp[]; notes?: string; correction_id?: number }) =>
     api.post<{ model: TagModel }>(`/documentos/tags/models/${id}/edit`, body),
   aiEdit: (id: number, instructions: string) =>
     api.post<{ base_version_id: number; changes: AiChange[] }>(`/documentos/tags/models/${id}/ai-edit`, { instructions }, { timeout: 180_000 }),
@@ -99,6 +130,15 @@ export const etiquetasAPI = {
     data.files.forEach((f) => fd.append("files", f));
     return api.post<{ values: Record<string, string> }>(`/documentos/tags/models/${id}/extract`, fd, { timeout: 180_000 });
   },
+  corrections: (id: number) => api.get<{ corrections: Correction[] }>(`/documentos/tags/models/${id}/corrections`),
+  report: (id: number, body: { comment: string; excerpt?: string | null; version_id?: number }) =>
+    api.post<{ correction: Correction }>(`/documentos/tags/models/${id}/corrections`, body),
+  dismiss: (correctionId: number, note: string) =>
+    api.post<{ correction: Correction }>(`/documentos/tags/corrections/${correctionId}/dismiss`, { note }),
+  // trash: hidden everywhere until restored
+  remove: (id: number) => api.delete(`/documentos/tags/models/${id}`),
+  deleted: () => api.get<{ models: DeletedModel[] }>("/documentos/tags/deleted"),
+  undelete: (id: number) => api.post(`/documentos/tags/models/${id}/undelete`),
   profile: (clientId: number) => api.get<{ profile: Record<string, string> }>(`/documentos/clients/${clientId}/profile`),
 };
 
@@ -108,6 +148,12 @@ export const STATUS_LABEL: Record<TagStatus, string> = {
   untagged: "Sin etiquetar",
   pending: "Pendiente de revisión",
   approved: "Aprobado",
+};
+
+export const CORRECTION_LABEL: Record<CorrectionStatus, string> = {
+  pending: "Pendiente",
+  applied: "Aplicada",
+  dismissed: "Descartada",
 };
 
 export const groupLabel = (g: string) => (g === "DOCUMENTO" ? "Datos generales" : g.charAt(0) + g.slice(1).toLowerCase().replace(/_/g, " "));

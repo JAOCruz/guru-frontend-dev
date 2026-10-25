@@ -4,7 +4,7 @@ import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-li
 import { forwardRef, useImperativeHandle } from "react";
 
 const { tags, docs, scrollTo, dialogs } = vi.hoisted(() => ({
-  tags: { model: vi.fn(), fill: vi.fn(), edit: vi.fn(), approve: vi.fn(), restore: vi.fn(), profile: vi.fn(), extract: vi.fn(), aiEdit: vi.fn() },
+  tags: { model: vi.fn(), fill: vi.fn(), edit: vi.fn(), approve: vi.fn(), restore: vi.fn(), profile: vi.fn(), extract: vi.fn(), aiEdit: vi.fn(), corrections: vi.fn(), report: vi.fn(), dismiss: vi.fn() },
   docs: { searchAllClients: vi.fn(), createClient: vi.fn() },
   scrollTo: vi.fn(() => 2),
   dialogs: { confirmDialog: vi.fn((_msg: string, _opts?: unknown) => Promise.resolve(true)), notify: vi.fn() },
@@ -50,6 +50,7 @@ beforeEach(() => {
   dialogs.confirmDialog.mockClear();
   docs.searchAllClients.mockResolvedValue({ data: { clients: [{ id: 1, name: "Juan Pérez", phone: "1809" }, { id: 2, name: "Ana Díaz", phone: "1829" }] } });
   tags.profile.mockResolvedValue({ data: { profile: { NOMBRE: "JUAN PÉREZ" } } });
+  tags.corrections.mockResolvedValue({ data: { corrections: [] } });
 });
 afterEach(cleanup);
 
@@ -270,5 +271,61 @@ describe("Revisión de etiquetas (admin)", () => {
       notes: "IA: Agrega la nacionalidad del vendedor",
       ops: [{ op: "para", i: 1, from: "Yo, {{NOMBRE_VENDEDOR}}, vendo.", to: "Yo, {{NOMBRE_VENDEDOR}}, de nacionalidad {{NACIONALIDAD_VENDEDOR}}, vendo." }],
     }));
+  });
+});
+
+const REPORTED = {
+  id: 5, template_id: 7, version_id: 13, version_number: 3, excerpt: "vendo", comment: "Debe decir vendo y traspaso", status: "pending",
+  created_by_name: "Maribel", created_at: "2026-10-20T14:00:00Z", resolved_by_name: null, resolved_at: null, resolution_note: null, resulting_version_number: null,
+};
+
+describe("Correcciones", () => {
+  const V3 = { ...V2, id: 13, version_number: 3, source: "ai", approved_at: null, approved_by_name: null, skipped: [] };
+  const PENDING = { id: 7, name: "ACTO DE VENTA", category: "Vehículos", status: "pending", current: V3, approved: V2, versions: [V3, V2] };
+
+  it("Corregir: the selected text goes with the report", async () => {
+    tags.model.mockResolvedValue({ data: { model: APPROVED } });
+    tags.report.mockResolvedValue({ data: { correction: REPORTED } });
+    render(<TagEditor modelId={7} mode="correct" onClose={() => {}} />);
+    expect(await screen.findByText("Corregir modelo")).toBeTruthy();
+    expect(screen.queryByText(/llenas/)).toBeNull(); // no fields to fill here
+    lastSelect!({ text: "Yo vendo.", offset: 3, length: 5, occurrence: 0, selected: "vendo", hasTags: false });
+    expect(await screen.findByText(/«vendo»/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/qué está mal/i), { target: { value: "Debe decir vendo y traspaso" } });
+    fireEvent.click(screen.getByRole("button", { name: /enviar corrección/i }));
+    await waitFor(() => expect(tags.report).toHaveBeenCalledWith(7, { comment: "Debe decir vendo y traspaso", excerpt: "vendo", version_id: 12 }));
+  });
+
+  it("from Llenar, «Reportar corrección» switches to correcting and back", async () => {
+    tags.model.mockResolvedValue({ data: { model: APPROVED } });
+    render(<TagEditor modelId={7} mode="fill" onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /reportar corrección/i }));
+    expect(screen.getByText("Corregir modelo")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /volver a llenar/i }));
+    expect(screen.getByText("0 de 4 llenas")).toBeTruthy();
+  });
+
+  it("the admin corrects with AI: the instructions come from the report and the save marks it applied", async () => {
+    tags.model.mockResolvedValue({ data: { model: PENDING } });
+    tags.corrections.mockResolvedValue({ data: { corrections: [REPORTED] } });
+    tags.aiEdit.mockResolvedValue({ data: { base_version_id: 13, changes: [
+      { op: "para", i: 1, from: "Yo, {{NOMBRE_VENDEDOR}}, vendo.", to: "Yo, {{NOMBRE_VENDEDOR}}, vendo y traspaso.", tags_added: [], tags_removed: [] },
+    ] } });
+    tags.edit.mockResolvedValue({ data: { model: { ...PENDING, current: { ...V3, id: 14, version_number: 4 } } } });
+    render(<TagEditor modelId={7} mode="review" onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /corregir con ia/i }));
+    expect((screen.getByLabelText(/cambios legales/i) as HTMLTextAreaElement).value).toBe("En la parte «vendo»: Debe decir vendo y traspaso");
+    expect(screen.getByText(/aplicando la corrección de maribel/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /proponer cambios/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /guardar como v4 \(1 cambio\)/i }));
+    await waitFor(() => expect(tags.edit).toHaveBeenCalledWith(7, expect.objectContaining({ base_version_id: 13, correction_id: 5 })));
+    await waitFor(() => expect(screen.queryByText(/aplicando la corrección/i)).toBeNull());
+  });
+
+  it("each version lists the corrections it applied", async () => {
+    const withFix = { ...V3, corrections: [{ id: 5, comment: "Debe decir vendo y traspaso", created_by_name: "Maribel" }] };
+    tags.model.mockResolvedValue({ data: { model: { ...PENDING, current: withFix, versions: [withFix, ...PENDING.versions.slice(1)] } } });
+    render(<TagEditor modelId={7} mode="review" onClose={() => {}} />);
+    expect(await screen.findByText(/corrige: debe decir vendo y traspaso \(maribel\)/i)).toBeTruthy();
   });
 });

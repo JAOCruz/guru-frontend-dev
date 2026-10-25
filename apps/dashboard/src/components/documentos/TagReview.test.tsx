@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
 
 const { tags, dialogs } = vi.hoisted(() => ({
-  tags: { summary: vi.fn(), startBatch: vi.fn(), aiTag: vi.fn() },
+  tags: { summary: vi.fn(), startBatch: vi.fn(), aiTag: vi.fn(), remove: vi.fn(), deleted: vi.fn(), undelete: vi.fn() },
   dialogs: { confirmDialog: vi.fn(() => Promise.resolve(true)), notify: vi.fn() },
 }));
 vi.mock("../../services/etiquetasApi", async (orig) => ({ ...(await orig<object>()), etiquetasAPI: tags }));
@@ -16,7 +16,7 @@ import TagReview from "./TagReview";
 
 const IDLE = { running: false, total: 0, done: 0, failed: [], current: null, finished_at: null };
 const MODELS = [
-  { id: 1, name: "ACTO DE VENTA", category: "Vehículos", status: "approved", latest_version: 2, taggable: true },
+  { id: 1, name: "ACTO DE VENTA", category: "Vehículos", status: "approved", latest_version: 2, taggable: true, pending_corrections: 2 },
   { id: 2, name: "PODER", category: "Poderes", status: "pending", latest_version: 1, taggable: true },
   { id: 3, name: "CONTRATO", category: "Alquiler", status: "untagged", latest_version: null, taggable: true },
   { id: 4, name: "VIEJO", category: "Otros", status: "untagged", latest_version: null, taggable: false },
@@ -76,5 +76,29 @@ describe("Revisión de etiquetas", () => {
     expect(dialogs.confirmDialog).toHaveBeenCalled();
     expect(await screen.findByText(/1 de 2/)).toBeTruthy();
     expect(screen.getByText(/contrato/i, { selector: "span" })).toBeTruthy();
+  });
+
+  it("shows pending corrections per model and filters by them", async () => {
+    render(<TagReview />);
+    expect(await screen.findByText("2 correcciones")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /con correcciones pendientes \(1\)/i }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("ACTO DE VENTA")).toBeTruthy();
+  });
+
+  it("Eliminar asks first and moves the model to Eliminados, where it can be restored", async () => {
+    tags.remove.mockResolvedValue({});
+    tags.deleted.mockResolvedValue({ data: { models: [{ id: 2, name: "PODER", category: "Poderes", deleted_at: "2026-10-24T15:00:00Z", deleted_by_name: "Leandro", was_approved: false }] } });
+    tags.undelete.mockResolvedValue({});
+    render(<TagReview />);
+    fireEvent.click(await screen.findByRole("button", { name: "Eliminar PODER" }));
+    await waitFor(() => expect(tags.remove).toHaveBeenCalledWith(2));
+    expect((dialogs.confirmDialog.mock.calls[0] as unknown[])[1]).toMatchObject({ danger: true });
+
+    fireEvent.click(screen.getByRole("button", { name: /eliminados/i }));
+    const trash = await screen.findByRole("list", { name: "Eliminados" });
+    expect(within(trash).getByText(/eliminado por leandro/i)).toBeTruthy();
+    fireEvent.click(within(trash).getByRole("button", { name: /restaurar/i }));
+    await waitFor(() => expect(tags.undelete).toHaveBeenCalledWith(2));
   });
 });

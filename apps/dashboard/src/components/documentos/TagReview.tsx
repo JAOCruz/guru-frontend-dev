@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { FileText, Search, Sparkles, Tag } from "lucide-react";
+import { ArchiveRestore, FileText, MessageSquareWarning, Search, Sparkles, Tag, Trash2 } from "lucide-react";
 import { NeoButton } from "@guru/ui";
-import { etiquetasAPI, STATUS_LABEL, type TagBatch, type TagStatus, type TagSummaryModel } from "../../services/etiquetasApi";
+import { etiquetasAPI, STATUS_LABEL, type DeletedModel, type TagBatch, type TagStatus, type TagSummaryModel } from "../../services/etiquetasApi";
 import { confirmDialog, notify } from "../../lib/dialogs";
 import TagEditor from "./TagEditor";
 
@@ -23,6 +23,7 @@ export default function TagReview({ initialModel }: { initialModel?: number | nu
   const [q, setQ] = useState("");
   const [tagging, setTagging] = useState<number | null>(null);
   const [open, setOpen] = useState<number | null>(initialModel ?? null);
+  const [trash, setTrash] = useState<DeletedModel[] | null>(null); // the "Eliminados" view when not null
 
   const load = useCallback(
     () =>
@@ -77,7 +78,42 @@ export default function TagReview({ initialModel }: { initialModel?: number | nu
     }
   };
 
-  const list = models.filter((m) => (!filter || m.status === filter) && (!q.trim() || norm(`${m.name} ${m.category || ""}`).includes(norm(q.trim()))));
+  const loadTrash = () =>
+    etiquetasAPI
+      .deleted()
+      .then(({ data }) => setTrash(data.models))
+      .catch(() => notify("No se pudo cargar Eliminados"));
+
+  const remove = async (m: TagSummaryModel) => {
+    const ok = await confirmDialog(
+      `«${m.name}» dejará de aparecer en Buscar, en la página web y en el bot. Sus versiones se guardan y puedes restaurarlo desde «Eliminados».`,
+      { title: "Eliminar modelo", confirmLabel: "Eliminar", danger: true },
+    );
+    if (!ok) return;
+    try {
+      await etiquetasAPI.remove(m.id);
+      notify(`«${m.name}» se movió a Eliminados`, "success");
+      load();
+    } catch (err: any) {
+      notify(err?.response?.data?.error || "No se pudo eliminar");
+    }
+  };
+
+  const undelete = async (m: DeletedModel) => {
+    try {
+      await etiquetasAPI.undelete(m.id);
+      notify(`«${m.name}» se restauró`, "success");
+      loadTrash();
+      load();
+    } catch (err: any) {
+      notify(err?.response?.data?.error || "No se pudo restaurar");
+    }
+  };
+
+  const withCorrections = models.filter((m) => m.pending_corrections > 0).length;
+  const [onlyCorrections, setOnlyCorrections] = useState(false);
+
+  const list = models.filter((m) => !onlyCorrections || m.pending_corrections > 0).filter((m) => (!filter || m.status === filter) && (!q.trim() || norm(`${m.name} ${m.category || ""}`).includes(norm(q.trim()))));
 
   return (
     <section className="space-y-3">
@@ -121,6 +157,44 @@ export default function TagReview({ initialModel }: { initialModel?: number | nu
         </details>
       ) : null}
 
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          aria-pressed={onlyCorrections}
+          onClick={() => setOnlyCorrections((v) => !v)}
+          className={`flex items-center gap-1 rounded-base border-2 border-border px-3 py-1.5 text-xs font-bold ${onlyCorrections ? "bg-main text-main-foreground" : "bg-background"}`}
+        >
+          <MessageSquareWarning size={14} /> Con correcciones pendientes ({withCorrections})
+        </button>
+        <button
+          type="button"
+          aria-pressed={trash !== null}
+          onClick={() => (trash ? setTrash(null) : loadTrash())}
+          className={`flex items-center gap-1 rounded-base border-2 border-border px-3 py-1.5 text-xs font-bold ${trash ? "bg-main text-main-foreground" : "bg-background"}`}
+        >
+          <Trash2 size={14} /> Eliminados
+        </button>
+      </div>
+
+      {trash ? (
+        <ul aria-label="Eliminados" className="divide-y-2 divide-border/15 overflow-hidden rounded-base border-2 border-border bg-background shadow-shadow">
+          {trash.map((m) => (
+            <li key={m.id} className="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0">
+                <p className="break-words text-sm font-bold">{m.name}</p>
+                <p className="text-xs text-foreground/60">
+                  {m.category || "Sin categoría"} · eliminado por {m.deleted_by_name || "—"} el{" "}
+                  {new Date(m.deleted_at).toLocaleString("es-DO", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" })}
+                </p>
+              </div>
+              <NeoButton size="sm" variant="neutral" onClick={() => undelete(m)}>
+                <ArchiveRestore size={14} /> Restaurar
+              </NeoButton>
+            </li>
+          ))}
+          {!trash.length && <p className="px-4 py-8 text-center text-sm text-foreground/60">No hay modelos eliminados.</p>}
+        </ul>
+      ) : (<>
       <div className="relative">
         <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50" />
         <input
@@ -143,10 +217,15 @@ export default function TagReview({ initialModel }: { initialModel?: number | nu
                   {m.category || "Sin categoría"}
                   <span className={`ml-2 rounded-base border border-border px-1.5 py-px font-bold ${TONE[m.status]}`}>{STATUS_LABEL[m.status]}</span>
                   {m.latest_version && <span className="ml-1 font-semibold">v{m.latest_version}</span>}
+                  {m.pending_corrections > 0 && (
+                    <span className="ml-2 rounded-base border border-border bg-amber-200 px-1.5 py-px font-bold text-amber-900">
+                      {m.pending_corrections} {m.pending_corrections === 1 ? "corrección" : "correcciones"}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
-            <div className="flex shrink-0 gap-1.5">
+            <div className="flex shrink-0 flex-wrap gap-1.5">
               {m.status === "untagged" ? (
                 m.taggable ? (
                   <NeoButton size="sm" onClick={() => aiTag(m)} disabled={tagging !== null || !!batch?.running}>
@@ -160,13 +239,17 @@ export default function TagReview({ initialModel }: { initialModel?: number | nu
                   <Tag size={14} /> Revisar
                 </NeoButton>
               )}
+              <NeoButton size="sm" variant="neutral" onClick={() => remove(m)} aria-label={`Eliminar ${m.name}`} title="Eliminar (va a Eliminados)">
+                <Trash2 size={14} />
+              </NeoButton>
             </div>
           </li>
         ))}
         {counts && !list.length && <p className="px-4 py-8 text-center text-sm text-foreground/60">No hay modelos con ese filtro.</p>}
       </ul>
+      </>)}
 
-      {open !== null && <TagEditor modelId={open} mode="review" onClose={() => setOpen(null)} onChanged={load} />}
+      {open !== null && <TagEditor modelId={open} mode="review" onClose={() => { setOpen(null); load(); }} onChanged={load} />}
     </section>
   );
 }

@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Circle, FileDown, Paperclip, PencilLine, RotateCcw, Save, Sparkles, Tag, Trash2, X } from "lucide-react";
+import { CheckCircle2, Circle, FileDown, MessageSquareWarning, Paperclip, PencilLine, RotateCcw, Save, Sparkles, Tag, Trash2, X } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { fieldCls, labelCls } from "../users/Modal";
 import { ClientPicker } from "./UploadDialog";
 import DocxView, { type DocSelection, type DocxViewHandle } from "./DocxView";
+import CorrectionsPanel, { aiPromptFor } from "./CorrectionsPanel";
 import { downloadFile, versionFileUrl, type HistoryClient, type PortfolioDocument } from "../../services/documentosApi";
 import {
   etiquetasAPI, groupLabel, isBodyOp, prefillFromProfile, STATUS_LABEL, tagVersionFileUrl,
-  type AiChange, type TagEditOp, type TagMeta, type TagModel, type TagVersion,
+  type AiChange, type Correction, type TagEditOp, type TagMeta, type TagModel, type TagVersion,
 } from "../../services/etiquetasApi";
 import { confirmDialog, notify } from "../../lib/dialogs";
 import { letrasPara } from "../../lib/enLetras";
@@ -15,10 +16,12 @@ import { letrasPara } from "../../lib/enLetras";
 // Documentos · Etiquetas editor. The Word on the left, its tags on the right.
 //  · fill: each tag has a field; typing fills the document live; Generar saves it to the client's history
 //  · review (admin): tag a selection, rename/relabel/remove tags, change the wording (by hand or with
-//    the AI, confirming each change), save as a new version, approve, restore
+//    the AI, confirming each change), save as a new version, approve, restore, apply reported corrections
+//  · correct: anyone points at the part that is wrong or could be better and says what to change
+type Mode = "fill" | "review" | "correct";
 interface Props {
   modelId: number;
-  mode: "fill" | "review";
+  mode: Mode;
   onClose: () => void;
   onSaved?: (doc: PortfolioDocument) => void;
   onChanged?: () => void; // review: the model's status changed
@@ -46,7 +49,8 @@ function applyLocal(tags: TagMeta[], ops: TagEditOp[]): TagMeta[] {
   return out;
 }
 
-export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }: Props) {
+export default function TagEditor({ modelId, mode: initialMode, onClose, onSaved, onChanged }: Props) {
+  const [mode, setMode] = useState<Mode>(initialMode); // fill → correct with "Reportar corrección"
   const [model, setModel] = useState<TagModel | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [viewId, setViewId] = useState<number | null>(null); // review: version shown
@@ -76,6 +80,11 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
   const [aiEditOpen, setAiEditOpen] = useState(false);
   const [instructions, setInstructions] = useState("");
   const [proposal, setProposal] = useState<{ base: number; changes: AiChange[]; keep: boolean[] } | null>(null);
+
+  // corrections: the part pointed at (correct mode) and, in review, the reported one being applied
+  const [excerpt, setExcerpt] = useState<string | null>(null);
+  const [applying, setApplying] = useState<Correction | null>(null);
+  const [corrRefresh, setCorrRefresh] = useState(0);
 
   const load = (next?: TagModel) => {
     const apply = (m: TagModel) => {
@@ -236,8 +245,14 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
   const save = async (list: TagEditOp[], note: string, baseId = model!.current!.id) => {
     setBusy(true);
     try {
-      const { data } = await etiquetasAPI.edit(modelId, { base_version_id: baseId, ops: list, notes: note });
+      const { data } = await etiquetasAPI.edit(modelId, {
+        base_version_id: baseId, ops: list, notes: note, ...(applying ? { correction_id: applying.id } : {}),
+      });
       setNotes("");
+      if (applying) {
+        setApplying(null);
+        setCorrRefresh((n) => n + 1);
+      }
       load(data.model);
       onChanged?.();
       notify(`Guardado como v${data.model.current?.version_number}; queda pendiente de aprobación`, "success");
@@ -246,6 +261,20 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
     } finally {
       setBusy(false);
     }
+  };
+
+  const applyWithText = (c: Correction) => {
+    setApplying(c);
+    setProposal(null);
+    setAiEditOpen(false);
+    notify("Selecciona en el documento el texto a cambiar; al guardar, la corrección queda aplicada", "info");
+  };
+
+  const applyWithAi = (c: Correction) => {
+    setApplying(c);
+    setSelection(null);
+    setInstructions(aiPromptFor(c));
+    setAiEditOpen(true);
   };
 
   const approve = async () => {
@@ -288,7 +317,7 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
       <header className="flex items-center justify-between gap-3 border-b-2 border-border bg-secondary-background px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <Tag size={18} className="shrink-0 text-main" />
-          <span className="truncate text-sm font-bold">{mode === "fill" ? "Llenar documento" : "Revisión de etiquetas"}</span>
+          <span className="truncate text-sm font-bold">{mode === "fill" ? "Llenar documento" : mode === "correct" ? "Corregir modelo" : "Revisión de etiquetas"}</span>
         </div>
         <button type="button" onClick={onClose} aria-label="Cerrar" className="rounded-base border-2 border-border bg-background p-1.5 hover:bg-main/10">
           <X size={18} />
@@ -309,7 +338,7 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
               labels={labels}
               activeKey={active}
               onTagClick={onChip}
-              onSelect={mode === "review" && isLatest && !proposal ? pick : undefined}
+              onSelect={mode === "review" && isLatest && !proposal ? pick : mode === "correct" ? (sel) => setExcerpt(sel?.selected.trim() || null) : undefined}
             />
           </div>
 
@@ -329,6 +358,21 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
                   )}
                 </div>
               </section>
+
+              {mode === "correct" && (
+                <CorrectionsPanel modelId={modelId} versionId={shown.id} admin={false} excerpt={excerpt} onClearExcerpt={() => setExcerpt(null)} />
+              )}
+              {mode === "correct" && initialMode === "fill" && (
+                <button type="button" onClick={() => setMode("fill")} className="text-xs font-semibold underline">
+                  ← Volver a llenar el documento
+                </button>
+              )}
+
+              {mode === "fill" && !saved && (
+                <button type="button" onClick={() => setMode("correct")} className="flex items-center gap-1 text-xs font-semibold text-foreground/70 underline">
+                  <MessageSquareWarning size={13} /> ¿Algo está mal en el modelo? Reportar corrección
+                </button>
+              )}
 
               {mode === "fill" && !saved && (
                 <section className="space-y-3 rounded-base border-2 border-border bg-background p-3">
@@ -376,6 +420,32 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
                   onView={setViewId}
                   onRestore={restore}
                 />
+              )}
+
+              {mode === "review" && (
+                <CorrectionsPanel
+                  modelId={modelId}
+                  versionId={shown.id}
+                  admin
+                  excerpt={null}
+                  onClearExcerpt={() => {}}
+                  refreshKey={corrRefresh}
+                  active={applying?.id ?? null}
+                  onApplyText={isLatest ? applyWithText : () => notify("Vuelve a la última versión para aplicar la corrección", "info")}
+                  onApplyAi={isLatest ? applyWithAi : () => notify("Vuelve a la última versión para aplicar la corrección", "info")}
+                />
+              )}
+
+              {mode === "review" && applying && (
+                <div className="flex items-start gap-2 rounded-base border-2 border-main bg-main/10 p-2 text-xs">
+                  <p className="min-w-0 flex-1 break-words">
+                    <b>Aplicando la corrección de {applying.created_by_name || "—"}:</b> {applying.comment}
+                    <span className="block text-foreground/60">Lo próximo que guardes la marca como aplicada.</span>
+                  </p>
+                  <button type="button" aria-label="No aplicar la corrección" onClick={() => setApplying(null)} className="shrink-0 rounded-base border-2 border-border p-0.5 hover:bg-red-100">
+                    <X size={12} />
+                  </button>
+                </div>
               )}
 
               {mode === "review" && isLatest && selection && (
@@ -491,6 +561,7 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
               )}
 
               {/* tags by role */}
+              {mode !== "correct" && (<>
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black">Etiquetas</h3>
                 {mode === "fill" && <span className="text-xs font-semibold text-foreground/70">{filled} de {tags.length} llenas</span>}
@@ -550,10 +621,11 @@ export default function TagEditor({ modelId, mode, onClose, onSaved, onChanged }
                   })}
                 </section>
               ))}
+              </>)}
             </div>
 
             {/* footer actions */}
-            <div className="space-y-2 border-t-2 border-border bg-background p-3">
+            <div className={`space-y-2 border-t-2 border-border bg-background p-3 ${mode === "correct" ? "hidden" : ""}`}>
               {mode === "fill" && !saved && (
                 <>
                   <NeoButton className="w-full" type="button" onClick={generate} disabled={busy}>
@@ -631,6 +703,9 @@ function ReviewHeader({ model, shown, isLatest, busy, onView, onRestore }: {
                   <b>v{v.version_number}{inUse ? " · en uso" : ""}</b> · {SOURCE_LABEL[v.source]} · {v.created_by_name || "—"} · {fmtDate(v.created_at)}
                   {v.origin_client && <span className="block truncate text-foreground/60">De «{v.origin_title}» · {v.origin_client}</span>}
                   {v.notes && <span className="block truncate text-foreground/60">{v.notes}</span>}
+                  {v.corrections?.map((c) => (
+                    <span key={c.id} className="block truncate text-green-800">✓ Corrige: {c.comment} ({c.created_by_name || "—"})</span>
+                  ))}
                 </button>
               </li>
             );

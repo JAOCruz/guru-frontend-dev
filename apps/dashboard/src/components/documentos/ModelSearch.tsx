@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Eye, FileDown, FileText, PenLine, Search, Sparkles, UserPlus } from "lucide-react";
+import { Eye, FileDown, FileText, MessageSquareWarning, PenLine, Search, Sparkles, UserPlus } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { documentosAPI, downloadFile, modelFileUrl, type Model } from "../../services/documentosApi";
 import { notify } from "../../lib/dialogs";
@@ -22,6 +22,7 @@ export default function ModelSearch() {
   const [personalize, setPersonalize] = useState<Model | null>(null);
   const [saved, setSaved] = useState<{ client_id: number } | null>(null);
   const [fill, setFill] = useState<Model | null>(null);
+  const [correct, setCorrect] = useState<Model | null>(null);
   const { isAdmin } = useAuth();
   // approved models are filled tag by tag; the admin can also try pending ones
   const canFill = (m: Model) => m.tag_status === "approved" || (isAdmin && m.tag_status === "pending");
@@ -121,6 +122,11 @@ export default function ModelSearch() {
               <NeoButton size="sm" variant={canFill(m) ? "neutral" : "default"} onClick={() => setPersonalize(m)} title="Llenarlo con los datos de un cliente o pedir cambios a la IA">
                 <UserPlus size={14} /> Personalizar
               </NeoButton>
+              {canFill(m) && (
+                <NeoButton size="sm" variant="neutral" onClick={() => setCorrect(m)} title="Señalar una parte que está mal o se puede mejorar">
+                  <MessageSquareWarning size={14} /> Corregir
+                </NeoButton>
+              )}
             </div>
           </li>
         ))}
@@ -151,6 +157,8 @@ export default function ModelSearch() {
           }}
         />
       )}
+
+      {correct && <TagEditor modelId={correct.id} mode="correct" onClose={() => setCorrect(null)} />}
 
       {preview && (
         <PdfPreview
