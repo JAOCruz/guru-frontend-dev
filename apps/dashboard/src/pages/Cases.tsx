@@ -229,7 +229,13 @@ const Cases: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setCases(Array.isArray(data) ? data : data.cases || []);
+        const list: CaseRow[] = Array.isArray(data) ? data : data.cases || [];
+        setCases(list);
+        // the open case takes what the list's row adds (the client, the tags)
+        setSelectedCase((prev) => {
+          const fresh = prev && list.find((x) => x.id === prev.id);
+          return fresh ? { ...prev, ...fresh } : prev;
+        });
       } else {
         setCases([]);
       }
@@ -244,6 +250,33 @@ const Cases: React.FC = () => {
   useEffect(() => {
     fetchCases();
   }, [fetchCases]);
+
+  // From a notification: /cases?case=45 opens that case, in its section and tab
+  useEffect(() => {
+    const wanted = Number(new URLSearchParams(window.location.search).get("case"));
+    if (!wanted) return;
+    (async () => {
+      try {
+        const response = await fetch(`${getAPIUrl()}/api/cases/${wanted}`, {
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
+        });
+        if (!response.ok) {
+          notify("Ese caso ya no está disponible");
+          return;
+        }
+        const { case: found } = await response.json();
+        const section =
+          SECTIONS.find((x) => x.id === found.case_type) ||
+          SECTIONS.find((x) => SECTION_TO_CASE_TYPE[x.id] === found.case_type);
+        if (section) setActiveSection(section);
+        setShowResolved(found.status === "resolved");
+        setSelectedCase({ ...found, tags: found.tags || [] });
+        setShowRightPanel(true);
+      } catch {
+        notify("No se pudo abrir el caso");
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!isAdmin) return;

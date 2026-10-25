@@ -8,7 +8,7 @@ import { cn } from "@guru/ui";
 import api, { getAPIUrl } from "../../services/api";
 import UserAvatar from "../UserAvatar";
 import NotificationAlarm from "./NotificationAlarm";
-import { notificationPath } from "../../lib/notificationLinks";
+import { notificationNav, notificationPath, useNotificationPageKey } from "../../lib/notificationLinks";
 import { applyRootTheme, themeFor, toAppearance } from "../../lib/userColors";
 import {
   Menu,
@@ -46,6 +46,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   useMemo(() => applyRootTheme(themeFor({ isAdmin, color: user?.color })), [themeKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => applyRootTheme(null), []);
   const location = useLocation();
+  const pageKey = useNotificationPageKey();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
@@ -467,7 +468,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                             const path = notificationPath(n.link);
                             if (path) {
                               setShowNotifications(false);
-                              navigate(path);
+                              navigate(path, notificationNav());
                             }
                           }}
                           className={`cursor-pointer rounded-base border-2 p-2 transition-all hover:bg-secondary-background ${
@@ -521,7 +522,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
         {/* Page content */}
         <main className="h-full min-w-0 p-4 md:p-8">
-          <div className="mx-auto min-w-0 max-w-7xl">{children}</div>
+          <div key={pageKey} className="mx-auto min-w-0 max-w-7xl">{children}</div>
         </main>
       </div>
 

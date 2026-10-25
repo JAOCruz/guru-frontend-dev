@@ -84,7 +84,7 @@ describe("NotificationAlarm", () => {
     await screen.findByText("Aviso 8");
     fireEvent.click(screen.getByRole("button", { name: /^ver$/i }));
     expect(api.post).toHaveBeenCalledWith("/notifications/8/read");
-    expect(navigate).toHaveBeenCalledWith("/documents");
+    expect(navigate).toHaveBeenCalledWith("/documents", { state: { fromNotification: expect.any(Number) } });
   });
 
   it("several new ones stack in the same window and can all be marked read", async () => {

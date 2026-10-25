@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BellRing } from "lucide-react";
 import api from "../../services/api";
-import { notificationPath } from "../../lib/notificationLinks";
+import { notificationNav, notificationPath } from "../../lib/notificationLinks";
 
 export interface AppNotification {
   id: number;
@@ -120,7 +120,7 @@ const NotificationAlarm: React.FC<NotificationAlarmProps> = ({ onUnreadCountChan
   const open = (item: AppNotification) => {
     markRead(item);
     const path = notificationPath(item.link);
-    if (path) navigate(path);
+    if (path) navigate(path, notificationNav());
   };
   const markAll = async () => {
     setAlerts([]);

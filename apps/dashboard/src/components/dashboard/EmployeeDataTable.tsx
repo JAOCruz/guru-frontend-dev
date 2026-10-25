@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { formatCurrency } from "../../utils";
 import { NeoCard } from "@guru/ui";
@@ -13,10 +14,20 @@ interface Service {
 
 interface EmployeeDataTableProps {
   services: Service[];
+  highlightId?: number | null; // the service a notification points to
 }
 
-const EmployeeDataTable: React.FC<EmployeeDataTableProps> = ({ services }) => {
+const EmployeeDataTable: React.FC<EmployeeDataTableProps> = ({ services, highlightId = null }) => {
   const { user } = useAuth();
+  const box = useRef<HTMLDivElement>(null);
+  const isMarked = (id: number) => highlightId !== null && id === highlightId;
+  const mark = (id: number) => (isMarked(id) ? { "aria-current": "true" as const } : {});
+
+  // bring it into view (only the visible copy, table or cards, moves the page)
+  useEffect(() => {
+    if (highlightId === null) return;
+    box.current?.querySelectorAll('[aria-current="true"]').forEach((el) => el.scrollIntoView?.({ block: "center", behavior: "smooth" }));
+  }, [highlightId, services]);
 
   const displayName = user?.dataColumn || user?.username || "Usuario";
 
@@ -27,7 +38,7 @@ const EmployeeDataTable: React.FC<EmployeeDataTableProps> = ({ services }) => {
   const userShare = total * 0.5;
 
   return (
-    <div className="animate-in fade-in space-y-8 duration-500">
+    <div ref={box} className="animate-in fade-in space-y-8 duration-500">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <NeoCard variant="main">
@@ -81,7 +92,8 @@ const EmployeeDataTable: React.FC<EmployeeDataTableProps> = ({ services }) => {
                 services.map((service) => (
                   <tr
                     key={service.id}
-                    className="transition-colors hover:bg-secondary-background"
+                    {...mark(service.id)}
+                    className={`transition-colors hover:bg-secondary-background ${isMarked(service.id) ? "bg-amber-100 shadow-[inset_4px_0_0_0_var(--main)] dark:bg-amber-900/30" : ""}`}
                   >
                     <td className="p-5 text-base font-bold text-foreground">
                       {service.service_name}
@@ -131,7 +143,11 @@ const EmployeeDataTable: React.FC<EmployeeDataTableProps> = ({ services }) => {
           {services.length > 0 ? (
             <>
               {services.map((service) => (
-                <div key={service.id} className="bg-background p-5">
+                <div
+                  key={service.id}
+                  {...mark(service.id)}
+                  className={`p-5 ${isMarked(service.id) ? "bg-amber-100 shadow-[inset_4px_0_0_0_var(--main)] dark:bg-amber-900/30" : "bg-background"}`}
+                >
                   <div className="mb-2 flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-lg font-bold break-words leading-tight text-foreground">
