@@ -188,10 +188,10 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
     }
 
     // ---- camera
-    const back = mobile ? 11.5 : 9.5, up = mobile ? 5.5 : 4.4, side = mobile ? 1.2 : 3.0;
+    const back = mobile ? 15 : 12.5, up = mobile ? 7 : 5.8, side = mobile ? 1.5 : 3.8;
     if (p < TAKEOFF_END + 0.02 && fly < 0.02) {
       // take-off: from the street, in front of the shop (like the photo of the real storefront), the owl on its roof
-      _camT.set(OFFICE.x + 1.6, mobile ? 4.4 : 3.6, OFFICE.z + (mobile ? 12 : 9.5));
+      _camT.set(OFFICE.x + 2.1, mobile ? 5.2 : 4.4, OFFICE.z + (mobile ? 15.5 : 13));
       _lookT.set(OFFICE.x, mobile ? 3.4 : 2.7, OFFICE.z);
     } else {
       // follow cam, blending into the door view during the final approach (before the flare starts)
@@ -199,13 +199,13 @@ export default function DeliveryScene({ progress, mobile, instant }: Props) {
       _camT.copy(_p).addScaledVector(_tan, -back).addScaledVector(UP, up).addScaledVector(_side, side);
       _lookT.copy(_p).addScaledVector(_tan, 4).addScaledVector(UP, mobile ? 1.8 : 0.4).addScaledVector(_side, mobile ? 0 : -1.5);
       const approach = easeInOut(clamp01((fly - 0.8) / 0.2));
-      _p2.set(DOOR.x + (mobile ? 0.8 : 4.5), 5.4, DOOR.z + (mobile ? 13 : 10.5));
+      _p2.set(DOOR.x + (mobile ? 1 : 5.8), 6.6, DOOR.z + (mobile ? 16.5 : 13.5));
       _camT.lerp(_p2, approach);
       _p2.set(DOOR.x, 2.9 + (mobile ? 1.4 : 0.2), DOOR.z + 1.5);
       _lookT.lerp(_p2, approach);
       // dolly in on the mat while the case is set down, so the open lid and the sheet read
       const closeUp = easeInOut(drop);
-      _p2.set(DOOR.x + (mobile ? 2.4 : 3.2), 3.2, DOOR.z + (mobile ? 10 : 7.2));
+      _p2.set(DOOR.x + (mobile ? 3 : 4.2), 3.9, DOOR.z + (mobile ? 13 : 9.6));
       _camT.lerp(_p2, closeUp);
       _p2.set(DOOR.x + (mobile ? 0.8 : 0.3), 1.5 + (mobile ? 0.9 : 0), DOOR.z + (mobile ? 2.2 : 1.6));
       _lookT.lerp(_p2, closeUp);

@@ -62,11 +62,11 @@ function TypedSlogan({ className = "" }: { className?: string }) {
           <span key={line} aria-hidden="true" className="block">
             {line.split("").map((ch, ci) => {
               const idx = start + ci;
-              // "legal" goes in Gurú blue, everything else black
-              const blue = line.startsWith("legal") && ci < 5;
+              // "legal" goes in Gurú green, everything else black
+              const green = line.startsWith("legal") && ci < 5;
               return (
                 <span key={ci} className="relative">
-                  <span className={`${idx < typed ? "opacity-100" : "opacity-0"} ${blue ? "text-guru" : ""}`}>{ch}</span>
+                  <span className={`${idx < typed ? "opacity-100" : "opacity-0"} ${green ? "text-mint" : ""}`}>{ch}</span>
                   {idx === typed - 1 && typed < TOTAL && (
                     <span className="absolute -right-[0.1em] top-[0.1em] h-[0.78em] w-[0.07em] animate-pulse bg-guru" />
                   )}
@@ -121,9 +121,9 @@ function Panel({ progress, className }: { progress: MotionValue<number>; classNa
   );
 }
 
-const SLOGAN_SIZE = "text-[clamp(2.2rem,10vw,3rem)] md:text-[clamp(2.6rem,min(4.5vw,8vh),5.2rem)]";
-// on the left, vertically centered (top on phones); the owl is framed a little to the right
-const SLOGAN_SPOT = "inset-x-5 top-6 text-left md:inset-x-auto md:left-10 md:top-1/2 md:-translate-y-1/2 lg:left-16";
+const SLOGAN_SIZE = "text-[clamp(2.5rem,11.5vw,3.6rem)] md:text-[clamp(3rem,min(6.5vw,13.5vh),8.4rem)]";
+// big, in the top-left corner (Leandro's sketch: about 60% of the width, the top third); the owl stays on the right
+const SLOGAN_SPOT = "inset-x-5 top-6 text-left md:inset-x-auto md:left-6 md:top-[4vh] lg:left-8";
 
 export default function Hero() {
   const section = useRef<HTMLElement>(null);

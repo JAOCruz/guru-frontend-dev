@@ -86,3 +86,14 @@ html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
 .lenis.lenis-stopped { overflow: hidden; }
+
+/* "Déjanos el trabajo pesado": paperwork falling behind the text (see PaperStorm.tsx).
+   cqh = the band's height, so the sheets cross it whatever its size. */
+.paper-storm { container-type: size; }
+@keyframes paper-fall {
+  from { transform: translateY(calc(-100% - 10px)) rotate(var(--tilt)); }
+  to { transform: translateY(calc(100cqh + 10px)) rotate(calc(var(--tilt) + var(--spin))); }
+}
+@keyframes paper-sway { from { transform: translateX(-14px) rotate(-6deg); } to { transform: translateX(14px) rotate(6deg); } }
+.paper-fall { animation: paper-fall linear infinite; will-change: transform; }
+.paper-sway { animation: paper-sway ease-in-out infinite alternate; }

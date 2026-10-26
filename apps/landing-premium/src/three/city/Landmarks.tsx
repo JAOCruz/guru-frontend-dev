@@ -187,7 +187,7 @@ export function Office() {
       </mesh>
       <mesh position={[0, h + 0.15, 0]}>
         <boxGeometry args={[w + 0.3, 0.3, d + 0.3]} />
-        <meshStandardMaterial color="#0b0b0c" roughness={0.9} />
+        <meshStandardMaterial color="#f4f6f9" emissive="#ffffff" emissiveIntensity={0.18} roughness={0.8} />
       </mesh>
       {/* door + shop window */}
       <mesh position={[0, SHOP_H / 2 + 0.05, d / 2 + 0.01]}>
