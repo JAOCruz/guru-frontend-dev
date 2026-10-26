@@ -88,7 +88,7 @@ function Scales() {
       alt=""
       width={499}
       height={520}
-      className="scales-sway mx-auto mb-2 block h-auto w-[60px] drop-shadow-[3px_3px_0_#f4f6f9] md:mb-3 md:w-[clamp(90px,7vw,130px)]"
+      className="scales-sway mx-auto mb-2 block h-auto w-[54px] drop-shadow-[3px_3px_0_#f4f6f9] md:mb-3 md:w-[clamp(81px,6.3vw,117px)]"
     />
   );
 }
