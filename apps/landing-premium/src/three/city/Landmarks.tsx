@@ -4,7 +4,7 @@ import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { DOOR, MALECON_Z, OFFICE, SEA_Z } from "./layout";
 import { useGlow } from "./SkySea";
-import { frontTexture, signTexture } from "./storefront";
+import { frontTexture } from "./storefront";
 
 /** Ground, avenues, seawall + lamp posts, the Malecón obelisk. */
 export function Streets({ lamps = 26 }: { lamps?: number }) {
@@ -166,15 +166,14 @@ export function Pin({ position, color, text, bg, fg, pulse }: { position: [numbe
   );
 }
 
-/** Gurú's office in La Feria: paper-coloured block with a blue sign and a lit door. */
-// Gurú's office in La Feria, modelled on the real storefront: blue walls, a white awning with the
-// GURÚ SOLUCIONES sign, the dark door with the logo and the shop window with the services and the owl.
+/** Gurú's office in La Feria. */
+// Modelled on the real storefront: blue walls, a plain white awning, the dark door with the logo
+// and the shop window with the services and the owl.
 const SHOP_W = 3.4; // storefront opening (m), facing +z (the take-off camera)
 const SHOP_H = SHOP_W * (768 / 1024);
 
 export function Office() {
   const { x, z, w, d, h } = OFFICE;
-  const sign = useMemo(signTexture, []);
   const front = useMemo(frontTexture, []);
   const owlPoster = useTexture("/img/mascot_1.webp");
   owlPoster.colorSpace = THREE.SRGBColorSpace;
@@ -199,14 +198,10 @@ export function Office() {
         <planeGeometry args={[0.95, 0.95]} />
         <meshStandardMaterial map={owlPoster} emissiveMap={owlPoster} emissive="#ffffff" emissiveIntensity={0.4} roughness={0.4} />
       </mesh>
-      {/* white awning with the sign on its front */}
+      {/* plain white awning (no sign, per Leandro) */}
       <mesh position={[0, awningY, d / 2 + 0.6]} rotation={[0.08, 0, 0]}>
         <boxGeometry args={[w + 0.2, 0.55, 1.2]} />
-        <meshStandardMaterial color="#e9ecf1" roughness={0.6} />
-      </mesh>
-      <mesh position={[0, awningY - 0.05, d / 2 + 1.21]} rotation={[0.08, 0, 0]}>
-        <planeGeometry args={[w + 0.2, 0.55]} />
-        <meshStandardMaterial map={sign} emissiveMap={sign} emissive="#ffffff" emissiveIntensity={0.55} roughness={0.5} />
+        <meshStandardMaterial color="#f4f6f9" emissive="#ffffff" emissiveIntensity={0.18} roughness={0.6} />
       </mesh>
       {/* warm light under the awning, the shop's glow on the pavement */}
       <pointLight position={[0, awningY - 0.6, d / 2 + 1.6]} intensity={9} color="#ffe2b0" distance={7} />
