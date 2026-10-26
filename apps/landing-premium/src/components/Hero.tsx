@@ -80,7 +80,7 @@ function TypedSlogan({ className = "" }: { className?: string }) {
   );
 }
 
-// the scales of justice (the 3D model of the earlier cover, rendered once in Gurú green), small under the slogan
+// the scales of justice (the 3D model of the earlier cover, rendered once in Gurú green), small and centered above the slogan
 function Scales() {
   return (
     <img
@@ -88,7 +88,7 @@ function Scales() {
       alt=""
       width={499}
       height={520}
-      className="scales-sway mx-auto mt-3 block h-auto w-[68px] drop-shadow-[3px_3px_0_#f4f6f9] md:mt-6 md:w-[clamp(110px,9vw,170px)]"
+      className="scales-sway mx-auto mb-2 block h-auto w-[60px] drop-shadow-[3px_3px_0_#f4f6f9] md:mb-3 md:w-[clamp(90px,7vw,130px)]"
     />
   );
 }
@@ -166,10 +166,10 @@ export default function Hero() {
           <ScrollVideo progress={progress} landscape={LANDSCAPE} portrait={PORTRAIT} still stillFrame="start" label={label} />
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(6_10_43/0.65),transparent_40%)] md:bg-[linear-gradient(90deg,rgb(6_10_43/0.6),transparent_55%)]" />
           <div className={`absolute z-10 ${SLOGAN_SPOT}`}>
-            {/* fit to the title so the scales sit centered under it */}
+            {/* fit to the title so the scales sit centered above it */}
             <div className="w-fit">
-              <TypedSlogan className={SLOGAN_SIZE} />
               <Scales />
+              <TypedSlogan className={SLOGAN_SIZE} />
             </div>
           </div>
         </div>
@@ -189,10 +189,10 @@ export default function Hero() {
 
         <div className={`pointer-events-none absolute z-10 ${SLOGAN_SPOT}`}>
           <motion.div style={{ opacity: sloganOpacity, y: sloganY }}>
-            {/* fit to the title so the scales sit centered under it */}
+            {/* fit to the title so the scales sit centered above it */}
             <div className="w-fit">
-              <TypedSlogan className={SLOGAN_SIZE} />
               <Scales />
+              <TypedSlogan className={SLOGAN_SIZE} />
             </div>
           </motion.div>
         </div>
