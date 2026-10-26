@@ -88,7 +88,7 @@ function Scales() {
       alt=""
       width={499}
       height={520}
-      className="scales-sway mt-3 h-auto w-[68px] drop-shadow-[3px_3px_0_#f4f6f9] md:mt-6 md:w-[clamp(110px,9vw,170px)]"
+      className="scales-sway mx-auto mt-3 block h-auto w-[68px] drop-shadow-[3px_3px_0_#f4f6f9] md:mt-6 md:w-[clamp(110px,9vw,170px)]"
     />
   );
 }
@@ -166,8 +166,11 @@ export default function Hero() {
           <ScrollVideo progress={progress} landscape={LANDSCAPE} portrait={PORTRAIT} still stillFrame="start" label={label} />
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(6_10_43/0.65),transparent_40%)] md:bg-[linear-gradient(90deg,rgb(6_10_43/0.6),transparent_55%)]" />
           <div className={`absolute z-10 ${SLOGAN_SPOT}`}>
-            <TypedSlogan className={SLOGAN_SIZE} />
-            <Scales />
+            {/* fit to the title so the scales sit centered under it */}
+            <div className="w-fit">
+              <TypedSlogan className={SLOGAN_SIZE} />
+              <Scales />
+            </div>
           </div>
         </div>
         <div className="px-4 py-10 md:px-8">
@@ -186,8 +189,11 @@ export default function Hero() {
 
         <div className={`pointer-events-none absolute z-10 ${SLOGAN_SPOT}`}>
           <motion.div style={{ opacity: sloganOpacity, y: sloganY }}>
-            <TypedSlogan className={SLOGAN_SIZE} />
-            <Scales />
+            {/* fit to the title so the scales sit centered under it */}
+            <div className="w-fit">
+              <TypedSlogan className={SLOGAN_SIZE} />
+              <Scales />
+            </div>
           </motion.div>
         </div>
 
