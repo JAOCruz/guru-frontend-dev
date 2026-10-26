@@ -80,6 +80,19 @@ function TypedSlogan({ className = "" }: { className?: string }) {
   );
 }
 
+// the scales of justice (the 3D model of the earlier cover, rendered once in Gurú green), small under the slogan
+function Scales() {
+  return (
+    <img
+      src="/img/balanza-verde.webp"
+      alt=""
+      width={499}
+      height={520}
+      className="scales-sway mt-3 h-auto w-[68px] drop-shadow-[3px_3px_0_#f4f6f9] md:mt-6 md:w-[clamp(110px,9vw,170px)]"
+    />
+  );
+}
+
 function Badge({ show }: { show: boolean }) {
   return (
     <motion.div
@@ -154,6 +167,7 @@ export default function Hero() {
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(6_10_43/0.65),transparent_40%)] md:bg-[linear-gradient(90deg,rgb(6_10_43/0.6),transparent_55%)]" />
           <div className={`absolute z-10 ${SLOGAN_SPOT}`}>
             <TypedSlogan className={SLOGAN_SIZE} />
+            <Scales />
           </div>
         </div>
         <div className="px-4 py-10 md:px-8">
@@ -173,6 +187,7 @@ export default function Hero() {
         <div className={`pointer-events-none absolute z-10 ${SLOGAN_SPOT}`}>
           <motion.div style={{ opacity: sloganOpacity, y: sloganY }}>
             <TypedSlogan className={SLOGAN_SIZE} />
+            <Scales />
           </motion.div>
         </div>
 

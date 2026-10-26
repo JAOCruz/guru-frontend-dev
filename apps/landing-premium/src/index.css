@@ -97,3 +97,8 @@ html.lenis, html.lenis body { height: auto; }
 @keyframes paper-sway { from { transform: translateX(-14px) rotate(-6deg); } to { transform: translateX(14px) rotate(6deg); } }
 .paper-fall { animation: paper-fall linear infinite; will-change: transform; }
 .paper-sway { animation: paper-sway ease-in-out infinite alternate; }
+
+/* the green scales under the cover slogan: a slow, gentle balance */
+@keyframes scales-sway { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+.scales-sway { transform-origin: 50% 12%; animation: scales-sway 3.2s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) { .scales-sway { animation: none; } }
