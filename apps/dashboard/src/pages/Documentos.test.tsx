@@ -83,7 +83,13 @@ describe("Documentos — Buscar por nombre", () => {
   });
 });
 
-describe("Documentos — Mi historial", () => {
+describe("Documentos — Mis documentos", () => {
+  it("la pestaña se llama «Mis documentos»", async () => {
+    renderAt("/documents?tab=historial");
+    expect(await screen.findByRole("tab", { name: /mis documentos/i })).toBeTruthy();
+    expect(screen.queryByText(/historial/i)).toBeNull();
+  });
+
   it("a document made from a model can become the model's next version; an uploaded one cannot", async () => {
     api.document.mockResolvedValueOnce({ data: { document: { ...DOC, template_id: 3, versions: VERSIONS } } });
     renderAt("/documents?tab=historial");

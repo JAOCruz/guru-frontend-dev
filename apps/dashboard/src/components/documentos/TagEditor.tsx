@@ -635,7 +635,7 @@ export default function TagEditor({ modelId, mode: initialMode, onClose, onSaved
               )}
               {mode === "fill" && saved && (
                 <div className="space-y-2">
-                  <p className="text-sm font-bold text-green-700">✓ Guardado en el historial de {client?.name || "el cliente"}.</p>
+                  <p className="text-sm font-bold text-green-700">✓ Guardado en Mis documentos ({client?.name || "el cliente"}).</p>
                   <div className="grid grid-cols-2 gap-2">
                     <NeoButton type="button" variant="neutral" onClick={() => download("docx")}><FileDown size={15} /> Descargar Word</NeoButton>
                     <NeoButton type="button" variant="neutral" onClick={() => download("pdf")}><FileDown size={15} /> Descargar PDF</NeoButton>

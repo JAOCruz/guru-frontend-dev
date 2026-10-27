@@ -7,7 +7,7 @@ import TagReview from "../components/documentos/TagReview";
 
 // Documentos (Fase 1). Two parts, as Leandro described them:
 //  · Buscar por nombre — our curated selection of models, used as-is (never saved to a history)
-//  · Historial — each digitador's personalized documents per client, with versions
+//  · Mis documentos (tab "historial") — each digitador's personalized documents per client, with versions
 //  · Revisión de etiquetas (admin) — tagged copies of the models: AI tagging, review and approval
 // Separate from MotherBrain (its tag names are only used as vocabulary).
 export default function Documentos() {
@@ -20,7 +20,7 @@ export default function Documentos() {
 
   const tabs = [
     { key: "buscar" as const, label: "Buscar por nombre", hint: "Nuestra selección de modelos", Icon: Search },
-    { key: "historial" as const, label: isAdmin ? "Historial" : "Mi historial", hint: "Documentos personalizados por cliente", Icon: FolderOpen },
+    { key: "historial" as const, label: "Mis documentos", hint: "Documentos personalizados por cliente", Icon: FolderOpen },
     ...(isAdmin ? [{ key: "etiquetas" as const, label: "Revisión de etiquetas", hint: "Etiquetar, revisar y aprobar modelos", Icon: Tags }] : []),
   ];
 

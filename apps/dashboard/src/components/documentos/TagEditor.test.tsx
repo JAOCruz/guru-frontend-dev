@@ -110,7 +110,7 @@ describe("Llenar un modelo aprobado", () => {
     await waitFor(() => expect(tags.fill).toHaveBeenCalled());
     expect(dialogs.confirmDialog.mock.calls[0][0]).toMatch(/3 etiquetas/);
     expect(tags.fill).toHaveBeenCalledWith(7, { values: { NOMBRE_VENDEDOR: "JUAN PÉREZ" }, client_id: 1, client_role: "VENDEDOR", title: "ACTO DE VENTA", version_id: 12 });
-    expect(await screen.findByText(/guardado en el historial/i)).toBeTruthy();
+    expect(await screen.findByText(/guardado en mis documentos/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /descargar word/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /descargar pdf/i })).toBeTruthy();
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: 30 }));

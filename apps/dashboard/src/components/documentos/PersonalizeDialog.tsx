@@ -338,7 +338,7 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
                     También puede cambiar el formato: letra y tamaño, negrita, alineación, interlineado, márgenes o formato auténtico. Imágenes, tablas, colores o encabezados se hacen en Word.{" "}
                     {client || fromHistory
                       ? `Se guarda como ${fromHistory ? "una versión nueva" : "un documento nuevo"} (borrador)${hasInstructions ? " y verás qué cambió" : ""}.`
-                      : "Sin cliente, el Word cambiado se descarga y no se guarda en ningún historial."}
+                      : "Sin cliente, el Word cambiado se descarga y no se guarda en Mis documentos."}
                   </p>
                   {downloaded && (
                     <p className="flex items-center gap-2 rounded-base border-2 border-border bg-green-100 p-2 text-sm">
@@ -402,7 +402,7 @@ function ResultView({
       <div className="flex items-start gap-3 rounded-base border-2 border-border bg-green-100 p-3">
         <CheckCircle2 className="mt-0.5 shrink-0" size={20} />
         <p className="text-sm">
-          <b>Guardado como borrador</b> en el historial{clientName ? ` de ${clientName}` : ""}: «{result.document.title}».
+          <b>Guardado como borrador</b> en Mis documentos{clientName ? ` (${clientName})` : ""}: «{result.document.title}».
           {result.exact ? " Se llenó exacto por etiquetas." : ""} Revísalo antes de pedir la aprobación.
         </p>
       </div>
