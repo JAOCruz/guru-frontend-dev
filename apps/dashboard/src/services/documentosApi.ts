@@ -37,7 +37,7 @@ export interface DocVersion {
 export interface PortfolioDocument {
   id: number;
   title: string;
-  client_id: number;
+  client_id: number | null; // null: «Sin cliente»
   client_name: string | null;
   template_id?: number | null; // the model it was made from
   created_by: number | null;
@@ -76,10 +76,10 @@ export const documentosAPI = {
   documents: (params: { client_id?: number; sort?: DocSort; created_by?: number }) =>
     api.get<{ documents: PortfolioDocument[] }>("/documentos/documents", { params }),
   document: (id: number) => api.get<{ document: PortfolioDocument }>(`/documentos/documents/${id}`),
-  upload: (data: { file: File; client_id: number; title: string; notes?: string }) => {
+  upload: (data: { file: File; client_id?: number; title: string; notes?: string }) => {
     const fd = new FormData();
     fd.append("file", data.file);
-    fd.append("client_id", String(data.client_id));
+    if (data.client_id) fd.append("client_id", String(data.client_id));
     fd.append("title", data.title);
     if (data.notes) fd.append("notes", data.notes);
     return api.post<{ document: PortfolioDocument }>("/documentos/documents", fd);

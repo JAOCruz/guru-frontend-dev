@@ -138,8 +138,9 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
     setDownloaded(null);
     const body = { ...source, ...(fromHistory ? {} : { title: docTitle }), instructions, autentico };
     try {
-      if (client) {
-        const { data } = await generacionAPI.aiEdit({ ...body, client_id: client.id });
+      // a history document always gets the new version, even without a client
+      if (client || fromHistory) {
+        const { data } = await generacionAPI.aiEdit({ ...body, ...(client ? { client_id: client.id } : {}) });
         finish(data, true);
       } else {
         const { data } = await generacionAPI.aiEditDownload(body);
@@ -335,7 +336,7 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
                   <p className="text-xs text-foreground/60">
                     {hasInstructions ? "La IA aplica solo esos cambios con redacción legal y el mismo estilo. " : "Escribe un cambio, marca Formato auténtico o las dos cosas. "}
                     También puede cambiar el formato: letra y tamaño, negrita, alineación, interlineado, márgenes o formato auténtico. Imágenes, tablas, colores o encabezados se hacen en Word.{" "}
-                    {client
+                    {client || fromHistory
                       ? `Se guarda como ${fromHistory ? "una versión nueva" : "un documento nuevo"} (borrador)${hasInstructions ? " y verás qué cambió" : ""}.`
                       : "Sin cliente, el Word cambiado se descarga y no se guarda en ningún historial."}
                   </p>
@@ -370,7 +371,7 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
                   <p className="self-center text-sm font-semibold text-foreground/70 sm:mr-auto">Escribe el cambio o marca Formato auténtico</p>
                 )}
                 <NeoButton type="button" onClick={applyChanges} disabled={busy === "save" || (!hasInstructions && !autentico)}>
-                  {busy === "save" ? "Aplicando…" : hasInstructions ? (client ? "Aplicar cambios con IA" : "Aplicar y descargar") : client ? "Dar formato auténtico" : "Dar formato y descargar"}
+                  {busy === "save" ? "Aplicando…" : hasInstructions ? (client || fromHistory ? "Aplicar cambios con IA" : "Aplicar y descargar") : client || fromHistory ? "Dar formato auténtico" : "Dar formato y descargar"}
                 </NeoButton>
               </>
             )}

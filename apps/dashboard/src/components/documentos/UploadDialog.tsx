@@ -36,14 +36,13 @@ export default function UploadDialog({ document: doc, initialClient, onClose, on
 
   const submit = async () => {
     if (!file) return setError("Elige un archivo");
-    if (!doc && !client) return setError("Elige el cliente");
     if (!doc && !title.trim()) return setError("Ponle un nombre al documento");
     setSaving(true);
     setError(null);
     try {
       const { data } = doc
         ? await documentosAPI.uploadVersion(doc.id, file, notes)
-        : await documentosAPI.upload({ file, client_id: client!.id, title: title.trim(), notes });
+        : await documentosAPI.upload({ file, client_id: client?.id, title: title.trim(), notes });
       onDone(data.document);
     } catch (err: any) {
       setError(err?.response?.data?.error || "No se pudo subir el documento");
@@ -55,7 +54,12 @@ export default function UploadDialog({ document: doc, initialClient, onClose, on
   return (
     <Modal title={doc ? `Nueva versión de «${doc.title}»` : "Subir documento"} onClose={onClose}>
       <div className="space-y-4">
-        {!doc && <ClientPicker client={client} onChange={setClient} />}
+        {!doc && (
+          <div>
+            <ClientPicker client={client} onChange={setClient} optional />
+            {!client && <p className="mt-1 text-xs text-foreground/60">Si no eliges un cliente, el documento queda en «Sin cliente».</p>}
+          </div>
+        )}
 
         <div>
           <label htmlFor="doc-upload-file" className={labelCls}>
@@ -124,7 +128,8 @@ export default function UploadDialog({ document: doc, initialClient, onClose, on
 }
 
 // Choose an existing client or create one (name + phone)
-export function ClientPicker({ client, onChange }: { client: HistoryClient | null; onChange: (c: HistoryClient | null) => void }) {
+export function ClientPicker({ client, onChange, optional = false }: { client: HistoryClient | null; onChange: (c: HistoryClient | null) => void; optional?: boolean }) {
+  const label = optional ? "Cliente (opcional)" : "Cliente";
   const [q, setQ] = useState("");
   const [results, setResults] = useState<HistoryClient[]>([]);
   const [creating, setCreating] = useState(false);
@@ -157,7 +162,7 @@ export function ClientPicker({ client, onChange }: { client: HistoryClient | nul
   if (client) {
     return (
       <div>
-        <p className={labelCls}>Cliente</p>
+        <p className={labelCls}>{label}</p>
         <div className="mt-1 flex items-center justify-between gap-2 rounded-base border-2 border-border bg-secondary-background px-3 py-2">
           <span className="min-w-0 truncate text-sm font-bold">
             {client.name || "Sin nombre"} <span className="font-normal text-foreground/60">{client.phone}</span>
@@ -198,7 +203,7 @@ export function ClientPicker({ client, onChange }: { client: HistoryClient | nul
   return (
     <div>
       <label className={labelCls}>
-        Cliente
+        {label}
         <input className={fieldCls} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o teléfono" />
       </label>
       <ul className="mt-1 max-h-40 overflow-y-auto rounded-base border-2 border-border">

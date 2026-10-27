@@ -120,8 +120,9 @@ export default function History() {
   const afterUpload = (doc: PortfolioDocument) => {
     setUpload(null);
     notify("Documento subido", "success");
-    const client = { id: doc.client_id, name: doc.client_name, phone: null };
-    if (!selected || selected.id !== doc.client_id) setSelected(client);
+    // a document without a client goes to the «Sin cliente» group (id 0)
+    const client = doc.client_id ? { id: doc.client_id, name: doc.client_name, phone: null } : { id: 0, name: "Sin cliente", phone: null };
+    if (!selected || selected.id !== client.id) setSelected(client);
     else loadDocuments();
     setOpenDoc(doc);
     loadClients();
@@ -263,7 +264,7 @@ export default function History() {
                                 </>
                               )}
                               {delivery && <span className={delivery.warn ? "text-amber-700" : "text-green-700"}>{delivery.text}</span>}
-                              {canApprove && openDoc.approved_version && !openDoc.sent_at && (
+                              {canApprove && openDoc.client_id && openDoc.approved_version && !openDoc.sent_at && (
                                 <NeoButton size="sm" disabled={sending} onClick={() => sendToClient(openDoc)}>
                                   <Send size={14} /> Enviar al cliente
                                 </NeoButton>
@@ -348,7 +349,7 @@ export default function History() {
         <PersonalizeDialog
           source={{ version_id: personalize.version.id }}
           title={`${personalize.doc.title} v${personalize.version.version_number}`}
-          fixedClient={{ id: personalize.doc.client_id, name: personalize.doc.client_name, phone: null }}
+          fixedClient={personalize.doc.client_id ? { id: personalize.doc.client_id, name: personalize.doc.client_name, phone: null } : undefined}
           onSaved={(doc) => {
             setOpenDoc(doc);
             loadDocuments();
@@ -410,7 +411,8 @@ function ApproveDialog({ doc, version, onCancel, onApprove }: {
           hint: alreadyPaid ? "La cotización ya está pagada: se envía al aprobar." : "Se manda por WhatsApp al confirmar el pago de la cotización",
         }]
       : []),
-    { value: "ya", label: "Enviar ya", hint: "Se manda por WhatsApp ahora mismo" },
+    // without a client there is nobody to send it to
+    ...(doc.client_id ? [{ value: "ya" as const, label: "Enviar ya", hint: "Se manda por WhatsApp ahora mismo" }] : []),
     { value: "manual", label: "Solo aprobar", hint: "No se envía; lo mandas tú después" },
   ];
   return (
