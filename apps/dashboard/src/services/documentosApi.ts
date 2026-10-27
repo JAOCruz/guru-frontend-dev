@@ -127,8 +127,11 @@ export const generacionAPI = {
   },
   generate: (body: Source & { client_id?: number; client_role?: string | null; title: string; values: Record<string, string> }) =>
     api.post<{ document: PortfolioDocument; changes: Change[]; exact: boolean }>("/documentos/fill/generate", body),
-  aiEdit: (body: Source & { client_id?: number; title?: string; instructions: string }) =>
+  aiEdit: (body: Source & { client_id?: number; title?: string; instructions: string; autentico?: boolean }) =>
     api.post<{ document: PortfolioDocument; changes: Change[] }>("/documentos/ai-edit", body),
+  // without a client the changed Word comes back as a file and nothing is saved
+  aiEditDownload: (body: Source & { title?: string; instructions: string; autentico?: boolean }) =>
+    api.post<Blob>("/documentos/ai-edit", body, { responseType: "blob" }),
 };
 
 export const modelFileUrl = (id: number, format: "docx" | "pdf", inline = false) =>

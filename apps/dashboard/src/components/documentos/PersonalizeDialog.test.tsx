@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 
 const { gen, docs } = vi.hoisted(() => ({
-  gen: { fields: vi.fn(), extract: vi.fn(), generate: vi.fn(), aiEdit: vi.fn() },
+  gen: { fields: vi.fn(), extract: vi.fn(), generate: vi.fn(), aiEdit: vi.fn(), aiEditDownload: vi.fn() },
   docs: { searchAllClients: vi.fn(), createClient: vi.fn() },
 }));
 vi.mock("./SaveAsModelButton", () => ({ default: (p: { documentId: number }) => <button>{`modelo:${p.documentId}`}</button> }));
@@ -77,5 +77,48 @@ describe("Personalizar — cambios específicos", () => {
     expect(await screen.findByText("SEGUNDO: Penalidad del 10%.")).toBeTruthy();
     // the new wording can become the model's next version
     expect(screen.getByText("modelo:30")).toBeTruthy();
+  });
+
+  // Leandro, 2026-10-27: el botón se quedaba apagado sin cliente y la IA no da formato
+  it("sin cliente: Formato auténtico enciende el botón y descarga el Word", async () => {
+    gen.aiEditDownload.mockResolvedValue({ data: new Blob(["docx"]) });
+    const createObjectURL = vi.fn(() => "blob:docx");
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+    render(<PersonalizeDialog source={{ model_id: 7 }} title="PODER DE AUTORIZACION PARA ADUANA" onClose={() => {}} onSaved={() => {}} />);
+    fireEvent.click(screen.getByRole("tab", { name: /cambios específicos/i }));
+    const button = screen.getByRole("button", { name: /dar formato y descargar/i }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(screen.getByText(/escribe el cambio o marca formato auténtico/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /formato auténtico/i }));
+    expect(button.disabled).toBe(false);
+    fireEvent.click(button);
+    await waitFor(() => expect(gen.aiEditDownload).toHaveBeenCalledWith(expect.objectContaining({ model_id: 7, autentico: true, title: "PODER DE AUTORIZACION PARA ADUANA" })));
+    expect(await screen.findByText(/se descargó «PODER DE AUTORIZACION PARA ADUANA\.docx»/i)).toBeTruthy();
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(gen.aiEdit).not.toHaveBeenCalled();
+  });
+
+  it("con cliente: cambios + Formato auténtico se guardan en su historial", async () => {
+    gen.aiEdit.mockResolvedValue({ data: { document: DOC, changes: [] } });
+    render(<PersonalizeDialog source={{ version_id: 40 }} title="Venta Corolla v1" fixedClient={{ id: 1, name: "Juan Pérez", phone: null }} onClose={() => {}} onSaved={() => {}} />);
+    fireEvent.click(screen.getByRole("tab", { name: /cambios específicos/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /formato auténtico/i }));
+    fireEvent.click(screen.getByRole("button", { name: /dar formato auténtico/i }));
+    await waitFor(() => expect(gen.aiEdit).toHaveBeenCalledWith(expect.objectContaining({ version_id: 40, client_id: 1, autentico: true })));
+    expect(await screen.findByText(/guardado como borrador/i)).toBeTruthy();
+  });
+
+  it("el error de una descarga se muestra", async () => {
+    gen.aiEditDownload.mockRejectedValue({ response: { data: new Blob([JSON.stringify({ error: "La IA no respondió; intenta de nuevo" })]) } });
+    render(<PersonalizeDialog source={{ model_id: 7 }} title="PODER" onClose={() => {}} onSaved={() => {}} />);
+    fireEvent.click(screen.getByRole("tab", { name: /cambios específicos/i }));
+    fireEvent.change(screen.getByLabelText(/qué cambios/i), { target: { value: "Agrega la nacionalidad" } });
+    fireEvent.click(screen.getByRole("button", { name: /aplicar y descargar/i }));
+    expect(await screen.findByText("La IA no respondió; intenta de nuevo")).toBeTruthy();
+  });
+
+  it("llenar sin cliente dice qué falta", async () => {
+    render(<PersonalizeDialog source={{ model_id: 7 }} title="PODER" onClose={() => {}} onSaved={() => {}} />);
+    expect(await screen.findByText(/elige el cliente para generar el documento/i)).toBeTruthy();
   });
 });

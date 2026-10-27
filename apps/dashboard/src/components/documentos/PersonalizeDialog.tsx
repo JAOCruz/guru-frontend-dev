@@ -18,10 +18,37 @@ interface Props {
 const ATTACH_ACCEPT = "image/*,application/pdf,audio/*";
 const human = (s: string) => (s === "DOCUMENTO" ? "Datos del documento" : s.charAt(0) + s.slice(1).toLowerCase());
 const errorOf = (err: any, fallback: string) => err?.response?.data?.error || fallback;
+// a failed file download carries its JSON error inside a Blob
+const blobErrorOf = async (err: any, fallback: string) => {
+  const data = err?.response?.data;
+  if (data instanceof Blob) {
+    try {
+      const text = await new Promise<string>((ok, ko) => {
+        const r = new FileReader();
+        r.onload = () => ok(String(r.result));
+        r.onerror = ko;
+        r.readAsText(data);
+      });
+      return JSON.parse(text).error || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return errorOf(err, fallback);
+};
+const saveFile = (blob: Blob, name: string) => {
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 
 // Generación: fill a model (or a history version) with a client's data — prefilled from their
 // legal profile and completed by the AI from photos, PDFs, audios or text — or apply specific
-// changes described in plain words. The result is always a draft in the history.
+// changes described in plain words and/or the authentic-act layout. With a client the result is a draft
+// in their history; specific changes without a client download the Word instead.
 export default function PersonalizeDialog({ source, title, fixedClient, onClose, onSaved }: Props) {
   const [tab, setTab] = useState<"fill" | "edit">("fill");
   const [client, setClient] = useState<HistoryClient | null>(fixedClient ?? null);
@@ -35,6 +62,8 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
   const [files, setFiles] = useState<File[]>([]);
   const [docTitle, setDocTitle] = useState(title);
   const [instructions, setInstructions] = useState("");
+  const [autentico, setAutentico] = useState(false);
+  const [downloaded, setDownloaded] = useState<string | null>(null);
   const [busy, setBusy] = useState<"fields" | "ai" | "save" | null>("fields");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ document: PortfolioDocument; changes: Change[]; exact?: boolean; edited?: boolean } | null>(null);
@@ -102,15 +131,24 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
     }
   };
 
+  const hasInstructions = instructions.trim().length >= 5;
   const applyChanges = async () => {
-    if (!client) return setError("Elige el cliente");
     setBusy("save");
     setError(null);
+    setDownloaded(null);
+    const body = { ...source, ...(fromHistory ? {} : { title: docTitle }), instructions, autentico };
     try {
-      const { data } = await generacionAPI.aiEdit({ ...source, client_id: client.id, ...(fromHistory ? {} : { title: docTitle }), instructions });
-      finish(data, true);
+      if (client) {
+        const { data } = await generacionAPI.aiEdit({ ...body, client_id: client.id });
+        finish(data, true);
+      } else {
+        const { data } = await generacionAPI.aiEditDownload(body);
+        const name = `${(docTitle || title).replace(/[\\/:*?"<>|]+/g, " ").trim() || "documento"}.docx`;
+        saveFile(data, name);
+        setDownloaded(name);
+      }
     } catch (err) {
-      setError(errorOf(err, "No se pudieron aplicar los cambios"));
+      setError(await blobErrorOf(err, "No se pudieron aplicar los cambios"));
     } finally {
       setBusy(null);
     }
@@ -285,9 +323,26 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
                       placeholder="Ej. En la cláusula tercera cambia el plazo a 24 meses y agrega una penalidad del 10% por atraso."
                     />
                   </label>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-base border-2 border-border p-3">
+                    <input type="checkbox" className="mt-1 h-4 w-4 accent-[var(--main)]" checked={autentico} onChange={(e) => setAutentico(e.target.checked)} />
+                    <span className="text-sm">
+                      <b>Formato auténtico</b>
+                      <span className="block text-foreground/70">
+                        Sin espacios entre párrafos, texto justificado y rayas hasta el margen al final de cada párrafo. El título y las firmas se quedan como están.
+                      </span>
+                    </span>
+                  </label>
                   <p className="text-xs text-foreground/60">
-                    La IA aplica solo esos cambios con redacción legal y el mismo estilo; se guarda como {fromHistory ? "una versión nueva" : "un documento nuevo"} (borrador) y verás qué cambió.
+                    {hasInstructions ? "La IA aplica solo esos cambios con redacción legal y el mismo estilo. " : "Escribe un cambio, marca Formato auténtico o las dos cosas. "}
+                    {client
+                      ? `Se guarda como ${fromHistory ? "una versión nueva" : "un documento nuevo"} (borrador)${hasInstructions ? " y verás qué cambió" : ""}.`
+                      : "Sin cliente, el Word cambiado se descarga y no se guarda en ningún historial."}
                   </p>
+                  {downloaded && (
+                    <p className="flex items-center gap-2 rounded-base border-2 border-border bg-green-100 p-2 text-sm">
+                      <CheckCircle2 size={16} /> Se descargó «{downloaded}».
+                    </p>
+                  )}
                 </>
               )}
 
@@ -302,13 +357,21 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
               Cancelar
             </NeoButton>
             {tab === "fill" ? (
-              <NeoButton type="button" onClick={generate} disabled={busy === "save" || !client}>
-                {busy === "save" ? "Generando…" : "Generar documento"}
-              </NeoButton>
+              <>
+                {!client && <p className="self-center text-sm font-semibold text-foreground/70 sm:mr-auto">Elige el cliente para generar el documento</p>}
+                <NeoButton type="button" onClick={generate} disabled={busy === "save" || !client}>
+                  {busy === "save" ? "Generando…" : "Generar documento"}
+                </NeoButton>
+              </>
             ) : (
-              <NeoButton type="button" onClick={applyChanges} disabled={busy === "save" || !client || instructions.trim().length < 5}>
-                {busy === "save" ? "Aplicando…" : "Aplicar cambios con IA"}
-              </NeoButton>
+              <>
+                {!hasInstructions && !autentico && (
+                  <p className="self-center text-sm font-semibold text-foreground/70 sm:mr-auto">Escribe el cambio o marca Formato auténtico</p>
+                )}
+                <NeoButton type="button" onClick={applyChanges} disabled={busy === "save" || (!hasInstructions && !autentico)}>
+                  {busy === "save" ? "Aplicando…" : hasInstructions ? (client ? "Aplicar cambios con IA" : "Aplicar y descargar") : client ? "Dar formato auténtico" : "Dar formato y descargar"}
+                </NeoButton>
+              </>
             )}
           </div>
         )}
