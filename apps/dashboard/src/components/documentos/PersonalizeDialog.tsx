@@ -320,7 +320,7 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
                       className={`${fieldCls} min-h-[120px]`}
                       value={instructions}
                       onChange={(e) => setInstructions(e.target.value)}
-                      placeholder="Ej. En la cláusula tercera cambia el plazo a 24 meses y agrega una penalidad del 10% por atraso."
+                      placeholder="Ej. En la cláusula tercera cambia el plazo a 24 meses. Todo en Times New Roman 12, justificado y el título en negrita."
                     />
                   </label>
                   <label className="flex cursor-pointer items-start gap-3 rounded-base border-2 border-border p-3">
@@ -334,6 +334,7 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
                   </label>
                   <p className="text-xs text-foreground/60">
                     {hasInstructions ? "La IA aplica solo esos cambios con redacción legal y el mismo estilo. " : "Escribe un cambio, marca Formato auténtico o las dos cosas. "}
+                    También puede cambiar el formato: letra y tamaño, negrita, alineación, interlineado, márgenes o formato auténtico. Imágenes, tablas, colores o encabezados se hacen en Word.{" "}
                     {client
                       ? `Se guarda como ${fromHistory ? "una versión nueva" : "un documento nuevo"} (borrador)${hasInstructions ? " y verás qué cambió" : ""}.`
                       : "Sin cliente, el Word cambiado se descarga y no se guarda en ningún historial."}
@@ -409,12 +410,21 @@ function ResultView({
           <p className="mb-2 text-sm font-bold">Qué cambió ({result.changes.length})</p>
           <ul className="space-y-2">
             {result.changes.map((c, k) => (
-              <li key={k} className="rounded-base border-2 border-border p-2 text-sm">
-                <span className="text-[10px] font-bold uppercase text-foreground/50">
-                  {c.op === "insert_after" ? "Párrafo nuevo" : c.op === "delete" ? "Párrafo eliminado" : `Párrafo ${c.i + 1}`}
-                </span>
-                {c.before && <p className="text-red-700 line-through decoration-red-400">{c.before}</p>}
-                {c.after && <p className="text-green-800">{c.after}</p>}
+              <li key={k} className={`rounded-base border-2 border-border p-2 text-sm ${c.op === "unsupported" ? "bg-amber-50" : ""}`}>
+                {c.op === "format" || c.op === "unsupported" ? (
+                  <>
+                    <span className="text-[10px] font-bold uppercase text-foreground/50">{c.op === "format" ? "Formato" : "No se pudo"}</span>
+                    <p className={c.op === "format" ? "text-green-800" : "text-amber-800"}>{c.label}</p>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[10px] font-bold uppercase text-foreground/50">
+                      {c.op === "insert_after" ? "Párrafo nuevo" : c.op === "delete" ? "Párrafo eliminado" : `Párrafo ${(c.i ?? 0) + 1}`}
+                    </span>
+                    {c.before && <p className="text-red-700 line-through decoration-red-400">{c.before}</p>}
+                    {c.after && <p className="text-green-800">{c.after}</p>}
+                  </>
+                )}
               </li>
             ))}
           </ul>

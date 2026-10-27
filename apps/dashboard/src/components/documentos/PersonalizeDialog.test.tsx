@@ -121,4 +121,17 @@ describe("Personalizar — cambios específicos", () => {
     render(<PersonalizeDialog source={{ model_id: 7 }} title="PODER" onClose={() => {}} onSaved={() => {}} />);
     expect(await screen.findByText(/elige el cliente para generar el documento/i)).toBeTruthy();
   });
+
+  it("muestra los cambios de formato y lo que no se pudo", async () => {
+    gen.aiEdit.mockResolvedValue({ data: { document: DOC, changes: [
+      { op: "format", label: "Letra Times New Roman, 12 pt (todo el documento)" },
+      { op: "unsupported", label: "No se pudo: poner una marca de agua. Hazlo directamente en Word." },
+    ] } });
+    render(<PersonalizeDialog source={{ version_id: 40 }} title="Venta Corolla v1" fixedClient={{ id: 1, name: "Juan Pérez", phone: null }} onClose={() => {}} onSaved={() => {}} />);
+    fireEvent.click(screen.getByRole("tab", { name: /cambios específicos/i }));
+    fireEvent.change(screen.getByLabelText(/qué cambios/i), { target: { value: "Todo en Times 12 y marca de agua" } });
+    fireEvent.click(screen.getByRole("button", { name: /aplicar cambios/i }));
+    expect(await screen.findByText("Letra Times New Roman, 12 pt (todo el documento)")).toBeTruthy();
+    expect(screen.getByText(/no se pudo: poner una marca de agua/i)).toBeTruthy();
+  });
 });

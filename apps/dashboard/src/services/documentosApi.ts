@@ -106,10 +106,11 @@ export interface Field {
 }
 export type Source = { model_id: number } | { version_id: number };
 export interface Change {
-  op: "replace" | "insert_after" | "delete";
-  i: number;
-  before: string | null;
-  after: string | null;
+  op: "replace" | "insert_after" | "delete" | "format" | "unsupported";
+  i?: number;
+  before?: string | null;
+  after?: string | null;
+  label?: string; // format / unsupported: the change in words
 }
 
 export const generacionAPI = {
