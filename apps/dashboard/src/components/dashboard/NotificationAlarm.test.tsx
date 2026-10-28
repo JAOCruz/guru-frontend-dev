@@ -99,6 +99,37 @@ describe("NotificationAlarm", () => {
     expect(onUnreadCountChange).toHaveBeenLastCalledWith(0);
   });
 
+  it("Cerrar closes the window without marking anything read: they stay in the bell", async () => {
+    responses = [[], [n(11), n(12), n(13)]];
+    const { onUnreadCountChange } = setup();
+    await screen.findByText("Aviso 11");
+    fireEvent.click(screen.getByRole("button", { name: /^cerrar$/i }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(onUnreadCountChange).toHaveBeenLastCalledWith(3);
+    await new Promise((r) => setTimeout(r, 100)); // los sondeos siguientes no la vuelven a abrir
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("the summary on load can be closed too", async () => {
+    responses = [[n(1), n(2)]];
+    setup();
+    await screen.findByRole("alertdialog");
+    fireEvent.click(screen.getByRole("button", { name: /^cerrar$/i }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it("Ver closes the whole window, not only that notification", async () => {
+    responses = [[], [n(14, { link: "/documents?tab=etiquetas&model=3" }), n(15)]];
+    setup();
+    await screen.findByText("Aviso 14");
+    fireEvent.click(screen.getByRole("button", { name: /^ver$/i }));
+    expect(api.post).toHaveBeenCalledWith("/notifications/14/read");
+    expect(api.post).not.toHaveBeenCalledWith("/notifications/15/read");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
   it("puts the unread count in the tab title", async () => {
     responses = [[n(1), n(2)]];
     const { onUnreadCountChange } = setup();

@@ -57,6 +57,8 @@ function systemNotify(list: AppNotification[]) {
 const stripCount = (t: string) => t.replace(/^\(\d+\)\s/, "");
 
 // Visual alarm: new notifications open a window that stays until the user closes it with a button.
+// Cerrar only closes it: what was not marked read stays unread in the bell (Leandro, 2026-10-28: nine
+// "modelo para revisar" at once kept him out of the dashboard).
 const NotificationAlarm: React.FC<NotificationAlarmProps> = ({ onUnreadCountChange, onOpenList, pollMs = 15000 }) => {
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AppNotification[]>([]);
@@ -115,8 +117,11 @@ const NotificationAlarm: React.FC<NotificationAlarmProps> = ({ onUnreadCountChan
     onUnreadCountChange?.(next); // outside the state updater: it updates the layout
     api.post(`/notifications/${item.id}/read`).catch(() => {});
   };
+  // closes the window; nothing is marked read
+  const close = () => { setAlerts([]); setSummary(null); };
   const open = (item: AppNotification) => {
     markRead(item);
+    close(); // going to that page: the rest stay in the bell
     const path = notificationPath(item.link);
     if (path) navigate(path, notificationNav());
   };
@@ -190,7 +195,15 @@ const NotificationAlarm: React.FC<NotificationAlarmProps> = ({ onUnreadCountChan
               Avisarme también en el escritorio
             </button>
           ) : <span />}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={close}
+              title="Las que no marcaste quedan en la campana"
+              className="rounded-base border-2 border-border bg-secondary-background px-3 py-1.5 text-sm font-bold text-foreground shadow-button transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none"
+            >
+              Cerrar
+            </button>
             {!alerts.length && (
               <button
                 type="button"
