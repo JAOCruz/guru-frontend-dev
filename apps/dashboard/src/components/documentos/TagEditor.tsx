@@ -28,7 +28,7 @@ interface Props {
 }
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString("es-DO", { day: "numeric", month: "short", year: "numeric" }) : "");
-const SOURCE_LABEL: Record<TagVersion["source"], string> = { ai: "IA", edit: "Edición", restore: "Restaurada", client: "Desde documento" };
+const SOURCE_LABEL: Record<TagVersion["source"], string> = { ai: "IA", edit: "Edición", restore: "Restaurada", client: "Desde documento", library: "Biblioteca de Leandro" };
 const toKey = (s: string) => s.toUpperCase().replace(/[^\p{L}\p{N}_ ]+/gu, "").replace(/\s+/g, " ").trim().slice(0, 80);
 
 function groupsOf(tags: TagMeta[]) {

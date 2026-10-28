@@ -18,7 +18,7 @@ export interface TagVersion {
   version_number: number;
   tags: TagMeta[];
   skipped: { i: number; text: string }[];
-  source: "ai" | "edit" | "restore" | "client"; // client: saved from a personalized client document
+  source: "ai" | "edit" | "restore" | "client" | "library"; // client: saved from a personalized client document; library: Leandro's model library
   notes: string | null;
   created_at: string;
   created_by_name: string | null;
