@@ -128,6 +128,9 @@ export const generacionAPI = {
   },
   generate: (body: Source & { client_id?: number; client_role?: string | null; title: string; values: Record<string, string> }) =>
     api.post<{ document: PortfolioDocument; changes: Change[]; exact: boolean }>("/documentos/fill/generate", body),
+  // without a client the filled Word comes back as a file and nothing is saved
+  generateDownload: (body: Source & { title: string; values: Record<string, string> }) =>
+    api.post<Blob>("/documentos/fill/generate", body, { responseType: "blob" }),
   aiEdit: (body: Source & { client_id?: number; title?: string; instructions: string; autentico?: boolean }) =>
     api.post<{ document: PortfolioDocument; changes: Change[] }>("/documentos/ai-edit", body),
   // without a client the changed Word comes back as a file and nothing is saved

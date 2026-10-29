@@ -48,7 +48,7 @@ const saveFile = (blob: Blob, name: string) => {
 // Generación: fill a model (or a history version) with a client's data — prefilled from their
 // legal profile and completed by the AI from photos, PDFs, audios or text — or apply specific
 // changes described in plain words and/or the authentic-act layout. With a client the result is a draft
-// in their history; specific changes without a client download the Word instead.
+// in their history; without a client the Word is downloaded instead.
 export default function PersonalizeDialog({ source, title, fixedClient, onClose, onSaved }: Props) {
   const [tab, setTab] = useState<"fill" | "edit">("fill");
   const [client, setClient] = useState<HistoryClient | null>(fixedClient ?? null);
@@ -117,15 +117,22 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
   };
 
   const generate = async () => {
-    if (!client) return setError("Elige el cliente");
     setBusy("save");
     setError(null);
+    setDownloaded(null);
     try {
       const clean = Object.fromEntries(Object.entries(values).filter(([, v]) => v?.trim()));
-      const { data } = await generacionAPI.generate({ ...source, client_id: client.id, client_role: role || null, title: docTitle, values: clean });
-      finish(data);
+      if (client || fromHistory) {
+        const { data } = await generacionAPI.generate({ ...source, ...(client ? { client_id: client.id } : {}), client_role: role || null, title: docTitle, values: clean });
+        finish(data);
+      } else {
+        const { data } = await generacionAPI.generateDownload({ ...source, title: docTitle, values: clean });
+        const name = `${(docTitle || title).replace(/[\\/:*?"<>|]+/g, " ").trim() || "documento"}.docx`;
+        saveFile(data, name);
+        setDownloaded(name);
+      }
     } catch (err) {
-      setError(errorOf(err, "No se pudo generar el documento"));
+      setError(await blobErrorOf(err, "No se pudo generar el documento"));
     } finally {
       setBusy(null);
     }
@@ -306,6 +313,9 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
                       <input className={fieldCls} value={docTitle} onChange={(e) => setDocTitle(e.target.value)} />
                     </label>
                   )}
+                  {!client && !fromHistory && (
+                    <p className="text-xs text-foreground/60">Sin cliente, el Word llenado se descarga y no se guarda en Mis documentos.</p>
+                  )}
                 </>
               ) : (
                 <>
@@ -340,12 +350,13 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
                       ? `Se guarda como ${fromHistory ? "una versión nueva" : "un documento nuevo"} (borrador)${hasInstructions ? " y verás qué cambió" : ""}.`
                       : "Sin cliente, el Word cambiado se descarga y no se guarda en Mis documentos."}
                   </p>
-                  {downloaded && (
-                    <p className="flex items-center gap-2 rounded-base border-2 border-border bg-green-100 p-2 text-sm">
-                      <CheckCircle2 size={16} /> Se descargó «{downloaded}».
-                    </p>
-                  )}
                 </>
+              )}
+
+              {downloaded && (
+                <p className="flex items-center gap-2 rounded-base border-2 border-border bg-green-100 p-2 text-sm">
+                  <CheckCircle2 size={16} /> Se descargó «{downloaded}».
+                </p>
               )}
 
               {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
@@ -360,9 +371,8 @@ export default function PersonalizeDialog({ source, title, fixedClient, onClose,
             </NeoButton>
             {tab === "fill" ? (
               <>
-                {!client && <p className="self-center text-sm font-semibold text-foreground/70 sm:mr-auto">Elige el cliente para generar el documento</p>}
-                <NeoButton type="button" onClick={generate} disabled={busy === "save" || !client}>
-                  {busy === "save" ? "Generando…" : "Generar documento"}
+                <NeoButton type="button" onClick={generate} disabled={busy === "save"}>
+                  {busy === "save" ? "Generando…" : client || fromHistory ? "Generar documento" : "Generar y descargar"}
                 </NeoButton>
               </>
             ) : (

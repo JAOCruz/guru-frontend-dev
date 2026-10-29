@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 
 const { gen, docs } = vi.hoisted(() => ({
-  gen: { fields: vi.fn(), extract: vi.fn(), generate: vi.fn(), aiEdit: vi.fn(), aiEditDownload: vi.fn() },
+  gen: { fields: vi.fn(), extract: vi.fn(), generate: vi.fn(), generateDownload: vi.fn(), aiEdit: vi.fn(), aiEditDownload: vi.fn() },
   docs: { searchAllClients: vi.fn(), createClient: vi.fn() },
 }));
 vi.mock("./SaveAsModelButton", () => ({ default: (p: { documentId: number }) => <button>{`modelo:${p.documentId}`}</button> }));
@@ -117,9 +117,18 @@ describe("Personalizar — cambios específicos", () => {
     expect(await screen.findByText("La IA no respondió; intenta de nuevo")).toBeTruthy();
   });
 
-  it("llenar sin cliente dice qué falta", async () => {
+  // Leandro, 2026-10-29: «Generar documento» salía gris sin cliente; sin cliente se descarga el Word llenado
+  it("llenar sin cliente genera y descarga el Word", async () => {
+    gen.generateDownload.mockResolvedValue({ data: new Blob(["docx"]) });
+    Object.assign(URL, { createObjectURL: vi.fn(() => "blob:docx"), revokeObjectURL: vi.fn() });
     render(<PersonalizeDialog source={{ model_id: 7 }} title="PODER" onClose={() => {}} onSaved={() => {}} />);
-    expect(await screen.findByText(/elige el cliente para generar el documento/i)).toBeTruthy();
+    fireEvent.change(await screen.findAllByLabelText("Nombre").then((l) => l[0]), { target: { value: "JUAN PÉREZ" } });
+    const button = screen.getByRole("button", { name: /generar y descargar/i }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    fireEvent.click(button);
+    await waitFor(() => expect(gen.generateDownload).toHaveBeenCalledWith(expect.objectContaining({ model_id: 7, title: "PODER", values: { NOMBRE_VENDEDOR: "JUAN PÉREZ" } })));
+    expect(await screen.findByText(/se descargó «PODER\.docx»/i)).toBeTruthy();
+    expect(gen.generate).not.toHaveBeenCalled();
   });
 
   it("muestra los cambios de formato y lo que no se pudo", async () => {
