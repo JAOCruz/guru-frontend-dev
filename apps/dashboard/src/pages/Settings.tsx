@@ -295,7 +295,7 @@ const Settings: React.FC = () => {
               </div>
               <div>
                 <NeoCardTitle>Bot de WhatsApp</NeoCardTitle>
-                <NeoCardDescription>Quién puede aprobar y enviar los documentos que prepara el bot</NeoCardDescription>
+                <NeoCardDescription>Quién puede aprobar y enviar los documentos a los clientes</NeoCardDescription>
               </div>
             </div>
           </NeoCardHeader>
@@ -323,7 +323,7 @@ const Settings: React.FC = () => {
               </button>
             </div>
             <p className="mt-2 text-sm text-foreground/60">
-              Apagado: solo el admin aprueba. Encendido: el digitador asignado al cliente también puede.
+              Encendido: cada digitador aprueba y envía los documentos que hizo y los de sus clientes asignados, sin esperar al admin. Apagado: solo el admin. Las versiones nuevas de los modelos siempre las aprueba el admin.
             </p>
           </NeoCardContent>
         </NeoCard>
