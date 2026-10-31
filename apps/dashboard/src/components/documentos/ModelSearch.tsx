@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Eye, FileDown, FileText, MessageSquareWarning, PenLine, Search, Sparkles, UserPlus } from "lucide-react";
+import { Eye, FileDown, MessageSquareWarning, PenLine, Search, Sparkles, UserPlus } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { documentosAPI, downloadFile, modelFileUrl, type Model } from "../../services/documentosApi";
 import { notify } from "../../lib/dialogs";
@@ -70,45 +70,47 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
     <section className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative min-w-0 flex-1">
-          <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50" />
+          <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && q.trim().length >= 3 && !models.length && askAI()}
             placeholder="Buscar modelo por nombre (ej. declaración jurada de ingresos)"
             aria-label="Buscar modelo"
-            className="w-full rounded-base border-2 border-border bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:border-main"
+            className="gos-input py-2.5 pl-10 pr-3"
           />
         </div>
-        <NeoButton onClick={() => askAI()} disabled={q.trim().length < 3 || aiLoading} title="Describe lo que necesitas y la IA elige el modelo">
+        <NeoButton onClick={() => askAI()} disabled={q.trim().length < 3 || aiLoading} title="Describe lo que necesitas y la IA elige el modelo" className="font-heading font-black uppercase tracking-wide">
           <Sparkles size={16} /> {aiLoading ? "Buscando…" : "Buscar con IA"}
         </NeoButton>
       </div>
 
-      <p className="text-xs text-foreground/60">
+      <p className="gos-muted text-xs">
         {aiResults
           ? `La IA sugiere ${aiResults.length} modelo${aiResults.length === 1 ? "" : "s"} para "${q.trim()}".`
           : loading
             ? "Buscando…"
             : `${list.length} modelo${list.length === 1 ? "" : "s"} de nuestra selección${q.trim() ? " coinciden" : ""}. ¿No aparece? Descríbelo y usa «Buscar con IA».`}
         {aiResults && (
-          <button type="button" className="ml-2 font-semibold underline" onClick={() => setAiResults(null)}>
+          <button type="button" className="ml-2 font-semibold text-blue-400 underline" onClick={() => setAiResults(null)}>
             Ver búsqueda normal
           </button>
         )}
       </p>
 
-      <ul className="divide-y-2 divide-border/15 overflow-hidden rounded-base border-2 border-border bg-background shadow-shadow">
+      <ul className="gos-panel gos-list overflow-hidden">
         {list.map((m) => (
           <li key={m.id} className="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 flex-1 items-start gap-3 md:min-w-[16rem]">
-              <FileText size={20} className="mt-0.5 shrink-0 text-main" />
+              <span aria-hidden="true" className="gos-badge mt-0.5 shrink-0 text-xl">
+                📄
+              </span>
               <div className="min-w-0">
-                <p className="break-words text-sm font-bold">{m.name}</p>
-                <p className="text-xs text-foreground/60">{m.category || "Sin categoría"}</p>
-                {m.tag_status === "approved" && <p className="mt-0.5 text-xs font-semibold text-green-700">✓ Listo para llenar</p>}
-                {isAdmin && m.tag_status === "pending" && <p className="mt-0.5 text-xs font-semibold text-amber-700">{STATUS_LABEL.pending}</p>}
-                {m.reason && <p className="mt-1 text-xs font-semibold text-main">✨ {m.reason}</p>}
+                <p className="break-words text-sm font-bold text-white">{m.name}</p>
+                <p className="gos-muted text-[11px] font-bold uppercase tracking-wider">{m.category || "Sin categoría"}</p>
+                {m.tag_status === "approved" && <p className="mt-0.5 text-xs font-semibold text-emerald-400">✓ Listo para llenar</p>}
+                {isAdmin && m.tag_status === "pending" && <p className="mt-0.5 text-xs font-semibold text-orange-300">{STATUS_LABEL.pending}</p>}
+                {m.reason && <p className="mt-1 text-xs font-semibold text-blue-300">✨ {m.reason}</p>}
               </div>
             </div>
             <div className="flex flex-wrap gap-1.5 md:max-w-[62%] md:justify-end">
@@ -137,7 +139,7 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
             </div>
           </li>
         ))}
-        {!loading && !list.length && <li className="px-4 py-8 text-center text-sm text-foreground/60">No hay modelos con ese nombre.</li>}
+        {!loading && !list.length && <li className="gos-muted px-4 py-8 text-center text-sm">No hay modelos con ese nombre.</li>}
       </ul>
 
       {personalize && (

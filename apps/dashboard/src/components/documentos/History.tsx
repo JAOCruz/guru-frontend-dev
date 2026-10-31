@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Bot, CheckCircle2, Send, ChevronDown, ChevronLeft, Eye, FileDown, FilePlus2, Search, Sparkles, Upload } from "lucide-react";
+import { ChevronDown, Eye, FileDown, Search, Send, Sparkles, Upload } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { useAuth } from "../../context/AuthContext";
 import { useUserColors } from "../../context/UserColorsContext";
@@ -17,9 +17,15 @@ import Modal from "../users/Modal";
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const fmt = (d: string) => new Date(d).toLocaleDateString("es-DO", { day: "numeric", month: "short", year: "numeric" });
+const SORTS: { key: DocSort; label: string; emoji: string }[] = [
+  { key: "recent", label: "Recientes", emoji: "🕘" },
+  { key: "date", label: "Fecha", emoji: "📅" },
+  { key: "name", label: "Nombre", emoji: "🔤" },
+];
 
 // Historial del digitador: personalized documents per client. Each digitador sees only what
 // they created; the admin sees everyone's (with a filter) and approves versions.
+// Split view: clients on the left (a chip row on phones), the client's documents in a folder panel.
 export default function History() {
   const { isAdmin } = useAuth();
   const { users } = useUserColors();
@@ -144,47 +150,53 @@ export default function History() {
     );
 
   return (
-    <section className="grid min-h-[60vh] gap-4 md:grid-cols-[18rem_1fr]">
-      {/* Clients */}
-      <aside className={`${selected ? "hidden md:flex" : "flex"} min-w-0 flex-col rounded-base border-2 border-border bg-secondary-background shadow-shadow`}>
-        <div className="space-y-2 border-b-2 border-border p-3">
-          <NeoButton className="w-full" onClick={() => setUpload({})}>
+    <section className="grid min-h-[50vh] gap-4 md:grid-cols-[17rem_1fr]">
+      {/* Clients: a column on desktop, a chip row on phones */}
+      <aside className="gos-side flex min-w-0 flex-col">
+        <div className="space-y-2 border-b-2 border-slate-800 p-3">
+          <NeoButton className="w-full font-heading font-black uppercase tracking-wide" onClick={() => setUpload({})}>
             <Upload size={16} /> Subir documento
           </NeoButton>
           <div className="relative">
-            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50" />
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               value={clientQ}
               onChange={(e) => setClientQ(e.target.value)}
               placeholder="Buscar cliente"
               aria-label="Buscar cliente"
-              className="w-full rounded-base border-2 border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:border-main"
+              className="gos-input py-2 pl-9 pr-3"
             />
           </div>
         </div>
-        <ul className="flex-1 divide-y-2 divide-border/15 overflow-y-auto">
-          {clients.map((c) => (
-            <li key={c.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelected(c);
-                  setOpenDoc(null);
-                }}
-                className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left ${
-                  selected?.id === c.id ? "bg-main/15 shadow-[inset_4px_0_0_0_var(--main)]" : "hover:bg-background"
-                }`}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-bold">{c.name || "Sin nombre"}</span>
-                  <span className="block truncate text-xs text-foreground/60">{c.phone}</span>
-                </span>
-                <span className="shrink-0 rounded-full bg-foreground/10 px-2 text-xs font-bold">{c.documents}</span>
-              </button>
-            </li>
-          ))}
+        <p className="px-4 pt-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Clientes</p>
+        <ul className="flex min-w-0 gap-1.5 overflow-x-auto p-2 md:flex-1 md:flex-col md:overflow-y-auto">
+          {clients.map((c) => {
+            const current = selected?.id === c.id;
+            return (
+              <li key={c.id} className="shrink-0 md:shrink">
+                <button
+                  type="button"
+                  aria-current={current}
+                  onClick={() => {
+                    setSelected(c);
+                    setOpenDoc(null);
+                  }}
+                  className="gos-side-item max-w-[14rem] md:max-w-none"
+                >
+                  <span aria-hidden="true" className="text-xl leading-none">
+                    👤
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm">{c.name || "Sin nombre"}</span>
+                    <span className="gos-muted hidden truncate text-xs font-medium md:block">{c.phone}</span>
+                  </span>
+                  <span className="gos-count">{c.documents}</span>
+                </button>
+              </li>
+            );
+          })}
           {!clients.length && (
-            <li className="px-3 py-8 text-center text-sm text-foreground/60">
+            <li className="gos-muted w-full px-3 py-6 text-center text-sm">
               {clientQ ? "Ningún cliente con documentos coincide." : "Aún no hay documentos. Sube el primero."}
             </li>
           )}
@@ -192,42 +204,27 @@ export default function History() {
       </aside>
 
       {/* Documents of the selected client */}
-      <div className={`${selected ? "flex" : "hidden md:flex"} min-w-0 flex-col gap-3`}>
+      <div className="flex min-w-0 flex-col gap-3">
         {!selected ? (
-          <div className="flex flex-1 items-center justify-center rounded-base border-2 border-dashed border-border p-8 text-center text-foreground/60">
+          <div className="gos-muted flex flex-1 flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-slate-800 p-8 text-center text-sm">
+            <span aria-hidden="true" className="text-5xl">
+              🗂️
+            </span>
             Elige un cliente para ver sus documentos, o sube uno nuevo.
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={() => setSelected(null)} className="rounded-base border-2 border-border p-1.5 md:hidden" aria-label="Volver a clientes">
-                <ChevronLeft size={18} />
-              </button>
-              <h2 className="min-w-0 flex-1 truncate font-heading text-2xl font-black">{selected.name || "Sin nombre"}</h2>
-              {/* on phones the client list (with its upload button) is hidden */}
-              <NeoButton size="sm" className="md:hidden" onClick={() => setUpload({})}>
-                <FilePlus2 size={14} /> Subir
-              </NeoButton>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-              <span className="text-foreground/60">Ordenar:</span>
-              {(["recent", "date", "name"] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSort(s)}
-                  aria-pressed={sort === s}
-                  className={`rounded-base border-2 px-2 py-0.5 ${sort === s ? "border-border bg-main text-main-foreground" : "border-transparent hover:border-border"}`}
-                >
-                  {{ recent: "Recientes", date: "Fecha", name: "Nombre" }[s]}
-                </button>
-              ))}
+            <div className="flex min-w-0 items-center gap-3 px-1">
+              <span aria-hidden="true" className="gos-badge shrink-0 text-2xl">
+                👤
+              </span>
+              <h2 className="min-w-0 flex-1 truncate font-heading text-xl font-black uppercase tracking-wide text-white md:text-2xl">{selected.name || "Sin nombre"}</h2>
               {isAdmin && (
                 <select
                   value={creator}
                   onChange={(e) => setCreator(e.target.value)}
                   aria-label="Filtrar por digitador"
-                  className="ml-auto rounded-base border-2 border-border bg-background px-2 py-1"
+                  className="gos-input w-auto max-w-[11rem] px-2 py-1.5 text-xs font-bold"
                 >
                   <option value="">Todos los digitadores</option>
                   {users.map((u) => (
@@ -239,110 +236,140 @@ export default function History() {
               )}
             </div>
 
-            <ul className="space-y-2">
-              {documents.map((d) => {
-                const open = openDoc?.id === d.id;
-                return (
-                  <li key={d.id} className="overflow-hidden rounded-base border-2 border-border bg-background shadow-shadow">
-                    <button type="button" onClick={() => toggleDoc(d)} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-3 text-left">
-                      <span className="min-w-0 flex-1">
-                        <span className="block break-words text-sm font-bold">{d.title}</span>
-                        <span className="block text-xs text-foreground/60">
-                          {d.versions_count} versión{d.versions_count === 1 ? "" : "es"} · {fmt(d.updated_at)}
-                          {isAdmin && d.created_by_name ? ` · ${d.created_by_name}` : ""}
-                        </span>
-                      </span>
-                      {d.prepared_by_bot && <BotBadge />}
-                      <StatusBadge approved={d.approved_version} />
-                      <ChevronDown size={18} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
-                    </button>
-                    {open && openDoc && (
-                      <div className="border-t-2 border-border bg-secondary-background px-3 py-3">
-                        {(() => {
-                          const canApprove = openDoc.can_approve ?? isAdmin;
-                          const delivery = deliveryLine(openDoc);
-                          return (
-                            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-semibold">
-                              {openDoc.prepared_by_bot && (
-                                <>
-                                  <BotBadge />
-                                  {openDoc.invoice_id ? (
-                                    <Link to={`/cotizaciones?invoice=${openDoc.invoice_id}`} className="underline">
-                                      Ver cotización
-                                    </Link>
-                                  ) : null}
-                                </>
-                              )}
-                              {delivery && <span className={delivery.warn ? "text-amber-700" : "text-green-700"}>{delivery.text}</span>}
-                              {canApprove && openDoc.client_id && openDoc.approved_version && !openDoc.sent_at && (
-                                <NeoButton size="sm" disabled={sending} onClick={() => sendToClient(openDoc)}>
-                                  <Send size={14} /> Enviar al cliente
-                                </NeoButton>
-                              )}
+            {/* Folder tabs: how the list is ordered */}
+            <div>
+              <div className="gos-folder-tabs" role="group" aria-label="Ordenar">
+                {SORTS.map((s) => (
+                  <button key={s.key} type="button" onClick={() => setSort(s.key)} aria-pressed={sort === s.key} className="gos-folder-tab">
+                    <span aria-hidden="true" className="text-base">
+                      {s.emoji}
+                    </span>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <div className="gos-folder-panel">
+                <ul className="space-y-2">
+                  {documents.map((d) => {
+                    const open = openDoc?.id === d.id;
+                    return (
+                      <li key={d.id} className="gos-card overflow-hidden" data-open={open}>
+                        <button type="button" onClick={() => toggleDoc(d)} aria-expanded={open} className="flex w-full items-center gap-3 px-3 py-3 text-left sm:px-4">
+                          <span aria-hidden="true" className="text-2xl leading-none">
+                            📄
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block break-words text-sm font-bold text-white">{d.title}</span>
+                            <span className="gos-muted block text-xs">
+                              {d.versions_count} versión{d.versions_count === 1 ? "" : "es"} · {fmt(d.updated_at)}
+                              {isAdmin && d.created_by_name ? ` · ${d.created_by_name}` : ""}
+                            </span>
+                          </span>
+                          {d.prepared_by_bot && <BotBadge />}
+                          <StatusBadge approved={d.approved_version} />
+                          <ChevronDown size={18} className={`shrink-0 text-blue-400 transition-transform ${open ? "rotate-180" : ""}`} />
+                        </button>
+                        {open && openDoc && (
+                          <div className="border-t border-blue-900/40 bg-black/30 px-3 py-3">
+                            {(() => {
+                              const canApprove = openDoc.can_approve ?? isAdmin;
+                              const delivery = deliveryLine(openDoc);
+                              return (
+                                <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-semibold">
+                                  {openDoc.prepared_by_bot && (
+                                    <>
+                                      <BotBadge />
+                                      {openDoc.invoice_id ? (
+                                        <Link to={`/cotizaciones?invoice=${openDoc.invoice_id}`} className="text-blue-300 underline">
+                                          Ver cotización
+                                        </Link>
+                                      ) : null}
+                                    </>
+                                  )}
+                                  {delivery &&
+                                    (delivery.warn ? (
+                                      <span className="gos-callout-orange basis-full !py-2 text-xs">
+                                        <span aria-hidden="true">⚠️</span> {delivery.text}
+                                      </span>
+                                    ) : (
+                                      <span className="text-emerald-400">
+                                        <span aria-hidden="true">✅</span> {delivery.text}
+                                      </span>
+                                    ))}
+                                  {canApprove && openDoc.client_id && openDoc.approved_version && !openDoc.sent_at && (
+                                    <NeoButton size="sm" disabled={sending} onClick={() => sendToClient(openDoc)}>
+                                      <Send size={14} /> Enviar al cliente
+                                    </NeoButton>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                            <p className="gos-label-blue mb-2">Versiones</p>
+                            <ul className="space-y-2">
+                              {openDoc.versions?.map((v) => (
+                                <li key={v.id} className="gos-step gos-card p-3">
+                                  <span className={`gos-step-num ${v.status === "approved" ? "gos-step-num-emerald" : ""}`}>v{v.version_number}</span>
+                                  <div className="min-w-0 flex-1 space-y-2">
+                                    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                                      {v.status === "approved" ? (
+                                        <span className="gos-pill gos-pill-emerald">
+                                          <span aria-hidden="true">✅</span> Aprobada
+                                        </span>
+                                      ) : (
+                                        <span className="gos-pill gos-pill-ghost">Borrador</span>
+                                      )}
+                                      <span className="gos-muted min-w-0 basis-full break-words text-xs sm:basis-auto">
+                                        {v.created_by_name} · {fmt(v.created_at)}
+                                        {v.notes ? ` · ${v.notes}` : ""}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      <NeoButton size="sm" variant="neutral" onClick={() => setPreview({ title: `${openDoc.title} v${v.version_number}`, version: v })}>
+                                        <Eye size={14} /> Ver
+                                      </NeoButton>
+                                      {v.mime_type === DOCX && (
+                                        <NeoButton size="sm" variant="neutral" onClick={() => download(openDoc, v, "docx")}>
+                                          <FileDown size={14} /> Word
+                                        </NeoButton>
+                                      )}
+                                      <NeoButton size="sm" variant="neutral" onClick={() => download(openDoc, v, "pdf")}>
+                                        <FileDown size={14} /> PDF
+                                      </NeoButton>
+                                      {v.mime_type === DOCX && (
+                                        <NeoButton size="sm" variant="neutral" onClick={() => setPersonalize({ doc: openDoc, version: v })} title="Llenar con datos o pedir cambios a la IA: crea una versión nueva">
+                                          <Sparkles size={14} /> Personalizar
+                                        </NeoButton>
+                                      )}
+                                      {(openDoc.can_approve ?? isAdmin) && v.status !== "approved" && (
+                                        <NeoButton size="sm" onClick={() => setApproving({ doc: openDoc, version: v })}>
+                                          Aprobar v{v.version_number}
+                                        </NeoButton>
+                                      )}
+                                    </div>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              <NeoButton size="sm" variant="neutral" onClick={() => setUpload({ doc: openDoc })}>
+                                <Upload size={14} /> Subir nueva versión
+                              </NeoButton>
+                              {/* made from a model and has a Word: its wording can become the model's next version */}
+                              {openDoc.template_id && openDoc.versions?.some((v) => v.mime_type === DOCX) ? <SaveAsModelButton documentId={openDoc.id} /> : null}
                             </div>
-                          );
-                        })()}
-                        <ul className="space-y-2">
-                          {openDoc.versions?.map((v) => (
-                            <li key={v.id} className="flex flex-col gap-2 rounded-base border-2 border-border bg-background px-3 py-2">
-                              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                                <span className="font-heading text-lg font-black">v{v.version_number}</span>
-                                {v.status === "approved" ? (
-                                  <span className="flex items-center gap-1 rounded-full border-2 border-border bg-green-100 px-2 text-xs font-bold">
-                                    <CheckCircle2 size={12} /> Aprobada
-                                  </span>
-                                ) : (
-                                  <span className="rounded-full border-2 border-border/40 px-2 text-xs font-bold text-foreground/70">Borrador</span>
-                                )}
-                                <span className="min-w-0 basis-full break-words text-xs text-foreground/60 sm:basis-auto">
-                                  {v.created_by_name} · {fmt(v.created_at)}
-                                  {v.notes ? ` · ${v.notes}` : ""}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-1.5">
-                                <NeoButton size="sm" variant="neutral" onClick={() => setPreview({ title: `${openDoc.title} v${v.version_number}`, version: v })}>
-                                  <Eye size={14} /> Ver
-                                </NeoButton>
-                                {v.mime_type === DOCX && (
-                                  <NeoButton size="sm" variant="neutral" onClick={() => download(openDoc, v, "docx")}>
-                                    <FileDown size={14} /> Word
-                                  </NeoButton>
-                                )}
-                                <NeoButton size="sm" variant="neutral" onClick={() => download(openDoc, v, "pdf")}>
-                                  <FileDown size={14} /> PDF
-                                </NeoButton>
-                                {v.mime_type === DOCX && (
-                                  <NeoButton size="sm" variant="neutral" onClick={() => setPersonalize({ doc: openDoc, version: v })} title="Llenar con datos o pedir cambios a la IA: crea una versión nueva">
-                                    <Sparkles size={14} /> Personalizar
-                                  </NeoButton>
-                                )}
-                                {(openDoc.can_approve ?? isAdmin) && v.status !== "approved" && (
-                                  <NeoButton size="sm" onClick={() => setApproving({ doc: openDoc, version: v })}>
-                                    Aprobar v{v.version_number}
-                                  </NeoButton>
-                                )}
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          <NeoButton size="sm" variant="neutral" onClick={() => setUpload({ doc: openDoc })}>
-                            <Upload size={14} /> Subir nueva versión
-                          </NeoButton>
-                          {/* made from a model and has a Word: its wording can become the model's next version */}
-                          {openDoc.template_id && openDoc.versions?.some((v) => v.mime_type === DOCX) ? <SaveAsModelButton documentId={openDoc.id} /> : null}
-                        </div>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-              {!documents.length && (
-                <li className="rounded-base border-2 border-dashed border-border p-6 text-center text-sm text-foreground/60">
-                  No hay documentos {creator ? "de ese digitador " : ""}para este cliente.
-                </li>
-              )}
-            </ul>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                  {!documents.length && (
+                    <li className="gos-muted rounded-2xl border-2 border-dashed border-slate-700 p-6 text-center text-sm">
+                      No hay documentos {creator ? "de ese digitador " : ""}para este cliente.
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -399,8 +426,8 @@ function deliveryLine(d: PortfolioDocument): { text: string; warn: boolean } | n
 
 function BotBadge() {
   return (
-    <span className="flex shrink-0 items-center gap-1 rounded-full border-2 border-border bg-main/20 px-2 text-xs font-bold">
-      <Bot size={12} /> Preparado por el bot
+    <span className="gos-pill gos-pill-orange">
+      <span aria-hidden="true">🤖</span> Preparado por el bot
     </span>
   );
 }
@@ -414,16 +441,16 @@ function ApproveDialog({ doc, version, onCancel, onApprove }: {
   // payment, so that case defaults to "Solo aprobar" and says so.
   const alreadyPaid = !!doc.invoice_id && doc.invoice_status === "paid";
   const [mode, setMode] = useState<SendMode>(doc.invoice_id && !alreadyPaid ? "al_pagar" : "manual");
-  const options: { value: SendMode; label: string; hint: string }[] = [
+  const options: { value: SendMode; label: string; hint: string; emoji: string }[] = [
     ...(doc.invoice_id
       ? [{
-          value: "al_pagar" as const, label: "Enviar cuando pague",
+          value: "al_pagar" as const, label: "Enviar cuando pague", emoji: "💸",
           hint: alreadyPaid ? "La cotización ya está pagada: se envía al aprobar." : "Se manda por WhatsApp al confirmar el pago de la cotización",
         }]
       : []),
     // without a client there is nobody to send it to
-    ...(doc.client_id ? [{ value: "ya" as const, label: "Enviar ya", hint: "Se manda por WhatsApp ahora mismo" }] : []),
-    { value: "manual", label: "Solo aprobar", hint: "No se envía; lo mandas tú después" },
+    ...(doc.client_id ? [{ value: "ya" as const, label: "Enviar ya", emoji: "📨", hint: "Se manda por WhatsApp ahora mismo" }] : []),
+    { value: "manual", label: "Solo aprobar", emoji: "✅", hint: "No se envía; lo mandas tú después" },
   ];
   return (
     <Modal title={`¿Aprobar v${version.version_number}?`} onClose={onCancel}>
@@ -432,11 +459,13 @@ function ApproveDialog({ doc, version, onCancel, onApprove }: {
       </p>
       <div className="space-y-2">
         {options.map((o) => (
-          <label key={o.value} className="flex cursor-pointer items-start gap-2 rounded-base border-2 border-border bg-secondary-background p-2">
+          <label key={o.value} className="gos-card flex cursor-pointer items-start gap-2 p-2.5">
             <input type="radio" name="send_mode" value={o.value} checked={mode === o.value} onChange={() => setMode(o.value)} className="mt-1" />
             <span>
-              <span className="block text-sm font-bold">{o.label}</span>
-              <span className="block text-xs text-foreground/60">{o.hint}</span>
+              <span className="block text-sm font-bold text-white">
+                <span aria-hidden="true">{o.emoji}</span> {o.label}
+              </span>
+              <span className="gos-muted block text-xs">{o.hint}</span>
             </span>
           </label>
         ))}
@@ -451,10 +480,10 @@ function ApproveDialog({ doc, version, onCancel, onApprove }: {
 
 function StatusBadge({ approved }: { approved: number | null }) {
   return approved ? (
-    <span className="flex shrink-0 items-center gap-1 rounded-full border-2 border-border bg-green-100 px-2 text-xs font-bold">
-      <CheckCircle2 size={12} /> v{approved}
+    <span className="gos-pill gos-pill-emerald">
+      <span aria-hidden="true">✅</span> v{approved}
     </span>
   ) : (
-    <span className="shrink-0 rounded-full border-2 border-border/40 px-2 text-xs font-bold text-foreground/70">Borrador</span>
+    <span className="gos-pill gos-pill-ghost">Borrador</span>
   );
 }

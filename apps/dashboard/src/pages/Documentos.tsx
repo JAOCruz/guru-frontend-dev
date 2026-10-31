@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { FolderOpen, LayoutGrid, Plus, Search, Tags } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { useAuth } from "../context/AuthContext";
 import { documentosAPI, type HistoryClient, type Model, type PortfolioDocument } from "../services/documentosApi";
@@ -12,6 +12,8 @@ import CommandSearch from "../components/documentos/CommandSearch";
 import NewDocumentDialog, { type NewDocKind } from "../components/documentos/NewDocumentDialog";
 import UploadDialog from "../components/documentos/UploadDialog";
 import PersonalizeDialog from "../components/documentos/PersonalizeDialog";
+import OwlHelper from "../components/documentos/OwlHelper";
+import "../components/documentos/guru-os.css";
 
 // Documentos (remake): one workspace instead of three tabs.
 //  · Inicio — create (desde cero con IA, en blanco, desde un modelo, subir), the pipeline of my documents
@@ -20,6 +22,7 @@ import PersonalizeDialog from "../components/documentos/PersonalizeDialog";
 //  · Revisión de etiquetas (admin, tab "etiquetas") — tagged copies of the models
 //  · ⌘K / "/" — one search for models, my documents and clients
 // Old links keep working: ?tab=historial&client=… and ?tab=etiquetas&model=… (notifications point there).
+// Look: "Gurú OS" — a dark bento app container with emoji tiles (styles in components/documentos/guru-os.css).
 export default function Documentos() {
   const { isAdmin } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -76,62 +79,72 @@ export default function Documentos() {
   };
 
   const tabs = [
-    { key: "inicio" as const, label: "Inicio", hint: "Crear, en curso y biblioteca", Icon: LayoutGrid },
-    { key: "historial" as const, label: "Mis documentos", hint: "Por cliente, con versiones", Icon: FolderOpen },
-    ...(isAdmin ? [{ key: "etiquetas" as const, label: "Revisión de etiquetas", hint: "Etiquetar y aprobar modelos", Icon: Tags }] : []),
+    { key: "inicio" as const, label: "Inicio", hint: "Crear, en curso y biblioteca", emoji: "🏠" },
+    { key: "historial" as const, label: "Mis documentos", hint: "Por cliente, con versiones", emoji: "🗂️" },
+    ...(isAdmin ? [{ key: "etiquetas" as const, label: "Revisión de etiquetas", hint: "Etiquetar y aprobar modelos", emoji: "🏷️" }] : []),
   ];
 
+  const pending = documents.filter((d) => d.prepared_by_bot && !d.approved_version).length;
+  const owlMessage = creating
+    ? "Cuéntame qué documento necesitas: tipo, partes, montos y plazos. Lo que falte lo dejo como etiqueta."
+    : search
+      ? "Escribe el nombre de un modelo, de un documento o de un cliente. Enter abre el primero."
+      : tab === "historial"
+        ? "Elige un cliente: aquí apruebas, envías y guardas versiones."
+        : tab === "etiquetas"
+          ? "Revisa las etiquetas de cada modelo y apruébalo para que todos lo llenen."
+          : pending > 0
+            ? `El bot preparó ${pending} borrador${pending === 1 ? "" : "es"} que esperan tu revisión.`
+            : "¡Hola! Crea un documento desde cero con la IA o busca un modelo en la biblioteca.";
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="font-heading text-3xl font-black md:text-4xl">Documentos</h1>
-          <p className="text-sm text-foreground/70">Crea, personaliza, aprueba y envía los documentos de cada cliente.</p>
-        </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={() => setSearch(true)}
-            className="flex w-full min-w-0 items-center gap-2 rounded-base border-2 border-border bg-background px-3 py-2.5 text-left text-sm text-foreground/60 hover:border-main sm:w-80"
-            aria-label="Buscar modelos, documentos y clientes"
-          >
-            <Search size={16} className="shrink-0" />
-            <span className="min-w-0 flex-1 truncate">Buscar modelo, documento o cliente…</span>
-            <kbd className="hidden rounded border border-border px-1.5 text-[10px] font-bold sm:inline">⌘K</kbd>
-          </button>
-          <NeoButton onClick={() => setCreating({})} className="w-full shrink-0 sm:w-auto">
-            <Plus size={18} /> Nuevo documento
-          </NeoButton>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <nav role="tablist" aria-label="Secciones de documentos" className="flex min-w-0 max-w-full gap-2 overflow-x-auto">
-          {tabs.map(({ key, label, hint, Icon }) => {
-            const active = tab === key;
-            return (
+    <div className="guru-os gos-desk">
+      <div className="gos-app">
+        <header className="gos-header">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 md:px-6 md:pt-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="gos-badge text-2xl md:text-3xl" aria-hidden="true">
+                🦉
+              </span>
+              <div className="min-w-0">
+                <h1 className="gos-title font-heading text-2xl md:text-3xl">Documentos</h1>
+                <p className="gos-subtitle mt-1">Crea, personaliza, aprueba y envía los documentos de cada cliente.</p>
+              </div>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               <button
-                key={key}
                 type="button"
-                role="tab"
-                aria-selected={active}
-                title={hint}
-                onClick={() => setTab(key)}
-                className={`flex shrink-0 items-center gap-2 rounded-base border-2 border-border px-3 py-2 font-heading text-base font-black transition-all ${
-                  active ? "bg-main text-main-foreground shadow-shadow" : "bg-secondary-background hover:-translate-y-0.5"
-                }`}
+                onClick={() => setSearch(true)}
+                className="gos-input flex w-full min-w-0 items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-400 hover:border-blue-500 sm:w-72"
+                aria-label="Buscar modelos, documentos y clientes"
               >
-                <Icon size={18} className="shrink-0" /> {label}
+                <Search size={16} className="shrink-0" />
+                <span className="min-w-0 flex-1 truncate">Buscar modelo, documento o cliente…</span>
+                <kbd className="hidden rounded border px-1.5 text-[10px] font-bold sm:inline">⌘K</kbd>
               </button>
-            );
-          })}
-        </nav>
-        <Link to="/documents/anterior" className="ml-auto text-xs font-semibold text-foreground/50 underline hover:text-foreground">
-          Vista anterior
-        </Link>
-      </div>
+              <NeoButton onClick={() => setCreating({})} className="w-full shrink-0 font-heading font-black uppercase tracking-wide sm:w-auto">
+                <Plus size={18} /> Nuevo documento
+              </NeoButton>
+            </div>
+          </div>
 
-      <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 px-4 pb-4 pt-3 md:px-6 md:pb-5">
+            <nav role="tablist" aria-label="Secciones de documentos" className="gos-tabs min-w-0">
+              {tabs.map(({ key, label, hint, emoji }) => (
+                <button key={key} type="button" role="tab" aria-selected={tab === key} title={hint} onClick={() => setTab(key)} className="gos-tab">
+                  <span aria-hidden="true">{emoji}</span> {label}
+                </button>
+              ))}
+            </nav>
+            <Link to="/documents/anterior" className="ml-auto text-xs font-semibold text-slate-500 underline hover:text-slate-200">
+              Vista anterior
+            </Link>
+          </div>
+        </header>
+
+        <OwlHelper message={owlMessage} />
+
+        <div className="min-w-0 p-4 md:p-6">
           {tab === "inicio" ? (
             <Workspace
               documents={documents}
@@ -148,6 +161,7 @@ export default function Documentos() {
           ) : (
             <TagReview key={params.get("model") || "list"} initialModel={Number(params.get("model")) || null} />
           )}
+        </div>
       </div>
 
       {search && (
