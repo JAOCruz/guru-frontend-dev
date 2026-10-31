@@ -673,6 +673,261 @@
   }
 }
 
+
+/* Home / Servicios bento grid — the reference's Servicios grid: 2 columns on phones, 3 from md */
+.gos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .gos-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+.gos-tile-big {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.25rem;
+  min-height: 9rem;
+  padding: 1.25rem 0.75rem;
+  background: linear-gradient(180deg, #161a29, #0f111a);
+  border: 2px solid #1e293b;
+  border-radius: 1.5rem;
+  color: #e2e8f0;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+@media (min-width: 768px) {
+  .gos-tile-big {
+    min-height: 11rem;
+    padding: 1.5rem;
+  }
+}
+.gos-tile-big:hover {
+  border-color: #3b82f6;
+  box-shadow: 6px 6px 0 0 #2563eb;
+  transform: translateY(-4px);
+}
+.gos-tile-big:active {
+  transform: translateY(4px);
+  box-shadow: none;
+}
+.gos-tile-big .gos-emoji {
+  display: block;
+  font-size: 2.75rem;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+  transition: transform 0.2s;
+}
+@media (min-width: 768px) {
+  .gos-tile-big .gos-emoji {
+    font-size: 3.75rem;
+    margin-bottom: 0.75rem;
+  }
+}
+.gos-tile-big:hover .gos-emoji {
+  transform: scale(1.1) rotate(-6deg);
+}
+.gos-tile-big:hover .gos-tile-label {
+  color: #60a5fa;
+}
+.gos-tile-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+.gos-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.45rem;
+  border-radius: 0.4rem;
+  border: 1px solid #334155;
+  background: #000;
+  color: #cbd5e1;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.gos-mini b {
+  color: #fff;
+  font-size: 0.75rem;
+}
+.gos-mini-emerald b {
+  color: #34d399;
+}
+.gos-mini-blue b {
+  color: #60a5fa;
+}
+.gos-mini-orange {
+  border-color: rgba(249, 115, 22, 0.6);
+}
+.gos-mini-orange b {
+  color: #fb923c;
+}
+
+/* Full view ("slide over"): header bar with back button and blue uppercase title */
+.gos-view-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: #0d111c;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+@media (min-width: 768px) {
+  .gos-view-head {
+    padding: 1.1rem 1.5rem;
+  }
+}
+.gos-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.75rem;
+  background: #1e293b;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.8rem;
+  transition: background-color 0.15s, transform 0.15s;
+}
+.gos-back:hover {
+  background: #334155;
+}
+.gos-back:active {
+  transform: scale(0.95);
+}
+.gos-view-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #60a5fa;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+@media (min-width: 768px) {
+  .gos-view-title {
+    font-size: 1.5rem;
+  }
+}
+.gos-emoji-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  padding: 0.3rem 0.45rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+  line-height: 1;
+}
+
+/* Emerald list rows ("¿Qué entregamos?") and cost table */
+.gos-emerald-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #111421;
+  border: 1px solid rgba(6, 78, 59, 0.6);
+  border-radius: 0.75rem;
+  color: #ecfdf5;
+  font-size: 0.85rem;
+}
+.gos-emerald-row::before {
+  content: "";
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #10b981;
+}
+.gos-cost-table {
+  background: rgba(6, 78, 59, 0.2);
+  border: 2px solid rgba(16, 185, 129, 0.5);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+.gos-cost-table-head {
+  padding: 0.75rem;
+  text-align: center;
+  background: rgba(6, 78, 59, 0.5);
+  border-bottom: 2px solid rgba(16, 185, 129, 0.5);
+  color: #34d399;
+  font-weight: 800;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+.gos-cost-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  color: rgba(209, 250, 229, 0.9);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.gos-cost-row + .gos-cost-row {
+  border-top: 1px solid rgba(6, 78, 59, 0.4);
+}
+.gos-cost-row:hover {
+  background: rgba(6, 78, 59, 0.15);
+}
+.gos-price {
+  flex-shrink: 0;
+  padding: 0.15rem 0.7rem;
+  border-radius: 0.5rem;
+  border: 2px solid #000;
+  background: #10b981;
+  color: #000;
+  font-weight: 900;
+  font-size: 0.8rem;
+  box-shadow: 2px 2px 0 0 #000;
+  white-space: nowrap;
+}
+.gos-callout-purple {
+  background: linear-gradient(90deg, rgba(88, 28, 135, 0.25), #000);
+  border-left: 4px solid #a855f7;
+  border-radius: 0 0.75rem 0.75rem 0;
+  padding: 0.85rem 1rem;
+  color: #f3e8ff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: transform 0.15s;
+}
+.gos-callout-purple:hover {
+  transform: translateX(0.5rem);
+}
+.gos-banner-purple {
+  background: rgba(88, 28, 135, 0.3);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  color: #d8b4fe;
+  text-align: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
 } /* end @layer components */
 
 /* ── Re-skin of fixed-palette utilities used by the dialogs we only re-chrome ─ */
@@ -779,12 +1034,15 @@
     animation: none !important;
   }
   .gos-tile:hover,
+  .gos-tile-big:hover,
+  .gos-callout-purple:hover,
   .gos-chip:hover,
   .gos-side-item[aria-current="true"],
   .gos-owl[data-bump="true"] {
     transform: none;
   }
-  .gos-tile:hover .gos-emoji {
+  .gos-tile:hover .gos-emoji,
+  .gos-tile-big:hover .gos-emoji {
     transform: none;
   }
 }

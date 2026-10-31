@@ -1,52 +1,62 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Plus, Search } from "lucide-react";
-import { NeoButton } from "@guru/ui";
+import { Search } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { documentosAPI, type HistoryClient, type Model, type PortfolioDocument } from "../services/documentosApi";
 import { notify } from "../lib/dialogs";
-import Workspace from "../components/documentos/Workspace";
+import HomeGrid, { type ViewKey } from "../components/documentos/HomeGrid";
+import FullView from "../components/documentos/FullView";
 import History from "../components/documentos/History";
 import TagReview from "../components/documentos/TagReview";
+import ServiciosView from "../components/documentos/ServiciosView";
+import ModelSearch from "../components/documentos/ModelSearch";
 import CommandSearch from "../components/documentos/CommandSearch";
-import NewDocumentDialog, { type NewDocKind } from "../components/documentos/NewDocumentDialog";
+import { NewDocumentFlow, type NewDocKind } from "../components/documentos/NewDocumentDialog";
 import UploadDialog from "../components/documentos/UploadDialog";
 import PersonalizeDialog from "../components/documentos/PersonalizeDialog";
 import OwlHelper from "../components/documentos/OwlHelper";
 import "../components/documentos/guru-os.css";
 
-// Documentos (remake): one workspace instead of three tabs.
-//  · Inicio — create (desde cero con IA, en blanco, desde un modelo, subir), the pipeline of my documents
-//    (borradores → aprobados → enviados), recientes, por cliente and the model library
-//  · Mis documentos (tab "historial") — each digitador's documents per client, with versions, approve and send
-//  · Revisión de etiquetas (admin, tab "etiquetas") — tagged copies of the models
-//  · ⌘K / "/" — one search for models, my documents and clients
-// Old links keep working: ?tab=historial&client=… and ?tab=etiquetas&model=… (notifications point there).
-// Look: "Gurú OS" — a dark bento app container with emoji tiles (styles in components/documentos/guru-os.css).
+// Documentos («Gurú OS»): a home grid of big emoji tiles, each opening a full view inside the bento container.
+//  · Nuevo documento (?tab=nuevo) — desde cero con IA, en blanco, desde un modelo, subir; the steps run inline
+//  · Mis documentos (?tab=historial&client=…&doc=…) — each digitador's documents per client, versions, approve, send
+//  · Revisión de etiquetas (admin, ?tab=etiquetas&model=…) — tagged copies of the models
+//  · Servicios (?tab=servicios) — guía interna: servicios y trámites
+//  · Biblioteca de modelos (?tab=biblioteca) — search a model, fill or personalize it
+//  · ⌘K / "/" — one search for models, my documents and clients (stays in the header)
+// Old links keep working (notifications point to ?tab=historial / ?tab=etiquetas).
+type TabKey = "inicio" | ViewKey;
+
+const VIEWS: Record<ViewKey, { emoji: string; title: string }> = {
+  nuevo: { emoji: "🪄", title: "Nuevo documento" },
+  historial: { emoji: "📂", title: "Mis documentos" },
+  etiquetas: { emoji: "🏷️", title: "Revisión de etiquetas" },
+  servicios: { emoji: "🛠️", title: "Servicios" },
+  biblioteca: { emoji: "🔎", title: "Biblioteca de modelos" },
+};
+
 export default function Documentos() {
   const { isAdmin } = useAuth();
   const [params, setParams] = useSearchParams();
-  type TabKey = "inicio" | "historial" | "etiquetas";
   const asked = params.get("tab");
-  const tab: TabKey = asked === "historial" ? "historial" : asked === "etiquetas" && isAdmin ? "etiquetas" : "inicio";
-  const setTab = (t: TabKey) => setParams(t === "inicio" ? {} : { tab: t }, { replace: true });
+  const tab: TabKey =
+    asked === "historial" || asked === "nuevo" || asked === "servicios" || asked === "biblioteca" ? asked : asked === "etiquetas" && isAdmin ? "etiquetas" : "inicio";
+  const setTab = (t: TabKey, extra: Record<string, string> = {}) => setParams(t === "inicio" ? {} : { tab: t, ...extra }, { replace: t === "inicio" || tab === t });
 
   const [documents, setDocuments] = useState<PortfolioDocument[]>([]);
-  const [clients, setClients] = useState<HistoryClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(false);
-  const [creating, setCreating] = useState<{ kind?: NewDocKind } | null>(null);
   const [upload, setUpload] = useState(false);
   const [personalize, setPersonalize] = useState<{ model?: Model; doc?: PortfolioDocument } | null>(null);
   const [aiQuery, setAiQuery] = useState<string | null>(null);
+  const [newHeading, setNewHeading] = useState<string | null>(null);
+  const [serviceCtx, setServiceCtx] = useState<{ tab: "servicios" | "tramites"; service?: { title: string; emoji: string } | null; tramite?: string | null }>({ tab: "servicios" });
 
   const reload = useCallback(() => {
     setLoading(true);
-    Promise.all([documentosAPI.documents({ sort: "recent" }), documentosAPI.clients()])
-      .then(([d, c]) => {
-        setDocuments(d.data.documents);
-        setClients(c.data.clients);
-      })
+    documentosAPI
+      .documents({ sort: "recent" })
+      .then((d) => setDocuments(d.data.documents))
       .catch(() => notify("No se pudieron cargar tus documentos"))
       .finally(() => setLoading(false));
   }, []);
@@ -67,51 +77,55 @@ export default function Documentos() {
 
   const openClient = (c: HistoryClient) => setParams({ tab: "historial", client: String(c.id) });
   const openDocument = (d: PortfolioDocument) => setParams({ tab: "historial", client: String(d.client_id ?? 0), doc: String(d.id) });
+  const goHome = () => setTab("inicio");
 
-  const startNew = (kind: NewDocKind) => {
+  // "Desde un modelo" goes to the library; "Subir archivo" opens the upload flow
+  const pick = (kind: NewDocKind) => {
     if (kind === "upload") return setUpload(true);
-    if (kind === "model") {
-      setTab("inicio");
-      document.getElementById("biblioteca")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-    setCreating({ kind });
+    if (kind === "model") return setTab("biblioteca");
   };
 
-  const tabs = [
-    { key: "inicio" as const, label: "Inicio", hint: "Crear, en curso y biblioteca", emoji: "🏠" },
-    { key: "historial" as const, label: "Mis documentos", hint: "Por cliente, con versiones", emoji: "🗂️" },
-    ...(isAdmin ? [{ key: "etiquetas" as const, label: "Revisión de etiquetas", hint: "Etiquetar y aprobar modelos", emoji: "🏷️" }] : []),
-  ];
-
   const pending = documents.filter((d) => d.prepared_by_bot && !d.approved_version).length;
-  const owlMessage = creating
-    ? "Cuéntame qué documento necesitas: tipo, partes, montos y plazos. Lo que falte lo dejo como etiqueta."
-    : search
-      ? "Escribe el nombre de un modelo, de un documento o de un cliente. Enter abre el primero."
+  const owlMessage = search
+    ? "Escribe el nombre de un modelo, de un documento o de un cliente. Enter abre el primero."
+    : tab === "nuevo"
+      ? newHeading === "Borrador listo"
+        ? "Tu borrador ya está en Mis documentos. Revísalo y completa las etiquetas antes de aprobarlo."
+        : "Cuéntame qué documento necesitas: tipo, partes, montos y plazos. Lo que falte lo dejo como etiqueta."
       : tab === "historial"
         ? "Elige un cliente: aquí apruebas, envías y guardas versiones."
         : tab === "etiquetas"
           ? "Revisa las etiquetas de cada modelo y apruébalo para que todos lo llenen."
-          : pending > 0
-            ? `El bot preparó ${pending} borrador${pending === 1 ? "" : "es"} que esperan tu revisión.`
-            : "¡Hola! Crea un documento desde cero con la IA o busca un modelo en la biblioteca.";
+          : tab === "servicios"
+            ? serviceCtx.service
+              ? `${serviceCtx.service.emoji} ${serviceCtx.service.title}: mira las reglas de oro antes de cotizar.`
+              : serviceCtx.tab === "tramites"
+                ? `¡No olvides las preguntas clave de ${serviceCtx.tramite || "cada trámite"}!`
+                : "Los 9 pilares de servicio. Toca uno para ver qué entregamos y sus reglas."
+            : tab === "biblioteca"
+              ? "Busca un modelo por nombre o describe lo que necesitas y la IA lo elige."
+              : pending > 0
+                ? `El bot preparó ${pending} borrador${pending === 1 ? "" : "es"} que esperan tu revisión en Mis documentos.`
+                : "¡Hola! Soy Gurú. Toca una ficha para empezar.";
+
+  const view = tab === "inicio" ? null : VIEWS[tab];
+  const viewTitle = tab === "nuevo" && newHeading && newHeading !== "Nuevo documento" ? newHeading : view?.title;
 
   return (
     <div className="guru-os gos-desk">
       <div className="gos-app">
         <header className="gos-header">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 md:px-6 md:pt-5">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-6 md:py-5">
+            <button type="button" onClick={goHome} className="flex min-w-0 items-center gap-3 text-left" title="Volver al menú">
               <span className="gos-badge text-2xl md:text-3xl" aria-hidden="true">
                 🦉
               </span>
-              <div className="min-w-0">
+              <span className="min-w-0">
                 <h1 className="gos-title font-heading text-xl md:text-3xl">Documentos</h1>
-                <p className="gos-subtitle mt-1 text-[0.55rem] md:text-[0.7rem]">Crea, personaliza, aprueba y envía los documentos de cada cliente.</p>
-              </div>
-            </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <span className="gos-subtitle mt-1 block text-[0.55rem] md:text-[0.7rem]">Gurú OS · crea, personaliza, aprueba y envía</span>
+              </span>
+            </button>
+            <div className="flex w-full items-center gap-3 sm:w-auto">
               <button
                 type="button"
                 onClick={() => setSearch(true)}
@@ -122,46 +136,41 @@ export default function Documentos() {
                 <span className="min-w-0 flex-1 truncate">Buscar modelo, documento o cliente…</span>
                 <kbd className="hidden rounded border px-1.5 text-[10px] font-bold sm:inline">⌘K</kbd>
               </button>
-              <NeoButton onClick={() => setCreating({})} className="w-full shrink-0 font-heading font-black uppercase tracking-wide sm:w-auto">
-                <Plus size={18} /> Nuevo documento
-              </NeoButton>
+              <Link to="/documents/anterior" className="hidden shrink-0 text-xs font-semibold text-slate-500 underline hover:text-slate-200 sm:inline">
+                Vista anterior
+              </Link>
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 px-4 pb-4 pt-3 md:px-6 md:pb-5">
-            <nav role="tablist" aria-label="Secciones de documentos" className="gos-tabs min-w-0">
-              {tabs.map(({ key, label, hint, emoji }) => (
-                <button key={key} type="button" role="tab" aria-selected={tab === key} title={hint} onClick={() => setTab(key)} className="gos-tab">
-                  <span aria-hidden="true">{emoji}</span> {label}
-                </button>
-              ))}
-            </nav>
-            <Link to="/documents/anterior" className="ml-auto text-xs font-semibold text-slate-500 underline hover:text-slate-200">
-              Vista anterior
-            </Link>
           </div>
         </header>
 
         <OwlHelper message={owlMessage} />
 
-        <div className="min-w-0 p-4 md:p-6">
-          {tab === "inicio" ? (
-            <Workspace
-              documents={documents}
-              clients={clients}
-              loading={loading}
-              onNew={startNew}
-              onOpenDocument={openDocument}
-              onOpenClient={openClient}
-              onPipeline={() => setTab("historial")}
-              aiQuery={aiQuery}
-            />
-          ) : tab === "historial" ? (
-            <History key={`${params.get("client")}-${params.get("doc")}`} />
-          ) : (
-            <TagReview key={params.get("model") || "list"} initialModel={Number(params.get("model")) || null} />
-          )}
-        </div>
+        {tab === "inicio" ? (
+          <div className="min-w-0 p-4 md:p-6">
+            <HomeGrid isAdmin={isAdmin} documents={documents} loading={loading} onOpen={(v) => setTab(v)} />
+          </div>
+        ) : (
+          <FullView emoji={view!.emoji} title={viewTitle!} onBack={goHome}>
+            {tab === "nuevo" ? (
+              <NewDocumentFlow
+                key="nuevo"
+                onPick={pick}
+                onCreated={reload}
+                onOpen={openDocument}
+                onEdit={(d) => setPersonalize({ doc: d })}
+                onHeading={setNewHeading}
+              />
+            ) : tab === "historial" ? (
+              <History key={`${params.get("client")}-${params.get("doc")}`} />
+            ) : tab === "etiquetas" ? (
+              <TagReview key={params.get("model") || "list"} initialModel={Number(params.get("model")) || null} />
+            ) : tab === "servicios" ? (
+              <ServiciosView onContext={setServiceCtx} />
+            ) : (
+              <ModelSearch aiQuery={aiQuery} />
+            )}
+          </FullView>
+        )}
       </div>
 
       {search && (
@@ -182,28 +191,8 @@ export default function Documentos() {
           }}
           onAskAI={(q) => {
             setSearch(false);
-            setTab("inicio");
             setAiQuery(q);
-            document.getElementById("biblioteca")?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-        />
-      )}
-      {creating && (
-        <NewDocumentDialog
-          initialKind={creating.kind}
-          onClose={() => setCreating(null)}
-          onPick={(k) => {
-            setCreating(null);
-            startNew(k);
-          }}
-          onCreated={reload}
-          onOpen={(d) => {
-            setCreating(null);
-            openDocument(d);
-          }}
-          onEdit={(d) => {
-            setCreating(null);
-            setPersonalize({ doc: d });
+            setTab("biblioteca");
           }}
         />
       )}
