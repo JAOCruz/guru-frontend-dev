@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import UserBadge from "../components/UserBadge";
+import UserAvatar from "../components/UserAvatar";
+import { useUserColors } from "../context/UserColorsContext";
 import { Search, RefreshCw, ChevronLeft, AlertCircle, Tag, SlidersHorizontal, X } from "lucide-react";
 import api from "../services/api";
 import { getAuthToken } from "../utils";
@@ -197,6 +199,7 @@ const SECTIONS: Section[] = [
 
 const Cases: React.FC = () => {
   const { isAdmin, user } = useAuth();
+  const { appearanceOf } = useUserColors();
   const [activeSection, setActiveSection] = useState<Section>(SECTIONS[0]);
   const [cases, setCases] = useState<CaseRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -496,16 +499,25 @@ const Cases: React.FC = () => {
             <div role="group" aria-label="Digitador" className="mt-2 flex flex-wrap gap-1">
               {assigneeChips.map(([key, label, count]) => {
                 const active = assignee === key;
+                // A digitador's chip wears the color they picked: a light tint, full color once chosen
+                const a = typeof key === "number" ? appearanceOf(key) : null;
+                const style = a
+                  ? active
+                    ? { backgroundColor: a.color.bg, color: a.color.text }
+                    : { backgroundColor: `color-mix(in srgb, ${a.color.bg} 25%, white)`, color: "#000" }
+                  : undefined;
                 return (
                   <button
                     key={String(key)}
                     type="button"
                     aria-pressed={active}
                     onClick={() => setAssignee(key)}
+                    style={style}
                     className={`inline-flex shrink-0 items-center gap-1 rounded-full border-2 border-border px-2.5 py-0.5 text-xs font-bold ${
-                      active ? "bg-main text-main-foreground" : "bg-background"
+                      a ? "pl-0.5" : active ? "bg-main text-main-foreground" : "bg-background"
                     }`}
                   >
+                    {a && <span aria-hidden="true"><UserAvatar appearance={a} size="xs" /></span>}
                     {label}
                     <span className={`rounded-full px-1.5 text-[11px] ${active ? "bg-main-foreground/15" : "bg-foreground/10"}`}>{count}</span>
                   </button>

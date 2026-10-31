@@ -12,7 +12,7 @@ vi.mock("../lib/dialogs", () => dialogs);
 vi.mock("../context/AuthContext", () => ({ useAuth: () => auth }));
 vi.mock("../context/UserColorsContext", async () => {
   const { toAppearance } = await import("../lib/userColors");
-  return { useUserColors: () => ({ users: [], refresh: vi.fn(), appearanceOf: () => toAppearance(undefined), appearanceOfColumn: () => toAppearance(undefined) }) };
+  return { useUserColors: () => ({ users: [], refresh: vi.fn(), appearanceOf: (id?: number | null) => toAppearance(id === 5 ? { name: "Hengi", color: "green" } : undefined), appearanceOfColumn: () => toAppearance(undefined) }) };
 });
 
 import Cases from "./Cases";
@@ -120,6 +120,17 @@ describe("Casos — por digitador", () => {
 
     fireEvent.click(chip(/^todos/i));
     expect(screen.getByText("Caso de Marleni")).toBeTruthy();
+  });
+
+  it("cada digitador lleva su color: suave sin elegir, lleno al elegirlo", async () => {
+    render(<Cases />);
+    await screen.findByText("Caso de Marleni");
+    const hengi = await waitFor(() => chip(/^hengi/i));
+    expect(hengi.getAttribute("style") || "").toMatch(/color-mix\(in srgb, (#22c55e|rgb\(34, 197, 94\))/); // verde de Hengi, suave
+    fireEvent.click(hengi);
+    const on = chip(/^hengi/i);
+    expect(on.style.backgroundColor).toBe("rgb(34, 197, 94)"); // #22c55e lleno
+    expect(on.style.color).toBe("rgb(255, 255, 255)");
   });
 
   it("en Resueltos los números son de los resueltos", async () => {
