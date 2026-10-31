@@ -96,6 +96,11 @@ export const documentosAPI = {
       ...(sendMode ? { send_mode: sendMode } : {}),
     }),
   send: (id: number) => api.post<SendResult>(`/documentos/documents/${id}/send`),
+  // Crear desde cero: the AI drafts a whole new Word from the request (missing data stays as {{ETIQUETAS}}),
+  // or a blank Word with just the title. Saved as v1 in Mis documentos. placeholders: the client's data
+  // still missing; staff_placeholders: what the team always fills (notario, fecha y ciudad de firma).
+  createNew: (body: { title?: string; client_id?: number; request?: string; blank?: boolean }) =>
+    api.post<{ document: PortfolioDocument; placeholders: string[]; staff_placeholders: string[] }>("/documentos/documents/new", body),
 };
 
 // ── Fase 2 · Generación ──

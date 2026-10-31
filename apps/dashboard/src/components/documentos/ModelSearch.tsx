@@ -12,8 +12,8 @@ import { STATUS_LABEL } from "../../services/etiquetasApi";
 
 // "Buscar por nombre": our curated selection of models. They are used as they are and are
 // never saved to anyone's history; personalizing one is Generación (Fase 2).
-export default function ModelSearch() {
-  const [q, setQ] = useState("");
+export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | null } = {}) {
+  const [q, setQ] = useState(aiQuery || "");
   const [models, setModels] = useState<Model[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiResults, setAiResults] = useState<Model[] | null>(null);
@@ -41,10 +41,10 @@ export default function ModelSearch() {
     return () => clearTimeout(t);
   }, [q]);
 
-  const askAI = async () => {
+  const askAI = async (text = q) => {
     setAiLoading(true);
     try {
-      const { data } = await documentosAPI.aiSearch(q.trim());
+      const { data } = await documentosAPI.aiSearch(text.trim());
       setAiResults(data.models);
       if (!data.models.length) notify("La IA no encontró un modelo para eso; prueba con otras palabras", "info");
     } catch (err: any) {
@@ -53,6 +53,13 @@ export default function ModelSearch() {
       setAiLoading(false);
     }
   };
+
+  // asked from the ⌘K search: same words, straight to the AI
+  useEffect(() => {
+    if (!aiQuery) return;
+    setQ(aiQuery);
+    askAI(aiQuery);
+  }, [aiQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const download = (m: Model, format: "docx" | "pdf") =>
     downloadFile(modelFileUrl(m.id, format), `${m.name}.${format}`)?.catch?.((err: Error) => notify(err.message));
@@ -73,7 +80,7 @@ export default function ModelSearch() {
             className="w-full rounded-base border-2 border-border bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:border-main"
           />
         </div>
-        <NeoButton onClick={askAI} disabled={q.trim().length < 3 || aiLoading} title="Describe lo que necesitas y la IA elige el modelo">
+        <NeoButton onClick={() => askAI()} disabled={q.trim().length < 3 || aiLoading} title="Describe lo que necesitas y la IA elige el modelo">
           <Sparkles size={16} /> {aiLoading ? "Buscando…" : "Buscar con IA"}
         </NeoButton>
       </div>
@@ -94,7 +101,7 @@ export default function ModelSearch() {
       <ul className="divide-y-2 divide-border/15 overflow-hidden rounded-base border-2 border-border bg-background shadow-shadow">
         {list.map((m) => (
           <li key={m.id} className="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
+            <div className="flex min-w-0 flex-1 items-start gap-3 md:min-w-[16rem]">
               <FileText size={20} className="mt-0.5 shrink-0 text-main" />
               <div className="min-w-0">
                 <p className="break-words text-sm font-bold">{m.name}</p>
@@ -104,7 +111,7 @@ export default function ModelSearch() {
                 {m.reason && <p className="mt-1 text-xs font-semibold text-main">✨ {m.reason}</p>}
               </div>
             </div>
-            <div className="flex shrink-0 flex-wrap gap-1.5 md:justify-end">
+            <div className="flex flex-wrap gap-1.5 md:max-w-[62%] md:justify-end">
               <NeoButton size="sm" variant="neutral" onClick={() => setPreview(m)}>
                 <Eye size={14} /> Ver
               </NeoButton>

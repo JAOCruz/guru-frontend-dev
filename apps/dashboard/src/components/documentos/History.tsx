@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Bot, CheckCircle2, Send, ChevronDown, ChevronLeft, Eye, FileDown, FilePlus2, Search, Sparkles, Upload } from "lucide-react";
 import { NeoButton } from "@guru/ui";
@@ -36,15 +36,18 @@ export default function History() {
   const [approving, setApproving] = useState<{ doc: PortfolioDocument; version: DocVersion } | null>(null);
   const [sending, setSending] = useState(false);
   const [params] = useSearchParams();
-  const wantedClient = Number(params.get("client")) || null;
+  // «Sin cliente» is id 0; ?doc= opens that document once the list is in
+  const wantedClient = params.has("client") ? Number(params.get("client")) : null;
+  const wantedDoc = Number(params.get("doc")) || null;
+  const openedWanted = useRef(false);
 
   const loadClients = () =>
     documentosAPI
       .clients(clientQ.trim())
       .then(({ data }) => {
         setClients(data.clients);
-        // coming from "Personalizar": open that client
-        if (wantedClient && !selected) {
+        // coming from "Personalizar" or Inicio: open that client
+        if (wantedClient !== null && !selected) {
           const c = data.clients.find((x) => x.id === wantedClient);
           if (c) setSelected(c);
         }
@@ -60,7 +63,14 @@ export default function History() {
     if (!selected) return;
     documentosAPI
       .documents({ client_id: selected.id, sort, ...(creator ? { created_by: Number(creator) } : {}) })
-      .then(({ data }) => setDocuments(data.documents))
+      .then(({ data }) => {
+        setDocuments(data.documents);
+        const wanted = wantedDoc && !openedWanted.current ? data.documents.find((d) => d.id === wantedDoc) : null;
+        if (wanted) {
+          openedWanted.current = true;
+          toggleDoc(wanted);
+        }
+      })
       .catch(() => notify("No se pudieron cargar los documentos"));
   };
   useEffect(loadDocuments, [selected, sort, creator]); // eslint-disable-line react-hooks/exhaustive-deps

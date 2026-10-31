@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 const { api, auth, downloadFile } = vi.hoisted(() => ({
   api: {
     models: vi.fn(), aiSearch: vi.fn(), clients: vi.fn(), searchAllClients: vi.fn(), createClient: vi.fn(),
-    documents: vi.fn(), document: vi.fn(), upload: vi.fn(), uploadVersion: vi.fn(), approve: vi.fn(), send: vi.fn(),
+    documents: vi.fn(), document: vi.fn(), upload: vi.fn(), uploadVersion: vi.fn(), approve: vi.fn(), send: vi.fn(), createNew: vi.fn(),
   },
   auth: { isAdmin: false, user: { id: 2, username: "hengi", role: "digitador" } },
   downloadFile: vi.fn(),
@@ -61,7 +61,49 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-describe("Documentos — Buscar por nombre", () => {
+describe("Documentos — Inicio", () => {
+  it("shows the pipeline, recent documents and clients; a recent document opens in Mis documentos", async () => {
+    api.documents.mockResolvedValue({ data: { documents: [DOC, { ...DOC, id: 12, title: "Poder enviado", approved_version: 1, sent_at: "2026-10-01T00:00:00Z" }] } });
+    renderAt();
+    expect(await screen.findByRole("button", { name: /crear documento desde cero/i })).toBeTruthy();
+    const pipeline = screen.getByRole("region", { name: /estado de mis documentos/i });
+    expect(within(pipeline).getByRole("button", { name: /1\s*borradores/i })).toBeTruthy();
+    expect(within(pipeline).getByRole("button", { name: /1\s*enviados/i })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /juan pérez/i }).length).toBeGreaterThan(0); // recientes + por cliente
+    fireEvent.click(screen.getByRole("button", { name: /poder enviado/i }));
+    expect(await screen.findByRole("tab", { name: /mis documentos/i, selected: true })).toBeTruthy();
+  });
+
+  it("the ⌘K search finds models, my documents and clients", async () => {
+    renderAt();
+    await screen.findByText("PODER ESPECIAL");
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const dialog = await screen.findByRole("dialog", { name: /buscar en documentos/i });
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "poder" } });
+    await waitFor(() => expect(api.models).toHaveBeenCalledWith("poder"));
+    expect(await within(dialog).findByText(/modelos \(/i)).toBeTruthy();
+    expect(within(dialog).getByText(/clientes \(1\)/i)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: /juan pérez/i }));
+    expect(await screen.findByRole("tab", { name: /mis documentos/i, selected: true })).toBeTruthy();
+  });
+
+  it("'Nuevo documento' → 'Desde cero con IA' creates the draft and lists the missing data", async () => {
+    api.createNew.mockResolvedValue({ data: { document: { ...DOC, id: 30, title: "CONTRATO DE ALQUILER", versions: VERSIONS }, placeholders: ["NOMBRE_ARRENDADOR"], staff_placeholders: ["CIUDAD_FIRMA"] } });
+    renderAt();
+    fireEvent.click(await screen.findByRole("button", { name: /^nuevo documento$/i }));
+    const dialog = await screen.findByRole("dialog", { name: /nuevo documento/i });
+    fireEvent.click(within(dialog).getByRole("button", { name: /desde cero con ia/i }));
+    fireEvent.change(within(dialog).getByLabelText(/qué necesitas/i), { target: { value: "Contrato de alquiler de un local comercial en Piantini por 2 años" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: /redactar con ia/i }));
+    await waitFor(() => expect(api.createNew).toHaveBeenCalledWith({ request: "Contrato de alquiler de un local comercial en Piantini por 2 años" }));
+    expect(await screen.findByText(/guardado como borrador/i)).toBeTruthy();
+    expect(screen.getByText("{{NOMBRE_ARRENDADOR}}")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /abrir en mis documentos/i }));
+    expect(await screen.findByRole("tab", { name: /mis documentos/i, selected: true })).toBeTruthy();
+  });
+});
+
+describe("Documentos — Biblioteca de modelos", () => {
   it("lists our selection, searches by name and downloads a model as Word", async () => {
     renderAt();
     expect(await screen.findByText("PODER ESPECIAL")).toBeTruthy();
