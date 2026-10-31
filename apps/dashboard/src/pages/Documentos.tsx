@@ -107,8 +107,8 @@ export default function Documentos() {
                 🦉
               </span>
               <div className="min-w-0">
-                <h1 className="gos-title font-heading text-2xl md:text-3xl">Documentos</h1>
-                <p className="gos-subtitle mt-1">Crea, personaliza, aprueba y envía los documentos de cada cliente.</p>
+                <h1 className="gos-title font-heading text-xl md:text-3xl">Documentos</h1>
+                <p className="gos-subtitle mt-1 text-[0.55rem] md:text-[0.7rem]">Crea, personaliza, aprueba y envía los documentos de cada cliente.</p>
               </div>
             </div>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">

@@ -214,17 +214,17 @@ export default function History() {
           </div>
         ) : (
           <>
-            <div className="flex min-w-0 items-center gap-3 px-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-3 px-1">
               <span aria-hidden="true" className="gos-badge shrink-0 text-2xl">
                 👤
               </span>
-              <h2 className="min-w-0 flex-1 truncate font-heading text-xl font-black uppercase tracking-wide text-white md:text-2xl">{selected.name || "Sin nombre"}</h2>
+              <h2 className="min-w-0 flex-1 break-words font-heading text-lg font-black uppercase tracking-wide text-white md:text-xl">{selected.name || "Sin nombre"}</h2>
               {isAdmin && (
                 <select
                   value={creator}
                   onChange={(e) => setCreator(e.target.value)}
                   aria-label="Filtrar por digitador"
-                  className="gos-input w-auto max-w-[11rem] px-2 py-1.5 text-xs font-bold"
+                  className="gos-input basis-full px-2 py-1.5 text-xs font-bold sm:w-auto sm:basis-auto"
                 >
                   <option value="">Todos los digitadores</option>
                   {users.map((u) => (
@@ -254,7 +254,7 @@ export default function History() {
                     const open = openDoc?.id === d.id;
                     return (
                       <li key={d.id} className="gos-card overflow-hidden" data-open={open}>
-                        <button type="button" onClick={() => toggleDoc(d)} aria-expanded={open} className="flex w-full items-center gap-3 px-3 py-3 text-left sm:px-4">
+                        <button type="button" onClick={() => toggleDoc(d)} aria-expanded={open} className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-3 py-3 text-left sm:px-4">
                           <span aria-hidden="true" className="text-2xl leading-none">
                             📄
                           </span>
@@ -265,8 +265,11 @@ export default function History() {
                               {isAdmin && d.created_by_name ? ` · ${d.created_by_name}` : ""}
                             </span>
                           </span>
-                          {d.prepared_by_bot && <BotBadge />}
-                          <StatusBadge approved={d.approved_version} />
+                          {/* badges go under the title on phones, next to it from sm */}
+                          <span className="order-last flex basis-full flex-wrap gap-1.5 sm:order-none sm:basis-auto">
+                            {d.prepared_by_bot && <BotBadge />}
+                            <StatusBadge approved={d.approved_version} />
+                          </span>
                           <ChevronDown size={18} className={`shrink-0 text-blue-400 transition-transform ${open ? "rotate-180" : ""}`} />
                         </button>
                         {open && openDoc && (

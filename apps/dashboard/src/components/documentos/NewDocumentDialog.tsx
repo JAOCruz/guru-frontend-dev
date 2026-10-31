@@ -82,7 +82,7 @@ export default function NewDocumentDialog({ initialKind, initialClient, onClose,
             </span>
             <span className="min-w-0">
               <span className="gos-subtitle block">Nuevo documento</span>
-              <span className="gos-title block truncate font-heading text-lg">{heading}</span>
+              <span className="gos-title block truncate font-heading text-base md:text-lg">{heading}</span>
             </span>
           </span>
           <button type="button" onClick={onClose} aria-label="Cerrar" className="rounded-xl border border-slate-700 bg-black p-1.5 text-slate-300 hover:bg-slate-800 hover:text-white">

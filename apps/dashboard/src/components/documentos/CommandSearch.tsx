@@ -72,7 +72,7 @@ export default function CommandSearch({ documents, onClose, onModel, onDocument,
             }}
             placeholder="Buscar modelos, documentos y clientes…"
             aria-label="Buscar modelos, documentos y clientes"
-            className="min-w-0 flex-1 bg-transparent py-3.5 text-base text-white outline-none placeholder:text-slate-500"
+            className="gos-bare-input min-w-0 flex-1 bg-transparent py-3.5 text-base text-white outline-none placeholder:text-slate-500"
           />
           <kbd className="hidden rounded border px-1.5 text-[10px] font-bold sm:inline">Esc</kbd>
           <button type="button" onClick={onClose} aria-label="Cerrar" className="rounded-xl border border-slate-700 bg-black p-1.5 text-slate-300 hover:bg-slate-800 hover:text-white">

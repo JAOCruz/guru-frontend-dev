@@ -15,11 +15,18 @@ export default function OwlHelper({ message }: { message: string }) {
     }
   });
   const [bump, setBump] = useState(false);
+  const [resting, setResting] = useState(false);
 
+  // each new message pops in, then fades out after a while so it never sits over the work
   useEffect(() => {
     setBump(true);
+    setResting(false);
     const t = setTimeout(() => setBump(false), 400);
-    return () => clearTimeout(t);
+    const r = setTimeout(() => setResting(true), 9000);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(r);
+    };
   }, [message]);
 
   if (hidden) return null;
@@ -33,7 +40,7 @@ export default function OwlHelper({ message }: { message: string }) {
   };
 
   return (
-    <div className="gos-owl" data-bump={bump} role="status" aria-live="polite">
+    <div className="gos-owl" data-bump={bump} data-resting={resting} role="status" aria-live="polite">
       <div className="gos-owl-bubble">
         <span aria-hidden="true" className="shrink-0 text-base leading-none">
           🦉

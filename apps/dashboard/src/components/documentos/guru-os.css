@@ -28,6 +28,11 @@
   color-scheme: dark;
 }
 
+/* Component classes live in the `components` layer so Tailwind utilities (md:flex-row, w-auto…)
+   can still override them from the TSX. The order statement mirrors Tailwind's, so it holds even
+   if this file reaches the document before index.css. */
+@layer theme, base, components, utilities;
+@layer components {
 /* The desk: bleeds to the edges of the dashboard's content area */
 .gos-desk {
   position: relative;
@@ -111,7 +116,13 @@
   border-radius: 0.75rem;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
   max-width: 100%;
-  overflow-x: auto;
+  flex-wrap: wrap;
+}
+@media (min-width: 768px) {
+  .gos-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
 }
 .gos-tab {
   flex-shrink: 0;
@@ -592,7 +603,7 @@
 }
 .gos-owl-bubble {
   position: relative;
-  pointer-events: auto;
+  pointer-events: none;
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
@@ -616,6 +627,7 @@
   border-bottom-color: #60a5fa;
 }
 .gos-owl-close {
+  pointer-events: auto;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -633,6 +645,13 @@
 .gos-owl[data-bump="true"] {
   transform: translateY(-0.5rem);
 }
+.gos-owl[data-resting="true"] {
+  opacity: 0;
+  transform: translateY(0.5rem);
+}
+.gos-owl[data-resting="true"] .gos-owl-close {
+  pointer-events: none;
+}
 @media (max-width: 767px) {
   .gos-owl {
     position: static;
@@ -640,14 +659,21 @@
     margin: 0.75rem 1rem 0;
     transform: none !important;
   }
+  .gos-owl[data-resting="true"] {
+    display: none;
+  }
   .gos-owl-bubble {
     width: 100%;
     border-radius: 1rem;
+    font-size: 0.72rem;
+    padding: 0.5rem 0.6rem;
   }
   .gos-owl-bubble::after {
     display: none;
   }
 }
+
+} /* end @layer components */
 
 /* ── Re-skin of fixed-palette utilities used by the dialogs we only re-chrome ─ */
 .guru-os .bg-white {
@@ -717,6 +743,16 @@
 .guru-os :focus-visible {
   outline: 2px solid #60a5fa;
   outline-offset: 2px;
+}
+.guru-os input:focus-visible,
+.guru-os textarea:focus-visible,
+.guru-os select:focus-visible {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+}
+.guru-os .gos-bare-input:focus-visible {
+  box-shadow: none;
 }
 
 /* Scrollbars */
