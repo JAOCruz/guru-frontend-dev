@@ -206,6 +206,8 @@ const Cases: React.FC = () => {
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
+  // Filter by digitador (admins): "all", "none" (unassigned) or the digitador's user id
+  const [assignee, setAssignee] = useState<"all" | "none" | number>("all");
   const [users, setUsers] = useState<Array<{ id: number; name: string; role: string }>>([]);
   const [assigning, setAssigning] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -348,11 +350,22 @@ const Cases: React.FC = () => {
 
     return matchSearch;
   });
+  const ofAssignee = (c: CaseRow) =>
+    assignee === "all" ? true : assignee === "none" ? c.user_id == null : c.user_id === assignee;
+  const inTab = (c: CaseRow) => (showResolved ? c.status === 'resolved' : c.status !== 'resolved');
+  // The tabs count the chosen digitador's cases; the digitador chips count the open (or resolved) tab
+  const mine = narrowed.filter(ofAssignee);
   const statusCounts = {
-    open: narrowed.filter((c) => c.status !== 'resolved').length,
-    resolved: narrowed.filter((c) => c.status === 'resolved').length,
+    open: mine.filter((c) => c.status !== 'resolved').length,
+    resolved: mine.filter((c) => c.status === 'resolved').length,
   };
-  const filtered = narrowed.filter((c) => (showResolved ? c.status === 'resolved' : c.status !== 'resolved'));
+  const tabCases = narrowed.filter(inTab);
+  const assigneeChips: Array<[typeof assignee, string, number]> = [
+    ["all", "Todos", tabCases.length],
+    ["none", "Sin asignar", tabCases.filter((c) => c.user_id == null).length],
+    ...users.map((u) => [u.id, u.name, tabCases.filter((c) => c.user_id === u.id).length] as [number, string, number]),
+  ];
+  const filtered = mine.filter(inTab);
 
   const pickSection = (id: string) => {
     const section = SECTIONS.find((x) => x.id === id);
@@ -476,6 +489,29 @@ const Cases: React.FC = () => {
                 </fieldset>
               )}
             </>
+          )}
+
+          {/* By digitador, with how many cases each has in this tab */}
+          {isAdmin && users.length > 0 && (
+            <div role="group" aria-label="Digitador" className="mt-2 flex flex-wrap gap-1">
+              {assigneeChips.map(([key, label, count]) => {
+                const active = assignee === key;
+                return (
+                  <button
+                    key={String(key)}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setAssignee(key)}
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full border-2 border-border px-2.5 py-0.5 text-xs font-bold ${
+                      active ? "bg-main text-main-foreground" : "bg-background"
+                    }`}
+                  >
+                    {label}
+                    <span className={`rounded-full px-1.5 text-[11px] ${active ? "bg-main-foreground/15" : "bg-foreground/10"}`}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
           )}
 
           <div role="tablist" aria-label="Estado" className="custom-scroll -mx-3 mt-2 flex gap-1 overflow-x-auto px-3 pb-1">

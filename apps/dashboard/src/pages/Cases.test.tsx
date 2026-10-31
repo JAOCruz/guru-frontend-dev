@@ -76,6 +76,61 @@ describe("Casos — list", () => {
   });
 });
 
+describe("Casos — por digitador", () => {
+  // Jay, 2026-10-31: filtrar por digitador, con el número de casos al lado del nombre
+  beforeEach(() => {
+    api.get.mockResolvedValue({ data: { users: [
+      { id: 5, name: "Hengi", username: "hengi", role: "digitador" },
+      { id: 6, name: "Marleni", username: "marleni", role: "digitador" },
+      { id: 1, name: "Leandro", username: "leandro", role: "admin" },
+    ] } });
+    fetchMock.mockImplementation(async () => ({
+      ok: true,
+      json: async () => [
+        { ...row(1, "Caso de Hengi A", "open"), user_id: 5 },
+        { ...row(2, "Caso de Hengi B", "open"), user_id: 5 },
+        { ...row(3, "Caso de Marleni", "open"), user_id: 6 },
+        { ...row(4, "Sin dueño", "open"), user_id: null },
+        { ...row(5, "Hengi resuelto", "resolved"), user_id: 5 },
+      ],
+    }));
+  });
+  const chip = (name: RegExp) => screen.getByRole("button", { name });
+
+  it("cada digitador con sus casos abiertos al lado, y al tocarlo filtra la lista", async () => {
+    render(<Cases />);
+    await screen.findByText("Caso de Marleni");
+    await waitFor(() => expect(chip(/^hengi\s*2$/i)).toBeTruthy());
+    expect(chip(/^marleni\s*1$/i)).toBeTruthy();
+    expect(chip(/^sin asignar\s*1$/i)).toBeTruthy();
+    expect(chip(/^todos\s*4$/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^leandro/i })).toBeNull(); // solo digitadores
+
+    fireEvent.click(chip(/^hengi/i));
+    expect(screen.getByText("Caso de Hengi A")).toBeTruthy();
+    expect(screen.queryByText("Caso de Marleni")).toBeNull();
+    expect(screen.queryByText("Sin dueño")).toBeNull();
+    expect(chip(/^hengi/i).getAttribute("aria-pressed")).toBe("true");
+    expect(tab(/abiertos/i).textContent).toMatch(/2/);
+    expect(tab(/resueltos/i).textContent).toMatch(/1/);
+
+    fireEvent.click(chip(/^sin asignar/i));
+    expect(screen.getByText("Sin dueño")).toBeTruthy();
+    expect(screen.queryByText("Caso de Hengi A")).toBeNull();
+
+    fireEvent.click(chip(/^todos/i));
+    expect(screen.getByText("Caso de Marleni")).toBeTruthy();
+  });
+
+  it("en Resueltos los números son de los resueltos", async () => {
+    render(<Cases />);
+    await screen.findByText("Caso de Marleni");
+    fireEvent.click(tab(/resueltos/i));
+    await waitFor(() => expect(chip(/^hengi\s*1$/i)).toBeTruthy());
+    expect(chip(/^marleni\s*0$/i)).toBeTruthy();
+  });
+});
+
 describe("Casos — from a notification", () => {
   afterEach(() => window.history.pushState({}, "", "/"));
 
