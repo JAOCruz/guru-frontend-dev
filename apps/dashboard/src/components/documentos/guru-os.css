@@ -1131,32 +1131,16 @@ header.sticky:has(~ * .gos-desk:not(.gos-md)) {
 }
 .gos-desk:not(.gos-md) .gos-tile-badges {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
   gap: 0.25rem;
 }
 .gos-desk:not(.gos-md) .gos-mini {
-  flex-direction: column;
-  gap: 0;
+  justify-content: center;
   min-width: 0;
-  padding: 0.1rem;
-  font-size: 0.5rem;
+  padding: 0 0.2rem;
+  font-size: 0.55rem;
   letter-spacing: 0;
-}
-@media (max-width: 360px) {
-  .gos-desk:not(.gos-md) .gos-tile-badges {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .gos-desk:not(.gos-md) .gos-mini {
-    flex-direction: row;
-    justify-content: center;
-    gap: 0.25rem;
-  }
-}
-.gos-desk:not(.gos-md) .gos-tile-big .gos-tile-label {
-  max-width: 100%;
-  font-size: clamp(0.62rem, 3.1vw, 0.75rem);
-  letter-spacing: 0.02em;
 }
 .gos-desk:not(.gos-md) .gos-folder-panel,
 .gos-desk:not(.gos-md) .gos-panel {
