@@ -1,5 +1,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@300;400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
+
+/* Documentos (Gurú OS): breakpoint by the section's own width, because the sidebar takes part of the screen */
+@custom-variant gos-md (&:where(.gos-md, .gos-md *));
 /* Shared components (e.g. the confirm Dialog and DatePicker) use classes that only exist in packages/ui */
 @source "../../../packages/ui/src";
 @import "tw-animate-css";

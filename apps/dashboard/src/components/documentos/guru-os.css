@@ -46,9 +46,11 @@
 @media (min-width: 768px) {
   .gos-desk {
     margin: -2rem;
-    padding: 2rem 2rem 2.5rem;
     min-height: calc(100dvh - 5rem);
   }
+}
+.gos-desk.gos-md {
+  padding: 2rem 2rem 2.5rem;
 }
 
 /* The app container (bento). Natural height: the page scrolls, nothing is trapped. */
@@ -62,23 +64,21 @@
   border-radius: 1.5rem;
   box-shadow: 6px 6px 0 0 #1e3a8a;
 }
-@media (min-width: 768px) {
-  .gos-app {
-    border-radius: 2rem;
-    box-shadow: 10px 10px 0 0 #1e3a8a;
-  }
+.gos-md .gos-app {
+  border-radius: 2rem;
+  box-shadow: 10px 10px 0 0 #1e3a8a;
 }
+
 
 .gos-header {
   background: #0d111c;
   border-bottom: 2px solid rgba(30, 58, 138, 0.5);
   border-radius: calc(1.5rem - 3px) calc(1.5rem - 3px) 0 0;
 }
-@media (min-width: 768px) {
-  .gos-header {
-    border-radius: calc(2rem - 3px) calc(2rem - 3px) 0 0;
-  }
+.gos-md .gos-header {
+  border-radius: calc(2rem - 3px) calc(2rem - 3px) 0 0;
 }
+
 
 .gos-badge {
   display: inline-flex;
@@ -118,12 +118,11 @@
   max-width: 100%;
   flex-wrap: wrap;
 }
-@media (min-width: 768px) {
-  .gos-tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-  }
+.gos-md .gos-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
+
 .gos-tab {
   flex-shrink: 0;
   display: inline-flex;
@@ -180,11 +179,10 @@
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
   transition: transform 0.2s;
 }
-@media (min-width: 768px) {
-  .gos-tile .gos-emoji {
-    font-size: 3rem;
-  }
+.gos-md .gos-tile .gos-emoji {
+  font-size: 3rem;
 }
+
 .gos-tile:hover .gos-emoji {
   transform: scale(1.1) rotate(-6deg);
 }
@@ -212,19 +210,17 @@
   background: linear-gradient(135deg, #1e3a8a 0%, #161a29 55%, #0f111a 100%);
   border-color: #1d4ed8;
 }
-@media (min-width: 768px) {
-  .gos-tile-hero {
-    padding: 1.5rem;
-  }
+.gos-md .gos-tile-hero {
+  padding: 1.5rem;
 }
+
 .gos-tile-hero .gos-emoji {
   font-size: 3rem;
 }
-@media (min-width: 768px) {
-  .gos-tile-hero .gos-emoji {
-    font-size: 4rem;
-  }
+.gos-md .gos-tile-hero .gos-emoji {
+  font-size: 4rem;
 }
+
 
 /* Bold counters */
 .gos-chip {
@@ -541,6 +537,8 @@
 }
 .gos-tag {
   display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 0.1rem 0.5rem;
   border-radius: 0.5rem;
   border: 2px solid #000;
@@ -652,25 +650,24 @@
 .gos-owl[data-resting="true"] .gos-owl-close {
   pointer-events: none;
 }
-@media (max-width: 767px) {
-  .gos-owl {
-    position: static;
-    max-width: none;
-    margin: 0.75rem 1rem 0;
-    transform: none !important;
-  }
-  .gos-owl[data-resting="true"] {
-    display: none;
-  }
-  .gos-owl-bubble {
-    width: 100%;
-    border-radius: 1rem;
-    font-size: 0.72rem;
-    padding: 0.5rem 0.6rem;
-  }
-  .gos-owl-bubble::after {
-    display: none;
-  }
+.gos-desk:not(.gos-md) .gos-owl {
+  position: static;
+  max-width: none;
+  margin: 0.75rem 1rem 0;
+  transform: none !important;
+}
+/* it stays until dismissed: on a phone, a strip that vanished would move the tiles under the finger */
+.gos-desk:not(.gos-md) .gos-owl[data-resting="true"] {
+  opacity: 1;
+}
+.gos-desk:not(.gos-md) .gos-owl-bubble {
+  width: 100%;
+  border-radius: 1rem;
+  font-size: 0.72rem;
+  padding: 0.5rem 0.6rem;
+}
+.gos-desk:not(.gos-md) .gos-owl-bubble::after {
+  display: none;
 }
 
 
@@ -680,12 +677,11 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
-@media (min-width: 768px) {
-  .gos-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1rem;
-  }
+.gos-md .gos-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
 }
+
 .gos-tile-big {
   position: relative;
   display: flex;
@@ -702,12 +698,11 @@
   color: #e2e8f0;
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
-@media (min-width: 768px) {
-  .gos-tile-big {
-    min-height: 11rem;
-    padding: 1.5rem;
-  }
+.gos-md .gos-tile-big {
+  min-height: 11rem;
+  padding: 1.5rem;
 }
+
 .gos-tile-big:hover {
   border-color: #3b82f6;
   box-shadow: 6px 6px 0 0 #2563eb;
@@ -725,12 +720,11 @@
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
   transition: transform 0.2s;
 }
-@media (min-width: 768px) {
-  .gos-tile-big .gos-emoji {
-    font-size: 3.75rem;
-    margin-bottom: 0.75rem;
-  }
+.gos-md .gos-tile-big .gos-emoji {
+  font-size: 3.75rem;
+  margin-bottom: 0.75rem;
 }
+
 .gos-tile-big:hover .gos-emoji {
   transform: scale(1.1) rotate(-6deg);
 }
@@ -787,11 +781,10 @@
   background: #0d111c;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
-@media (min-width: 768px) {
-  .gos-view-head {
-    padding: 1.1rem 1.5rem;
-  }
+.gos-md .gos-view-head {
+  padding: 1.1rem 1.5rem;
 }
+
 .gos-back {
   display: inline-flex;
   align-items: center;
@@ -803,6 +796,9 @@
   font-weight: 800;
   font-size: 0.8rem;
   transition: background-color 0.15s, transform 0.15s;
+}
+.gos-phone-only {
+  display: none;
 }
 .gos-back:hover {
   background: #334155;
@@ -820,11 +816,10 @@
   font-size: 1.15rem;
   letter-spacing: 0.02em;
 }
-@media (min-width: 768px) {
-  .gos-view-title {
-    font-size: 1.5rem;
-  }
+.gos-md .gos-view-title {
+  font-size: 1.5rem;
 }
+
 .gos-emoji-box {
   display: inline-flex;
   align-items: center;
@@ -1044,5 +1039,281 @@
   .gos-tile:hover .gos-emoji,
   .gos-tile-big:hover .gos-emoji {
     transform: none;
+  }
+}
+
+/* ── Phone-app mode: the section is narrow (a phone, or a tablet with the sidebar open) ───────────── */
+/* The shell's clipping would stop sticky bars; its own bar scrolls away so the section's bar takes over */
+.overflow-x-hidden:has(.gos-desk:not(.gos-md)) {
+  overflow-x: clip;
+}
+header.sticky:has(~ * .gos-desk:not(.gos-md)) {
+  position: static;
+}
+.gos-desk:not(.gos-md) {
+  padding: 0;
+  font-size: 16px;
+  background-color: #0a0c14;
+  background-image: none;
+}
+.gos-desk:not(.gos-md) .gos-app {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #0a0c14;
+}
+.gos-desk:not(.gos-md) .gos-header {
+  border-radius: 0;
+}
+.gos-desk:not(.gos-md) .gos-subtitle {
+  display: none;
+}
+.gos-desk:not(.gos-md) .gos-header > div {
+  justify-content: flex-start;
+}
+.gos-desk:not(.gos-md) p {
+  overflow-wrap: anywhere;
+}
+.gos-desk:not(.gos-md)[data-view="full"] .gos-header,
+.gos-desk:not(.gos-md)[data-view="full"] .gos-owl {
+  display: none;
+}
+.gos-desk:not(.gos-md) .gos-view-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  padding: calc(0.5rem + env(safe-area-inset-top)) 0.75rem 0.5rem;
+  border-bottom: 2px solid rgba(30, 58, 138, 0.6);
+}
+.gos-desk:not(.gos-md) .gos-back {
+  flex-shrink: 0;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem;
+}
+.gos-desk:not(.gos-md) .gos-view-head > .gos-back .gos-back-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.gos-desk:not(.gos-md) .gos-phone-only {
+  display: inline-flex;
+}
+.gos-desk:not(.gos-md) .gos-view-title {
+  flex: 1;
+  min-width: 0;
+  gap: 0.4rem;
+  font-size: 1rem;
+}
+.gos-desk:not(.gos-md) .gos-view-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gos-desk:not(.gos-md) .gos-grid > :last-child:nth-child(odd) {
+  grid-column: span 2;
+}
+.gos-desk:not(.gos-md) .gos-tile-big {
+  min-height: 7rem;
+  padding: 0.75rem 0.5rem;
+  border-radius: 1.25rem;
+}
+.gos-desk:not(.gos-md) .gos-tile-big .gos-emoji {
+  font-size: 2.25rem;
+  margin-bottom: 0.25rem;
+}
+.gos-desk:not(.gos-md) .gos-tile-badges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  gap: 0.25rem;
+}
+.gos-desk:not(.gos-md) .gos-mini {
+  justify-content: center;
+  padding: 0 0.2rem;
+  font-size: 0.55rem;
+  letter-spacing: 0;
+}
+.gos-desk:not(.gos-md) .gos-tile-big .gos-tile-label {
+  max-width: 100%;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.gos-desk:not(.gos-md) .gos-folder-panel,
+.gos-desk:not(.gos-md) .gos-panel {
+  box-shadow: none;
+}
+.gos-desk:not(.gos-md) .gos-step {
+  gap: 0.5rem;
+}
+.gos-desk:not(.gos-md) .gos-pill {
+  white-space: normal;
+}
+.gos-desk:not(.gos-md) button {
+  max-width: 100%;
+  white-space: normal;
+}
+.gos-desk:not(.gos-md) .flex-wrap > button {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+/* Chip rows: momentum scroll, no scrollbar, and the selected chip stays inside the row */
+.gos-desk:not(.gos-md) .gos-side > p {
+  display: none;
+}
+.gos-desk:not(.gos-md) .gos-side ul {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.gos-desk:not(.gos-md) .gos-side ul::-webkit-scrollbar {
+  display: none;
+}
+.gos-desk:not(.gos-md) .gos-side-item[aria-current="true"] {
+  box-shadow: none;
+  transform: none;
+}
+/* The main action stays under the thumb */
+.gos-desk:not(.gos-md) .gos-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  margin-inline: -1rem;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: #0d111c;
+  border-top: 2px solid rgba(30, 58, 138, 0.6);
+}
+.gos-desk:not(.gos-md) .gos-actions:has(> :nth-child(3)) {
+  position: static;
+  margin-inline: 0;
+  padding: 0;
+  background: none;
+  border-top: 0;
+}
+/* The dashboard's floating owl shrinks to a small button, and sits above that bar */
+body:has(.gos-desk:not(.gos-md)) .fixed.bottom-4.right-4 {
+  transform: scale(0.6);
+  transform-origin: bottom right;
+}
+body:has(.gos-desk:not(.gos-md) .gos-actions:not(:has(> :nth-child(3)))) .fixed.bottom-4.right-4 {
+  bottom: 6rem;
+}
+
+/* Dialogs become sheets on phones and in landscape: the buttons stay visible and only the sheet scrolls */
+@media (max-width: 767px), (max-height: 500px) {
+  body:has(.guru-os .fixed.inset-0 > [role="dialog"]) {
+    overflow: hidden;
+  }
+  .guru-os .fixed.inset-0:has(> [role="dialog"]) {
+    padding: 0;
+    align-items: flex-end;
+    overscroll-behavior: contain;
+  }
+  .guru-os .fixed.inset-0 > [role="dialog"] {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    max-height: 100dvh;
+    margin: 0;
+    overflow: hidden;
+    border-width: 2px 0 0;
+    border-radius: 1.25rem 1.25rem 0 0;
+    box-shadow: none;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .guru-os .fixed.inset-0 > [role="dialog"] > .overflow-y-auto {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overscroll-behavior: contain;
+  }
+  .guru-os .fixed.inset-0 > [role="dialog"] .overflow-y-auto > form > .justify-end:last-child,
+  .guru-os .fixed.inset-0 > [role="dialog"] .overflow-y-auto > .justify-end:last-child {
+    position: sticky;
+    bottom: -1.25rem;
+    padding-block: 0.75rem;
+    background: var(--background);
+  }
+  .guru-os .fixed.inset-0 > [role="dialog"] .justify-end > button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .guru-os .fixed.inset-0 > [aria-label="Buscar en Documentos"] {
+    height: 100dvh;
+    border-radius: 0;
+    border-width: 0;
+  }
+}
+
+/* Touch screens: fingers, no page zoom on focus, no ⌘K */
+@media (pointer: coarse) {
+  .guru-os {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .guru-os button,
+  .guru-os a,
+  .guru-os select,
+  .guru-os textarea,
+  .guru-os input:not([type="radio"], [type="checkbox"], [type="hidden"]) {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+  .guru-os button {
+    min-width: 44px;
+  }
+  .guru-os a:not(.hidden) {
+    display: inline-flex;
+    align-items: center;
+  }
+  .guru-os input,
+  .guru-os select,
+  .guru-os textarea {
+    font-size: 16px;
+  }
+  .guru-os kbd {
+    display: none;
+  }
+}
+
+/* No hover on touch: nothing stays lit after a tap; the tile answers the press instead */
+@media (hover: none) {
+  .gos-tile:hover,
+  .gos-tile-big:hover,
+  .gos-chip:hover {
+    border-color: #1e293b;
+    box-shadow: none;
+    transform: none;
+  }
+  .gos-tile:hover .gos-emoji,
+  .gos-tile-big:hover .gos-emoji {
+    transform: none;
+  }
+  .gos-tile:hover .gos-tile-label,
+  .gos-tile-big:hover .gos-tile-label {
+    color: #e2e8f0;
+  }
+  .gos-callout-purple:hover {
+    transform: none;
+  }
+  .gos-row:hover,
+  .gos-cost-row:hover,
+  .gos-side-item:hover {
+    background: transparent;
+  }
+  .gos-side-item[aria-current="true"]:hover {
+    background: #2563eb;
+  }
+  .gos-tile:active,
+  .gos-tile-big:active,
+  .gos-chip:active {
+    border-color: #3b82f6;
+    transform: scale(0.97);
   }
 }

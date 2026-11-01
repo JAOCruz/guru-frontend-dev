@@ -125,7 +125,7 @@ export function NewDocumentFlow({ initialKind, initialClient, onPick, onCreated,
             Los llena el equipo: {result.staff_placeholders.length} (notario, fecha y ciudad de firma).
           </p>
         )}
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="gos-actions flex flex-wrap justify-end gap-2">
           <NeoButton type="button" variant="neutral" onClick={() => setPreview(true)}>
             <Eye size={16} /> Ver documento
           </NeoButton>
@@ -194,7 +194,7 @@ export function NewDocumentFlow({ initialKind, initialClient, onPick, onCreated,
           <span aria-hidden="true">⚠️</span> {error}
         </p>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="gos-actions flex flex-wrap justify-end gap-2">
         {!initialKind && (
           <NeoButton type="button" variant="neutral" onClick={() => setKind(null)} disabled={busy}>
             Volver
@@ -223,14 +223,14 @@ export default function NewDocumentDialog({ onClose, ...flow }: DialogProps) {
             </span>
             <span className="min-w-0">
               <span className="gos-subtitle block">Nuevo documento</span>
-              <span className="gos-title block truncate font-heading text-base md:text-lg">{heading}</span>
+              <span className="gos-title block truncate font-heading text-base gos-md:text-lg">{heading}</span>
             </span>
           </span>
           <button type="button" onClick={onClose} aria-label="Cerrar" className="rounded-xl border border-slate-700 bg-black p-1.5 text-slate-300 hover:bg-slate-800 hover:text-white">
             <X size={18} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 md:p-5">
+        <div className="flex-1 overflow-y-auto p-4 gos-md:p-5">
           <NewDocumentFlow {...flow} onHeading={setHeading} />
         </div>
       </div>
@@ -241,7 +241,7 @@ export default function NewDocumentDialog({ onClose, ...flow }: DialogProps) {
 // One numbered step: blue square number with a hard shadow, title, and the field(s) under it
 function Step({ n, title, hint, children }: { n: number; title: string; hint: string; children: React.ReactNode }) {
   return (
-    <div className="gos-step gos-card p-3 md:p-4">
+    <div className="gos-step gos-card p-3 gos-md:p-4">
       <span className="gos-step-num" aria-hidden="true">
         {n}
       </span>

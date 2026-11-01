@@ -71,7 +71,7 @@ export default function ServiciosView({ onContext }: { onContext?: (ctx: { tab: 
               <span aria-hidden="true">{service.emoji}</span> {service.title}
             </h3>
           </div>
-          <div className="grid gap-6 p-4 md:grid-cols-2 md:p-6">
+          <div className="grid gap-6 p-4 gos-md:grid-cols-2 gos-md:p-6">
             <div className="space-y-5">
               <div className="gos-callout-blue !p-5">
                 <p className="text-base font-medium leading-relaxed text-blue-50">{service.desc}</p>
@@ -108,12 +108,12 @@ export default function ServiciosView({ onContext }: { onContext?: (ctx: { tab: 
       )}
 
       {tab === "tramites" && (
-        <div className="grid gap-4 md:grid-cols-[17rem_1fr]">
-          <aside className="gos-side flex min-w-0 flex-col p-2 md:p-3">
+        <div className="grid gap-4 gos-md:grid-cols-[17rem_1fr]">
+          <aside className="gos-side flex min-w-0 flex-col p-2 gos-md:p-3">
             <p className="px-2 pb-2 pt-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Catálogo oficial</p>
-            <ul className="flex min-w-0 gap-1.5 overflow-x-auto md:flex-col md:overflow-visible" aria-label="Trámites">
+            <ul className="flex min-w-0 gap-1.5 overflow-x-auto gos-md:flex-col gos-md:overflow-visible" aria-label="Trámites">
               {tramitesData.map((t) => (
-                <li key={t.id} className="shrink-0 md:shrink">
+                <li key={t.id} className="shrink-0 gos-md:shrink">
                   <button type="button" aria-current={tramiteId === t.id} onClick={() => setTramiteId(t.id)} className="gos-side-item">
                     <span aria-hidden="true" className="text-xl leading-none">
                       {t.emoji}
@@ -126,7 +126,7 @@ export default function ServiciosView({ onContext }: { onContext?: (ctx: { tab: 
           </aside>
 
           <div className="flex min-w-0 flex-col gap-4">
-            <h3 className="flex items-center gap-3 font-heading text-2xl font-black text-white md:text-3xl">
+            <h3 className="flex items-center gap-3 font-heading text-2xl font-black text-white gos-md:text-3xl">
               <span className="gos-emoji-box" aria-hidden="true">
                 {tramite.emoji}
               </span>
@@ -151,7 +151,7 @@ export default function ServiciosView({ onContext }: { onContext?: (ctx: { tab: 
                         <span className="gos-step-num" aria-hidden="true">
                           {i + 1}
                         </span>
-                        <p className="text-sm leading-relaxed text-slate-300 md:text-base">{paso.replace(/^\d+\.\s/, "")}</p>
+                        <p className="text-sm leading-relaxed text-slate-300 gos-md:text-base">{paso.replace(/^\d+\.\s/, "")}</p>
                       </li>
                     ))}
                   </ol>

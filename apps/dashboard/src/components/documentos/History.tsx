@@ -150,7 +150,7 @@ export default function History() {
     );
 
   return (
-    <section className="grid min-h-[50vh] gap-4 md:grid-cols-[17rem_1fr]">
+    <section className="grid min-h-[50vh] gap-4 gos-md:grid-cols-[17rem_1fr]">
       {/* Clients: a column on desktop, a chip row on phones */}
       <aside className="gos-side flex min-w-0 flex-col">
         <div className="space-y-2 border-b-2 border-slate-800 p-3">
@@ -169,11 +169,11 @@ export default function History() {
           </div>
         </div>
         <p className="px-4 pt-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Clientes</p>
-        <ul className="flex min-w-0 gap-1.5 overflow-x-auto p-2 md:flex-1 md:flex-col md:overflow-y-auto">
+        <ul className="flex min-w-0 gap-1.5 overflow-x-auto p-2 gos-md:flex-1 gos-md:flex-col gos-md:overflow-y-auto">
           {clients.map((c) => {
             const current = selected?.id === c.id;
             return (
-              <li key={c.id} className="shrink-0 md:shrink">
+              <li key={c.id} className="shrink-0 gos-md:shrink">
                 <button
                   type="button"
                   aria-current={current}
@@ -181,14 +181,14 @@ export default function History() {
                     setSelected(c);
                     setOpenDoc(null);
                   }}
-                  className="gos-side-item max-w-[14rem] md:max-w-none"
+                  className="gos-side-item max-w-[14rem] gos-md:max-w-none"
                 >
                   <span aria-hidden="true" className="text-xl leading-none">
                     👤
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm">{c.name || "Sin nombre"}</span>
-                    <span className="gos-muted hidden truncate text-xs font-medium md:block">{c.phone}</span>
+                    <span className="gos-muted hidden truncate text-xs font-medium gos-md:block">{c.phone}</span>
                   </span>
                   <span className="gos-count">{c.documents}</span>
                 </button>
@@ -218,7 +218,7 @@ export default function History() {
               <span aria-hidden="true" className="gos-badge shrink-0 text-2xl">
                 👤
               </span>
-              <h2 className="min-w-0 flex-1 break-words font-heading text-lg font-black uppercase tracking-wide text-white md:text-xl">{selected.name || "Sin nombre"}</h2>
+              <h2 className="min-w-0 flex-1 break-words font-heading text-lg font-black uppercase tracking-wide text-white gos-md:text-xl">{selected.name || "Sin nombre"}</h2>
               {isAdmin && (
                 <select
                   value={creator}

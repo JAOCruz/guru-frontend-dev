@@ -100,8 +100,8 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
 
       <ul className="gos-panel gos-list overflow-hidden">
         {list.map((m) => (
-          <li key={m.id} className="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex min-w-0 flex-1 items-start gap-3 md:min-w-[16rem]">
+          <li key={m.id} className="flex flex-col gap-2 px-4 py-3 gos-md:flex-row gos-md:items-center gos-md:justify-between">
+            <div className="flex min-w-0 flex-1 items-start gap-3 gos-md:min-w-[16rem]">
               <span aria-hidden="true" className="gos-badge mt-0.5 shrink-0 text-xl">
                 📄
               </span>
@@ -113,7 +113,7 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
                 {m.reason && <p className="mt-1 text-xs font-semibold text-blue-300">✨ {m.reason}</p>}
               </div>
             </div>
-            <div className="flex flex-wrap gap-1.5 md:max-w-[62%] md:justify-end">
+            <div className="flex flex-wrap gap-1.5 gos-md:max-w-[62%] gos-md:justify-end">
               <NeoButton size="sm" variant="neutral" onClick={() => setPreview(m)}>
                 <Eye size={14} /> Ver
               </NeoButton>

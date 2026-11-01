@@ -14,14 +14,14 @@ export default function FullView({ emoji, title, onBack, backLabel = "Volver al 
     <section aria-label={title} className="flex min-w-0 flex-col">
       <div className="gos-view-head">
         <button type="button" onClick={onBack} className="gos-back">
-          <span aria-hidden="true">←</span> {backLabel}
+          <span aria-hidden="true">←</span> <span className="gos-back-label">{backLabel}</span>
         </button>
         <h2 className="gos-view-title font-heading">
-          <span aria-hidden="true">{emoji}</span> {title}
+          <span aria-hidden="true">{emoji}</span> <span className="gos-view-title-text">{title}</span>
         </h2>
-        {actions && <div className="flex basis-full items-center gap-2 sm:basis-auto">{actions}</div>}
+        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </div>
-      <div className="min-w-0 p-4 md:p-6">{children}</div>
+      <div className="gos-view-body min-w-0 p-4 gos-md:p-6">{children}</div>
     </section>
   );
 }

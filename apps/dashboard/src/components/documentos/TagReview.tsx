@@ -179,7 +179,7 @@ export default function TagReview({ initialModel }: { initialModel?: number | nu
       {trash ? (
         <ul aria-label="Eliminados" className="divide-y-2 divide-border/15 overflow-hidden rounded-base border-2 border-border bg-background shadow-shadow">
           {trash.map((m) => (
-            <li key={m.id} className="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between">
+            <li key={m.id} className="flex flex-col gap-2 px-4 py-3 gos-md:flex-row gos-md:items-center gos-md:justify-between">
               <div className="min-w-0">
                 <p className="break-words text-sm font-bold">{m.name}</p>
                 <p className="text-xs text-foreground/60">
@@ -208,7 +208,7 @@ export default function TagReview({ initialModel }: { initialModel?: number | nu
 
       <ul className="divide-y-2 divide-border/15 overflow-hidden rounded-base border-2 border-border bg-background shadow-shadow">
         {list.map((m) => (
-          <li key={m.id} className="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:justify-between">
+          <li key={m.id} className="flex flex-col gap-2 px-4 py-3 gos-md:flex-row gos-md:items-center gos-md:justify-between">
             <div className="flex min-w-0 items-start gap-3">
               <FileText size={20} className="mt-0.5 shrink-0 text-main" />
               <div className="min-w-0">

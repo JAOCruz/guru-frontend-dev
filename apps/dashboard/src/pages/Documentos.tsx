@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -51,6 +51,19 @@ export default function Documentos() {
   const [aiQuery, setAiQuery] = useState<string | null>(null);
   const [newHeading, setNewHeading] = useState<string | null>(null);
   const [serviceCtx, setServiceCtx] = useState<{ tab: "servicios" | "tramites"; service?: { title: string; emoji: string } | null; tramite?: string | null }>({ tab: "servicios" });
+
+  // The section lays out by its own width, not the screen's: with the sidebar open a tablet leaves it phone-sized
+  const desk = useRef<HTMLDivElement>(null);
+  const [wide, setWide] = useState(false);
+  useLayoutEffect(() => {
+    const el = desk.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => setWide(el.clientWidth >= 720);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const reload = useCallback(() => {
     setLoading(true);
@@ -112,31 +125,31 @@ export default function Documentos() {
   const viewTitle = tab === "nuevo" && newHeading && newHeading !== "Nuevo documento" ? newHeading : view?.title;
 
   return (
-    <div className="guru-os gos-desk">
+    <div ref={desk} className={`guru-os gos-desk${wide ? " gos-md" : ""}`} data-view={tab === "inicio" ? "home" : "full"}>
       <div className="gos-app">
         <header className="gos-header">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-6 md:py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 gos-md:px-6 gos-md:py-5">
             <button type="button" onClick={goHome} className="flex min-w-0 items-center gap-3 text-left" title="Volver al menú">
-              <span className="gos-badge text-2xl md:text-3xl" aria-hidden="true">
+              <span className="gos-badge text-2xl gos-md:text-3xl" aria-hidden="true">
                 🦉
               </span>
               <span className="min-w-0">
-                <h1 className="gos-title font-heading text-xl md:text-3xl">Documentos</h1>
-                <span className="gos-subtitle mt-1 block text-[0.55rem] md:text-[0.7rem]">Gurú OS · crea, personaliza, aprueba y envía</span>
+                <h1 className="gos-title font-heading text-xl gos-md:text-3xl">Documentos</h1>
+                <span className="gos-subtitle mt-1 block text-[0.55rem] gos-md:text-[0.7rem]">Gurú OS · crea, personaliza, aprueba y envía</span>
               </span>
             </button>
-            <div className="flex w-full items-center gap-3 sm:w-auto">
+            <div className="flex w-full items-center gap-3 gos-md:w-auto">
               <button
                 type="button"
                 onClick={() => setSearch(true)}
-                className="gos-input flex w-full min-w-0 items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-400 hover:border-blue-500 sm:w-72"
+                className="gos-input flex w-full min-w-0 items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-400 hover:border-blue-500 gos-md:w-72"
                 aria-label="Buscar modelos, documentos y clientes"
               >
                 <Search size={16} className="shrink-0" />
                 <span className="min-w-0 flex-1 truncate">Buscar modelo, documento o cliente…</span>
-                <kbd className="hidden rounded border px-1.5 text-[10px] font-bold sm:inline">⌘K</kbd>
+                <kbd className="hidden rounded border px-1.5 text-[10px] font-bold gos-md:inline">⌘K</kbd>
               </button>
-              <Link to="/documents/anterior" className="hidden shrink-0 text-xs font-semibold text-slate-500 underline hover:text-slate-200 sm:inline">
+              <Link to="/documents/anterior" className="hidden shrink-0 text-xs font-semibold text-slate-500 underline hover:text-slate-200 gos-md:inline">
                 Vista anterior
               </Link>
             </div>
@@ -146,11 +159,20 @@ export default function Documentos() {
         <OwlHelper message={owlMessage} />
 
         {tab === "inicio" ? (
-          <div className="min-w-0 p-4 md:p-6">
+          <div className="min-w-0 p-4 gos-md:p-6">
             <HomeGrid isAdmin={isAdmin} documents={documents} loading={loading} onOpen={(v) => setTab(v)} />
           </div>
         ) : (
-          <FullView emoji={view!.emoji} title={viewTitle!} onBack={goHome}>
+          <FullView
+            emoji={view!.emoji}
+            title={viewTitle!}
+            onBack={goHome}
+            actions={
+              <button type="button" onClick={() => setSearch(true)} aria-label="Abrir la búsqueda" className="gos-back gos-phone-only">
+                <Search size={18} />
+              </button>
+            }
+          >
             {tab === "nuevo" ? (
               <NewDocumentFlow
                 key="nuevo"

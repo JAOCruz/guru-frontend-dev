@@ -161,8 +161,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   const [advisorMessageOpen, setAdvisorMessageOpen] = useState(() => {
     const saved = localStorage.getItem("guru-advisor-visible");
-    // First visit: open on computers, closed on phones (the bubble would cover the page)
-    if (saved === null) return typeof window === "undefined" || window.innerWidth >= 768;
+    // First visit: open on computers, closed on phones and tablets (the bubble would cover the page)
+    if (saved === null) return typeof window === "undefined" || window.innerWidth >= 1280;
     return saved === "true";
   });
 
