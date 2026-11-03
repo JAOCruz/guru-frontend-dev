@@ -39,6 +39,7 @@ export interface PortfolioDocument {
   title: string;
   client_id: number | null; // null: «Sin cliente»
   client_name: string | null;
+  client_phone?: string | null;
   template_id?: number | null; // the model it was made from
   created_by: number | null;
   created_by_name: string | null;

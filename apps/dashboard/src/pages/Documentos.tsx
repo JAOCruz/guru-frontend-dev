@@ -19,7 +19,7 @@ import "../components/documentos/guru-os.css";
 
 // Documentos («Gurú OS»): a home grid of big emoji tiles, each opening a full view inside the bento container.
 //  · Nuevo documento (?tab=nuevo) — desde cero con IA, en blanco, desde un modelo, subir; the steps run inline
-//  · Mis documentos (?tab=historial&client=…&doc=…) — each digitador's documents per client, versions, approve, send
+//  · Mis documentos (?tab=historial&client=…&doc=…) — one list of documents, filtered by digitador (admin), versions, approve, send
 //  · Revisión de etiquetas (admin, ?tab=etiquetas&model=…) — tagged copies of the models
 //  · Servicios (?tab=servicios) — guía interna: servicios y trámites
 //  · Biblioteca de modelos (?tab=biblioteca) — search a model, fill or personalize it
@@ -106,7 +106,7 @@ export default function Documentos() {
         ? "Tu borrador ya está en Mis documentos. Revísalo y completa las etiquetas antes de aprobarlo."
         : "Cuéntame qué documento necesitas: tipo, partes, montos y plazos. Lo que falte lo dejo como etiqueta."
       : tab === "historial"
-        ? "Elige un cliente: aquí apruebas, envías y guardas versiones."
+        ? isAdmin ? "Filtra por digitador o busca: aquí apruebas, envías y guardas versiones." : "Busca un documento: aquí apruebas, envías y guardas versiones."
         : tab === "etiquetas"
           ? "Revisa las etiquetas de cada modelo y apruébalo para que todos lo llenen."
           : tab === "servicios"

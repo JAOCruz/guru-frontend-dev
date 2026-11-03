@@ -20,7 +20,15 @@ vi.mock("../services/documentosApi", () => ({
 }));
 vi.mock("../context/AuthContext", () => ({ useAuth: () => auth }));
 vi.mock("../context/UserColorsContext", () => ({
-  useUserColors: () => ({ users: [{ id: 2, name: "Hengi", username: "hengi", role: "digitador" }], refresh: vi.fn() }),
+  useUserColors: () => ({
+    users: [
+      { id: 2, name: "Hengi", username: "hengi", role: "digitador" },
+      { id: 3, name: "Sofi", username: "sofi", role: "digitador" },
+      { id: 9, name: "Administración", username: "administracion", role: "digitador" },
+    ],
+    appearanceOf: (id: number) => ({ color: { bg: id === 2 ? "#ff0000" : "#00ff00", text: "#000000" }, name: `u${id}`, initial: "U", emoji: null }),
+    refresh: vi.fn(),
+  }),
 }));
 
 vi.mock("../components/documentos/TagEditor", () => ({
@@ -166,12 +174,10 @@ describe("Documentos — Mis documentos", () => {
   it("a document made from a model can become the model's next version; an uploaded one cannot", async () => {
     api.document.mockResolvedValueOnce({ data: { document: { ...DOC, template_id: 3, versions: VERSIONS } } });
     renderAt("/documents?tab=historial");
-    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
     fireEvent.click(await screen.findByRole("button", { name: /contrato de alquiler/i }));
     expect(await screen.findByText("como-modelo:10")).toBeTruthy();
     cleanup();
     renderAt("/documents?tab=historial");
-    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
     fireEvent.click(await screen.findByRole("button", { name: /contrato de alquiler/i }));
     expect(await screen.findByText("v2")).toBeTruthy();
     expect(screen.queryByText(/^como-modelo:/)).toBeNull();
@@ -183,14 +189,85 @@ describe("Documentos — Mis documentos", () => {
     expect((await screen.findByTestId("tag-review")).textContent).toBe("3");
   });
 
-  it("client → documents → versions; employees cannot approve", async () => {
+  it("lists every document right away, without choosing a client; employees cannot approve or filter by digitador", async () => {
     renderAt("/documents?tab=historial");
-    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
-    await waitFor(() => expect(api.documents).toHaveBeenCalledWith(expect.objectContaining({ client_id: 1 })));
     fireEvent.click(await screen.findByRole("button", { name: /contrato de alquiler/i }));
+    await waitFor(() => expect(api.documents).toHaveBeenCalledWith({ sort: "recent" }));
+    expect(api.clients).not.toHaveBeenCalledWith("");
     expect(await screen.findByText("v2")).toBeTruthy();
     expect(screen.getAllByText(/borrador/i).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /^aprobar v/i })).toBeNull();
+    expect(screen.queryByRole("group", { name: /digitador/i })).toBeNull();
+  });
+
+  describe("el admin filtra por digitador", () => {
+    const OTHERS = [
+      DOC,
+      { ...DOC, id: 11, title: "Poder especial", client_id: 2, client_name: "Ana Díaz", created_by: 3, created_by_name: "Sofi" },
+      { ...DOC, id: 12, title: "Borrador del bot", client_id: null, client_name: null, created_by: null, created_by_name: null },
+      { ...DOC, id: 13, title: "Hecho por la jefa", created_by: 7, created_by_name: "Leandra" },
+    ];
+    const chip = (name: RegExp) => within(screen.getByRole("group", { name: /digitador/i })).getByRole("button", { name });
+    const row = (name: RegExp) => screen.queryByRole("button", { name });
+
+    beforeEach(() => {
+      auth.isAdmin = true;
+      api.documents.mockResolvedValue({ data: { documents: OTHERS } });
+    });
+
+    it("chips with counts: Todos, Sin asignar, digitadores and anyone else with documents; no administracion", async () => {
+      renderAt("/documents?tab=historial");
+      await screen.findByRole("button", { name: /poder especial/i });
+      expect(chip(/todos/i).textContent).toContain("4");
+      expect(chip(/sin asignar/i).textContent).toContain("1");
+      expect(chip(/hengi/i).textContent).toContain("1");
+      expect(chip(/sofi/i).textContent).toContain("1");
+      expect(chip(/leandra/i).textContent).toContain("1");
+      expect(within(screen.getByRole("group", { name: /digitador/i })).queryByRole("button", { name: /administración/i })).toBeNull();
+    });
+
+    it("a chip narrows the list and wears the digitador's color", async () => {
+      renderAt("/documents?tab=historial");
+      await screen.findByRole("button", { name: /poder especial/i });
+      fireEvent.click(chip(/hengi/i));
+      expect(chip(/hengi/i).getAttribute("aria-pressed")).toBe("true");
+      expect(chip(/hengi/i).style.backgroundColor).toBe("rgb(255, 0, 0)");
+      expect(row(/contrato de alquiler/i)).toBeTruthy();
+      expect(row(/poder especial/i)).toBeNull();
+      fireEvent.click(chip(/sin asignar/i));
+      expect(row(/borrador del bot/i)).toBeTruthy();
+      expect(row(/contrato de alquiler/i)).toBeNull();
+    });
+
+    it("searches by client name and shows the client on each row; the chips count the search", async () => {
+      renderAt("/documents?tab=historial");
+      await screen.findByRole("button", { name: /poder especial/i });
+      fireEvent.change(screen.getByLabelText(/buscar documento/i), { target: { value: "ana" } });
+      expect(row(/poder especial/i)).toBeTruthy();
+      expect(row(/contrato de alquiler/i)).toBeNull();
+      expect(chip(/todos/i).textContent).toContain("1");
+      expect(chip(/hengi/i).textContent).toContain("0");
+      expect(screen.getByText(/ana díaz/i).textContent).toContain("2 versiones");
+    });
+
+    it("?client= narrows to that client until it is cleared; 0 is «Sin cliente»", async () => {
+      renderAt("/documents?tab=historial&client=2");
+      await screen.findByRole("button", { name: /poder especial/i });
+      expect(row(/contrato de alquiler/i)).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /quitar filtro de cliente/i }));
+      expect(row(/contrato de alquiler/i)).toBeTruthy();
+      cleanup();
+      renderAt("/documents?tab=historial&client=0");
+      await screen.findByRole("button", { name: /borrador del bot/i });
+      expect(row(/poder especial/i)).toBeNull();
+    });
+
+    it("?doc= opens that document even when it is someone else's", async () => {
+      api.document.mockResolvedValue({ data: { document: { ...OTHERS[1], versions: VERSIONS } } });
+      renderAt("/documents?tab=historial&client=2&doc=11");
+      expect(await screen.findByText("v2")).toBeTruthy();
+      expect(api.document).toHaveBeenCalledWith(11);
+    });
   });
 
   it("the admin approves a version", async () => {
@@ -198,7 +275,6 @@ describe("Documentos — Mis documentos", () => {
     render(<DialogHost />);
     api.approve.mockResolvedValue({ data: { document: { ...DOC, approved_version: 2, versions: [{ ...VERSIONS[0], status: "approved" }, VERSIONS[1]] } } });
     renderAt("/documents?tab=historial");
-    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
     fireEvent.click(await screen.findByRole("button", { name: /contrato de alquiler/i }));
     fireEvent.click(await screen.findByRole("button", { name: /^aprobar v2/i }));
     const confirm = await screen.findByRole("dialog", { name: /¿aprobar v2\?/i });
@@ -207,10 +283,10 @@ describe("Documentos — Mis documentos", () => {
     expect((await screen.findAllByText(/aprobada/i)).length).toBeGreaterThan(0);
   });
 
-  it("uploads a document for the selected client (title from the file name)", async () => {
+  it("uploads a document for the client in the filter (title from the file name)", async () => {
     api.upload.mockResolvedValue({ data: { document: { ...DOC, id: 11, title: "poder firmado", versions: [] } } });
-    renderAt("/documents?tab=historial");
-    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
+    renderAt("/documents?tab=historial&client=1");
+    await screen.findByRole("button", { name: /contrato de alquiler/i });
     fireEvent.click(await screen.findByRole("button", { name: /subir documento/i }));
     const dialog = await screen.findByRole("dialog");
     const file = new File(["PK"], "poder firmado.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
@@ -266,7 +342,6 @@ describe("Documentos — enviado por el bot", () => {
     api.documents.mockResolvedValue({ data: { documents: [doc] } });
     api.document.mockResolvedValue({ data: { document: { ...doc, versions: VERSIONS } } });
     renderAt("/documents?tab=historial");
-    fireEvent.click(await screen.findByRole("button", { name: /juan pérez/i }));
     fireEvent.click(await screen.findByRole("button", { name: /contrato de alquiler/i }));
     await screen.findByText("v2");
   };
