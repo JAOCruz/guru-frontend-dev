@@ -1318,3 +1318,65 @@ body:has(.gos-desk:not(.gos-md) .gos-actions:not(:has(> :nth-child(3)))) .fixed.
     transform: scale(0.97);
   }
 }
+
+/* Mis documentos: one card per document, swiped sideways. The next card peeks so it reads as a carousel. */
+.gos-carousel {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.25rem 0.75rem;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+.gos-doc-card {
+  flex: 0 0 15rem;
+  min-width: 0;
+  overflow: hidden;
+  scroll-snap-align: start;
+  border: 2px solid #1e293b;
+  border-radius: 1.25rem;
+  background: #0b1220;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.gos-doc-card:hover {
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+}
+.gos-doc-card[data-open="true"] {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px #60a5fa;
+}
+.gos-doc-card > button:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: -4px;
+}
+.gos-doc-cover {
+  position: relative;
+  display: flex;
+  height: 6.5rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  background: #172033;
+}
+.gos-doc-title {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.gos-desk:not(.gos-md) .gos-doc-card {
+  flex-basis: 78%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gos-doc-card {
+    transition: none;
+  }
+  .gos-doc-card:hover {
+    transform: none;
+  }
+}

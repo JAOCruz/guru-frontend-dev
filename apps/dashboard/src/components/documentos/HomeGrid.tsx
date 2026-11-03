@@ -18,7 +18,7 @@ export default function HomeGrid({ isAdmin, documents, loading, onOpen }: Props)
 
   const tiles: { key: ViewKey; emoji: string; label: string; hint: string; admin?: boolean }[] = [
     { key: "nuevo", emoji: "🪄", label: "Nuevo documento", hint: "Desde cero con IA, en blanco, desde un modelo o subir" },
-    { key: "historial", emoji: "📂", label: "Mis documentos", hint: "Todos en una lista, con versiones: aprobar y enviar" },
+    { key: "historial", emoji: "📂", label: "Mis documentos", hint: "Un cuadro por documento, con versiones: aprobar y enviar" },
     { key: "etiquetas", emoji: "🏷️", label: "Revisión de etiquetas", hint: "Etiquetar y aprobar modelos", admin: true },
     { key: "servicios", emoji: "🛠️", label: "Servicios", hint: "Guía interna: servicios y trámites" },
     { key: "biblioteca", emoji: "🔎", label: "Biblioteca de modelos", hint: "Buscar un modelo y llenarlo" },

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronDown, Eye, FileDown, Search, Send, Sparkles, Upload, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Eye, FileDown, Search, Send, Sparkles, Upload, X } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { useAuth } from "../../context/AuthContext";
 import { useUserColors } from "../../context/UserColorsContext";
@@ -24,7 +24,7 @@ const SORTS: { key: DocSort; label: string; emoji: string }[] = [
   { key: "name", label: "Nombre", emoji: "🔤" },
 ];
 
-// Mis documentos: one list of every document in the user's scope. Each digitador sees only theirs;
+// Mis documentos: a carousel with one card per document in the user's scope; a card opens its versions below. Each digitador sees only theirs;
 // the admin sees everyone's and filters by digitador, with the same colored chips as Casos.
 // ?client= (from the search, or after personalizing) narrows the list to that client until it is cleared.
 type Owner = "all" | "none" | number;
@@ -47,6 +47,20 @@ export default function History() {
   const [clientFilter, setClientFilter] = useState<number | null>(params.has("client") ? Number(params.get("client")) : null);
   const wantedDoc = Number(params.get("doc")) || null;
   const openedWanted = useRef(false);
+  const carousel = useRef<HTMLUListElement>(null);
+  const [canPrev, setCanPrev] = useState(false);
+  const [canNext, setCanNext] = useState(false);
+
+  const measureCarousel = () => {
+    const el = carousel.current;
+    setCanPrev(!!el && el.scrollLeft > 4);
+    setCanNext(!!el && el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  };
+  const slide = (direction: 1 | -1) => {
+    const el = carousel.current;
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    el?.scrollBy?.({ left: direction * el.clientWidth * 0.85, behavior: still ? "auto" : "smooth" });
+  };
 
   const loadDocuments = () => {
     documentosAPI
@@ -92,6 +106,17 @@ export default function History() {
       ...[...people].map(([id, name]): [Owner, string, number] => [id, name, narrowed.filter((d) => d.created_by === id).length]),
     ];
   }, [users, all, narrowed]);
+
+  // Filters change what fits; a document opened by link may start off screen
+  useEffect(() => {
+    measureCarousel();
+    window.addEventListener("resize", measureCarousel);
+    return () => window.removeEventListener("resize", measureCarousel);
+  }, [visible.length]);
+  useEffect(() => {
+    if (!openDoc) return;
+    carousel.current?.querySelector('[aria-expanded="true"]')?.scrollIntoView?.({ inline: "center", block: "nearest" });
+  }, [openDoc?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleDoc = async (d: PortfolioDocument) => {
     if (openDoc?.id === d.id) return setOpenDoc(null);
@@ -222,8 +247,8 @@ export default function History() {
 
       <div className="flex min-w-0 flex-col gap-3">
         {/* Folder tabs: how the list is ordered */}
-            <div>
-              <div className="gos-folder-tabs" role="group" aria-label="Ordenar">
+        <div>
+          <div className="gos-folder-tabs" role="group" aria-label="Ordenar">
                 {SORTS.map((s) => (
                   <button key={s.key} type="button" onClick={() => setSort(s.key)} aria-pressed={sort === s.key} className="gos-folder-tab">
                     <span aria-hidden="true" className="text-base">
@@ -234,140 +259,159 @@ export default function History() {
                 ))}
               </div>
               <div className="gos-folder-panel">
-                <ul className="space-y-2">
-                  {visible.map((d) => {
-                    const open = openDoc?.id === d.id;
-                    const madeBy = d.created_by != null ? appearanceOf(d.created_by) : null;
-                    return (
-                      <li key={d.id} className="gos-card overflow-hidden" data-open={open} style={isAdmin && madeBy ? { borderLeft: `6px solid ${madeBy.color.bg}` } : undefined}>
-                        <button type="button" onClick={() => toggleDoc(d)} aria-expanded={open} className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-3 py-3 text-left sm:px-4">
-                          <span aria-hidden="true" className="text-2xl leading-none">
-                            📄
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block break-words text-sm font-bold text-white">{d.title}</span>
-                            <span className="gos-muted block text-xs">
-                              <span aria-hidden="true">👤</span> {d.client_name || "Sin cliente"} · {d.versions_count} {d.versions_count === 1 ? "versión" : "versiones"} · {fmt(d.updated_at)}
-                            </span>
-                          </span>
-                          {/* who made it and the badges go under the title on phones, next to it from sm */}
-                          <span className="order-last flex basis-full flex-wrap items-center gap-1.5 sm:order-none sm:basis-auto">
-                            {isAdmin && madeBy && d.created_by_name && (
-                              <span className="inline-flex max-w-[11rem] items-center gap-1.5 text-xs font-bold text-white">
-                                <UserAvatar appearance={madeBy} size="sm" />
-                                <span className="truncate">{d.created_by_name}</span>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="gos-muted text-xs font-bold">
+                    {visible.length} {visible.length === 1 ? "documento" : "documentos"}
+                  </p>
+                  {(canPrev || canNext) && (
+                    <div className="flex gap-1.5">
+                      <button type="button" aria-label="Documentos anteriores" disabled={!canPrev} onClick={() => slide(-1)} className="gos-back disabled:opacity-40">
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button type="button" aria-label="Documentos siguientes" disabled={!canNext} onClick={() => slide(1)} className="gos-back disabled:opacity-40">
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {visible.length ? (
+                  <ul ref={carousel} onScroll={measureCarousel} aria-label="Documentos" className="gos-carousel">
+                    {visible.map((d) => {
+                      const open = openDoc?.id === d.id;
+                      const madeBy = d.created_by != null ? appearanceOf(d.created_by) : null;
+                      return (
+                        <li key={d.id} className="gos-doc-card" data-open={open}>
+                          <button type="button" onClick={() => toggleDoc(d)} aria-expanded={open} title={d.title} className="flex h-full w-full flex-col text-left">
+                            <span className="gos-doc-cover" style={madeBy ? { backgroundColor: `color-mix(in srgb, ${madeBy.color.bg} 45%, #0b1220)` } : undefined}>
+                              <span aria-hidden="true" className="text-5xl leading-none">
+                                📄
                               </span>
-                            )}
-                            {d.prepared_by_bot && <BotBadge />}
-                            <StatusBadge approved={d.approved_version} />
-                          </span>
-                          <ChevronDown size={18} className={`shrink-0 text-blue-400 transition-transform ${open ? "rotate-180" : ""}`} />
-                        </button>
-                        {open && openDoc && (
-                          <div className="border-t border-blue-900/40 bg-black/30 px-3 py-3">
-                            {(() => {
-                              const canApprove = openDoc.can_approve ?? isAdmin;
-                              const delivery = deliveryLine(openDoc);
-                              return (
-                                <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-semibold">
-                                  {openDoc.prepared_by_bot && (
-                                    <>
-                                      <BotBadge />
-                                      {openDoc.invoice_id ? (
-                                        <Link to={`/cotizaciones?invoice=${openDoc.invoice_id}`} className="text-blue-300 underline">
-                                          Ver cotización
-                                        </Link>
-                                      ) : null}
-                                    </>
-                                  )}
-                                  {delivery &&
-                                    (delivery.warn ? (
-                                      <span className="gos-callout-orange basis-full !py-2 text-xs">
-                                        <span aria-hidden="true">⚠️</span> {delivery.text}
-                                      </span>
-                                    ) : (
-                                      <span className="text-emerald-400">
-                                        <span aria-hidden="true">✅</span> {delivery.text}
-                                      </span>
-                                    ))}
-                                  {canApprove && openDoc.client_id && openDoc.approved_version && !openDoc.sent_at && (
-                                    <NeoButton size="sm" disabled={sending} onClick={() => sendToClient(openDoc)}>
-                                      <Send size={14} /> Enviar al cliente
-                                    </NeoButton>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                            <p className="gos-label-blue mb-2">Versiones</p>
-                            <ul className="space-y-2">
-                              {openDoc.versions?.map((v) => (
-                                <li key={v.id} className="gos-step gos-card p-3">
-                                  <span className={`gos-step-num ${v.status === "approved" ? "gos-step-num-emerald" : ""}`}>v{v.version_number}</span>
-                                  <div className="min-w-0 flex-1 space-y-2">
-                                    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                                      {v.status === "approved" ? (
-                                        <span className="gos-pill gos-pill-emerald">
-                                          <span aria-hidden="true">✅</span> Aprobada
-                                        </span>
-                                      ) : (
-                                        <span className="gos-pill gos-pill-ghost">Borrador</span>
-                                      )}
-                                      <span className="gos-muted min-w-0 basis-full break-words text-xs sm:basis-auto">
-                                        {v.created_by_name} · {fmt(v.created_at)}
-                                        {v.notes ? ` · ${v.notes}` : ""}
-                                      </span>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      <NeoButton size="sm" variant="neutral" onClick={() => setPreview({ title: `${openDoc.title} v${v.version_number}`, version: v })}>
-                                        <Eye size={14} /> Ver
-                                      </NeoButton>
-                                      {v.mime_type === DOCX && (
-                                        <NeoButton size="sm" variant="neutral" onClick={() => download(openDoc, v, "docx")}>
-                                          <FileDown size={14} /> Word
-                                        </NeoButton>
-                                      )}
-                                      <NeoButton size="sm" variant="neutral" onClick={() => download(openDoc, v, "pdf")}>
-                                        <FileDown size={14} /> PDF
-                                      </NeoButton>
-                                      {v.mime_type === DOCX && (
-                                        <NeoButton size="sm" variant="neutral" onClick={() => setPersonalize({ doc: openDoc, version: v })} title="Llenar con datos o pedir cambios a la IA: crea una versión nueva">
-                                          <Sparkles size={14} /> Personalizar
-                                        </NeoButton>
-                                      )}
-                                      {(openDoc.can_approve ?? isAdmin) && v.status !== "approved" && (
-                                        <NeoButton size="sm" onClick={() => setApproving({ doc: openDoc, version: v })}>
-                                          Aprobar v{v.version_number}
-                                        </NeoButton>
-                                      )}
-                                    </div>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                            <div className="mt-3 flex flex-wrap gap-1.5">
-                              <NeoButton size="sm" variant="neutral" onClick={() => setUpload({ doc: openDoc })}>
-                                <Upload size={14} /> Subir nueva versión
+                              {isAdmin && madeBy && d.created_by_name && <UserAvatar appearance={madeBy} size="sm" className="absolute right-2 top-2" />}
+                            </span>
+                            <span className="flex min-w-0 flex-1 flex-col gap-1.5 p-3">
+                              <span className="gos-doc-title text-sm font-bold text-white">{d.title}</span>
+                              <span className="gos-muted block truncate text-xs">
+                                <span aria-hidden="true">👤</span> {d.client_name || "Sin cliente"}
+                              </span>
+                              {isAdmin && d.created_by_name && <span className="block truncate text-xs font-bold text-white">{d.created_by_name}</span>}
+                              <span className="gos-muted block text-xs">
+                                {d.versions_count} {d.versions_count === 1 ? "versión" : "versiones"} · {fmt(d.updated_at)}
+                              </span>
+                              <span className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
+                                {d.prepared_by_bot && <BotBadge />}
+                                <StatusBadge approved={d.approved_version} />
+                                <ChevronDown size={16} className={`ml-auto shrink-0 text-blue-400 transition-transform ${open ? "rotate-180" : ""}`} />
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="gos-muted rounded-2xl border-2 border-dashed border-slate-700 p-6 text-center text-sm">
+                    {documents === null
+                      ? "Cargando documentos…"
+                      : !all.length
+                        ? "Aún no hay documentos. Sube el primero."
+                        : "Ningún documento coincide con estos filtros."}
+                  </p>
+                )}
+
+                {/* The chosen card's versions, under the carousel */}
+                {openDoc && visible.some((d) => d.id === openDoc.id) && (
+                  <div className="gos-card mt-3 px-3 py-3">
+                    <h3 className="mb-2 break-words text-base font-black text-white">{openDoc.title}</h3>
+                    {(() => {
+                      const canApprove = openDoc.can_approve ?? isAdmin;
+                      const delivery = deliveryLine(openDoc);
+                      return (
+                        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-semibold">
+                          {openDoc.prepared_by_bot && (
+                            <>
+                              <BotBadge />
+                              {openDoc.invoice_id ? (
+                                <Link to={`/cotizaciones?invoice=${openDoc.invoice_id}`} className="text-blue-300 underline">
+                                  Ver cotización
+                                </Link>
+                              ) : null}
+                            </>
+                          )}
+                          {delivery &&
+                            (delivery.warn ? (
+                              <span className="gos-callout-orange basis-full !py-2 text-xs">
+                                <span aria-hidden="true">⚠️</span> {delivery.text}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-400">
+                                <span aria-hidden="true">✅</span> {delivery.text}
+                              </span>
+                            ))}
+                          {canApprove && openDoc.client_id && openDoc.approved_version && !openDoc.sent_at && (
+                            <NeoButton size="sm" disabled={sending} onClick={() => sendToClient(openDoc)}>
+                              <Send size={14} /> Enviar al cliente
+                            </NeoButton>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    <p className="gos-label-blue mb-2">Versiones</p>
+                    <ul className="space-y-2">
+                      {openDoc.versions?.map((v) => (
+                        <li key={v.id} className="gos-step gos-card p-3">
+                          <span className={`gos-step-num ${v.status === "approved" ? "gos-step-num-emerald" : ""}`}>v{v.version_number}</span>
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                              {v.status === "approved" ? (
+                                <span className="gos-pill gos-pill-emerald">
+                                  <span aria-hidden="true">✅</span> Aprobada
+                                </span>
+                              ) : (
+                                <span className="gos-pill gos-pill-ghost">Borrador</span>
+                              )}
+                              <span className="gos-muted min-w-0 basis-full break-words text-xs sm:basis-auto">
+                                {v.created_by_name} · {fmt(v.created_at)}
+                                {v.notes ? ` · ${v.notes}` : ""}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              <NeoButton size="sm" variant="neutral" onClick={() => setPreview({ title: `${openDoc.title} v${v.version_number}`, version: v })}>
+                                <Eye size={14} /> Ver
                               </NeoButton>
-                              {/* made from a model and has a Word: its wording can become the model's next version */}
-                              {openDoc.template_id && openDoc.versions?.some((v) => v.mime_type === DOCX) ? <SaveAsModelButton documentId={openDoc.id} /> : null}
+                              {v.mime_type === DOCX && (
+                                <NeoButton size="sm" variant="neutral" onClick={() => download(openDoc, v, "docx")}>
+                                  <FileDown size={14} /> Word
+                                </NeoButton>
+                              )}
+                              <NeoButton size="sm" variant="neutral" onClick={() => download(openDoc, v, "pdf")}>
+                                <FileDown size={14} /> PDF
+                              </NeoButton>
+                              {v.mime_type === DOCX && (
+                                <NeoButton size="sm" variant="neutral" onClick={() => setPersonalize({ doc: openDoc, version: v })} title="Llenar con datos o pedir cambios a la IA: crea una versión nueva">
+                                  <Sparkles size={14} /> Personalizar
+                                </NeoButton>
+                              )}
+                              {(openDoc.can_approve ?? isAdmin) && v.status !== "approved" && (
+                                <NeoButton size="sm" onClick={() => setApproving({ doc: openDoc, version: v })}>
+                                  Aprobar v{v.version_number}
+                                </NeoButton>
+                              )}
                             </div>
                           </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                  {!visible.length && (
-                    <li className="gos-muted rounded-2xl border-2 border-dashed border-slate-700 p-6 text-center text-sm">
-                      {documents === null
-                        ? "Cargando documentos…"
-                        : !all.length
-                          ? "Aún no hay documentos. Sube el primero."
-                          : "Ningún documento coincide con estos filtros."}
-                    </li>
-                  )}
-                </ul>
-              </div>
-            </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      <NeoButton size="sm" variant="neutral" onClick={() => setUpload({ doc: openDoc })}>
+                        <Upload size={14} /> Subir nueva versión
+                      </NeoButton>
+                      {/* made from a model and has a Word: its wording can become the model's next version */}
+                      {openDoc.template_id && openDoc.versions?.some((v) => v.mime_type === DOCX) ? <SaveAsModelButton documentId={openDoc.id} /> : null}
+                    </div>
+                  </div>
+                )}
+          </div>
+        </div>
       </div>
 
       {upload && (

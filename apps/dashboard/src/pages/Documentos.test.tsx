@@ -247,7 +247,23 @@ describe("Documentos — Mis documentos", () => {
       expect(row(/contrato de alquiler/i)).toBeNull();
       expect(chip(/todos/i).textContent).toContain("1");
       expect(chip(/hengi/i).textContent).toContain("0");
-      expect(screen.getByText(/ana díaz/i).textContent).toContain("2 versiones");
+      expect(screen.getByText(/ana díaz/i)).toBeTruthy();
+      expect(screen.getByText(/2 versiones/)).toBeTruthy();
+    });
+
+    it("shows one card per document in a carousel and opens the versions under it, outside the carousel", async () => {
+      api.document.mockResolvedValue({ data: { document: { ...DOC, versions: VERSIONS } } });
+      renderAt("/documents?tab=historial");
+      const carousel = await screen.findByRole("list", { name: /^documentos$/i });
+      expect(within(carousel).getAllByRole("listitem")).toHaveLength(4);
+      expect(screen.getByText(/^4 documentos$/)).toBeTruthy();
+      const card = within(carousel).getByRole("button", { name: /contrato de alquiler/i });
+      fireEvent.click(card);
+      const version = await screen.findByText("v2");
+      expect(card.getAttribute("aria-expanded")).toBe("true");
+      expect(carousel.contains(version)).toBe(false);
+      fireEvent.click(card);
+      await waitFor(() => expect(screen.queryByText("v2")).toBeNull());
     });
 
     it("?client= narrows to that client until it is cleared; 0 is «Sin cliente»", async () => {
