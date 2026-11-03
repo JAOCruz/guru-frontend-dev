@@ -251,17 +251,18 @@ describe("Documentos — Mis documentos", () => {
       expect(screen.getByText(/2 versiones/)).toBeTruthy();
     });
 
-    it("shows one card per document in a carousel and opens the versions under it, outside the carousel", async () => {
+    it("shows one card per document and opens the versions in a block of their own, next to the card", async () => {
       api.document.mockResolvedValue({ data: { document: { ...DOC, versions: VERSIONS } } });
       renderAt("/documents?tab=historial");
-      const carousel = await screen.findByRole("list", { name: /^documentos$/i });
-      expect(within(carousel).getAllByRole("listitem")).toHaveLength(4);
+      const grid = await screen.findByRole("list", { name: /^documentos$/i });
+      expect(within(grid).getAllByRole("listitem")).toHaveLength(4);
       expect(screen.getByText(/^4 documentos$/)).toBeTruthy();
-      const card = within(carousel).getByRole("button", { name: /contrato de alquiler/i });
+      const card = within(grid).getByRole("button", { name: /contrato de alquiler/i });
       fireEvent.click(card);
       const version = await screen.findByText("v2");
       expect(card.getAttribute("aria-expanded")).toBe("true");
-      expect(carousel.contains(version)).toBe(false);
+      expect(card.closest("li")!.contains(version)).toBe(false);
+      expect(within(grid).getAllByRole("listitem").length).toBeGreaterThan(4);
       fireEvent.click(card);
       await waitFor(() => expect(screen.queryByText("v2")).toBeNull());
     });
