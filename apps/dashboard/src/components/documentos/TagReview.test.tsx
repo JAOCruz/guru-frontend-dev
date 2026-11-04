@@ -33,9 +33,9 @@ afterEach(cleanup);
 describe("Revisión de etiquetas", () => {
   it("counts per status and filters by clicking a counter", async () => {
     render(<TagReview />);
-    const pend = await screen.findByRole("button", { name: /pendiente de revisión\s*1/i });
+    const pend = await screen.findByRole("button", { name: /por publicar\s*1/i });
     expect(screen.getByRole("button", { name: /sin etiquetar\s*2/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /aprobado\s*1/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /publicado\s*1/i })).toBeTruthy();
     expect(screen.getAllByRole("listitem")).toHaveLength(4);
     fireEvent.click(pend);
     expect(screen.getAllByRole("listitem")).toHaveLength(1);

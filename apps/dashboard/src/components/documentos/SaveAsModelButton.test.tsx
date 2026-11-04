@@ -28,7 +28,7 @@ describe("Guardar como nueva versión del modelo", () => {
     click();
     await waitFor(() => expect(tags.fromDocument).toHaveBeenCalledWith(30));
     expect(dialogs.confirmDialog.mock.calls[0][0]).toMatch(/datos del cliente/);
-    await waitFor(() => expect(dialogs.notify).toHaveBeenCalledWith(expect.stringMatching(/v2 de «PODER ESPECIAL».*aprobar/), "success"));
+    await waitFor(() => expect(dialogs.notify).toHaveBeenCalledWith(expect.stringMatching(/v2 de «PODER ESPECIAL».*publicarla/), "success"));
   });
 
   it("warns when the client's data is still in some paragraphs", async () => {

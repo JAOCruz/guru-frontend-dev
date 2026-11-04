@@ -52,7 +52,7 @@ export default function TagReview({ initialModel }: { initialModel?: number | nu
 
   const startBatch = async () => {
     const ok = await confirmDialog(
-      `La IA etiquetará ${untaggedReady} modelo(s), uno por uno (unos segundos cada uno). Quedarán «Pendiente de revisión» hasta que los apruebes. Puedes seguir trabajando mientras tanto.`,
+      `La IA etiquetará ${untaggedReady} modelo(s), uno por uno (unos segundos cada uno). Quedarán «Por publicar» hasta que los publiques. Puedes seguir trabajando mientras tanto.`,
       { title: "Etiquetar todos con IA", confirmLabel: "Empezar" },
     );
     if (!ok) return;
@@ -143,7 +143,7 @@ export default function TagReview({ initialModel }: { initialModel?: number | nu
           <p className="text-sm text-foreground/70">
             {batch?.finished_at
               ? `Último etiquetado: ${batch.done} de ${batch.total}${batch.failed.length ? `, ${batch.failed.length} con error` : ""}.`
-              : "La IA cambia los datos del caso anterior por etiquetas; tú revisas y apruebas cada modelo."}
+              : "La IA cambia los datos del caso anterior por etiquetas; tú revisas y publicas cada modelo."}
           </p>
         )}
         <NeoButton type="button" onClick={startBatch} disabled={!!batch?.running || !untaggedReady}>
@@ -217,6 +217,7 @@ export default function TagReview({ initialModel }: { initialModel?: number | nu
                   {m.category || "Sin categoría"}
                   <span className={`ml-2 rounded-base border border-border px-1.5 py-px font-bold ${TONE[m.status]}`}>{STATUS_LABEL[m.status]}</span>
                   {m.latest_version && <span className="ml-1 font-semibold">v{m.latest_version}</span>}
+                  {m.is_private && <span className="ml-2 font-semibold">🔒 Pedido por {m.owner_name || "un usuario"}</span>}
                   {m.pending_corrections > 0 && (
                     <span className="ml-2 rounded-base border border-border bg-amber-200 px-1.5 py-px font-bold text-amber-900">
                       {m.pending_corrections} {m.pending_corrections === 1 ? "corrección" : "correcciones"}

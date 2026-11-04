@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Eye, FileDown, MessageSquareWarning, PenLine, Search, Sparkles, UserPlus } from "lucide-react";
+import { Eye, FileDown, FileUp, MessageSquareWarning, PenLine, Search, Send, Sparkles, Tags, Trash2, UserPlus } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { documentosAPI, downloadFile, modelFileUrl, type Model } from "../../services/documentosApi";
-import { notify } from "../../lib/dialogs";
+import { confirmDialog, notify } from "../../lib/dialogs";
 import PdfPreview from "./PdfPreview";
 import PersonalizeDialog from "./PersonalizeDialog";
 import TagEditor from "./TagEditor";
 import { useAuth } from "../../context/AuthContext";
-import { STATUS_LABEL } from "../../services/etiquetasApi";
+import { etiquetasAPI, STATUS_LABEL } from "../../services/etiquetasApi";
+import UploadModelDialog from "./UploadModelDialog";
 
 // "Buscar por nombre": our curated selection of models. They are used as they are and are
 // never saved to anyone's history; personalizing one is Generación (Fase 2).
@@ -24,8 +25,14 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
   const [fill, setFill] = useState<Model | null>(null);
   const [correct, setCorrect] = useState<Model | null>(null);
   const { isAdmin } = useAuth();
-  // approved models are filled tag by tag; the admin can also try pending ones
-  const canFill = (m: Model) => m.tag_status === "approved" || (isAdmin && m.tag_status === "pending");
+  const [uploading, setUploading] = useState(false);
+  const [review, setReview] = useState<number | null>(null); // a private model open in the tag editor
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [reload, setReload] = useState(0);
+  const refresh = () => setReload((n) => n + 1);
+  // approved models are filled tag by tag; the admin can also try pending ones, and the owner their private ones
+  const canFill = (m: Model) => m.tag_status === "approved" || ((isAdmin || (m.is_private && m.can_manage)) && m.tag_status === "pending");
+  const managesPrivate = (m: Model) => Boolean(m.is_private && m.can_manage);
   const [, setParams] = useSearchParams();
 
   useEffect(() => {
@@ -39,7 +46,7 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
         .finally(() => setLoading(false));
     }, 250);
     return () => clearTimeout(t);
-  }, [q]);
+  }, [q, reload]);
 
   const askAI = async (text = q) => {
     setAiLoading(true);
@@ -64,6 +71,27 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
   const download = (m: Model, format: "docx" | "pdf") =>
     downloadFile(modelFileUrl(m.id, format), `${m.name}.${format}`)?.catch?.((err: Error) => notify(err.message));
 
+  const act = async (m: Model, action: () => Promise<unknown>, done: string, failed: string) => {
+    setBusyId(m.id);
+    try {
+      await action();
+      notify(done, "success");
+      setAiResults(null);
+      refresh();
+    } catch (err: any) {
+      notify(err?.response?.data?.error || failed);
+    } finally {
+      setBusyId(null);
+    }
+  };
+  const tagWithAI = (m: Model) => act(m, () => etiquetasAPI.aiTag(m.id), `«${m.name}» ya tiene etiquetas`, "La IA no pudo etiquetarlo; intenta de nuevo");
+  const requestPublish = (m: Model) =>
+    act(m, () => etiquetasAPI.requestPublish(m.id), "Se pidió publicarlo: el admin lo revisará", "No se pudo pedir la publicación");
+  const removeModel = async (m: Model) => {
+    if (!(await confirmDialog(`¿Eliminar tu modelo «${m.name}»? Los documentos ya hechos con él no cambian.`, { title: "Eliminar modelo", confirmLabel: "Eliminar" }))) return;
+    await act(m, () => etiquetasAPI.remove(m.id), "Modelo eliminado", "No se pudo eliminar");
+  };
+
   const list = aiResults ?? models;
 
   return (
@@ -83,6 +111,9 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
         <NeoButton onClick={() => askAI()} disabled={q.trim().length < 3 || aiLoading} title="Describe lo que necesitas y la IA elige el modelo" className="font-heading font-black uppercase tracking-wide">
           <Sparkles size={16} /> {aiLoading ? "Buscando…" : "Buscar con IA"}
         </NeoButton>
+        <NeoButton variant="neutral" onClick={() => setUploading(true)} title="Sube tu propio Word: solo tú y los admins lo verán" className="font-heading font-black uppercase tracking-wide">
+          <FileUp size={16} /> Subir mi modelo
+        </NeoButton>
       </div>
 
       <p className="gos-muted text-xs">
@@ -90,7 +121,7 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
           ? `La IA sugiere ${aiResults.length} modelo${aiResults.length === 1 ? "" : "s"} para "${q.trim()}".`
           : loading
             ? "Buscando…"
-            : `${list.length} modelo${list.length === 1 ? "" : "s"} de nuestra selección${q.trim() ? " coinciden" : ""}. ¿No aparece? Descríbelo y usa «Buscar con IA».`}
+            : `${list.length} modelo${list.length === 1 ? "" : "s"}${q.trim() ? " coinciden" : ""}. ¿No aparece? Descríbelo y usa «Buscar con IA».`}
         {aiResults && (
           <button type="button" className="ml-2 font-semibold text-blue-400 underline" onClick={() => setAiResults(null)}>
             Ver búsqueda normal
@@ -108,8 +139,15 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
               <div className="min-w-0">
                 <p className="break-words text-sm font-bold text-white">{m.name}</p>
                 <p className="gos-muted text-[11px] font-bold uppercase tracking-wider">{m.category || "Sin categoría"}</p>
-                {m.tag_status === "approved" && <p className="mt-0.5 text-xs font-semibold text-emerald-400">✓ Listo para llenar</p>}
-                {isAdmin && m.tag_status === "pending" && <p className="mt-0.5 text-xs font-semibold text-orange-300">{STATUS_LABEL.pending}</p>}
+                {m.is_private && (
+                  <p className="mt-0.5 text-xs font-semibold text-amber-300">
+                    🔒 {isAdmin && m.owner_name ? `Privado de ${m.owner_name}` : "Privado"}
+                    {m.publish_requested_at ? " · Publicación pedida" : ""}
+                  </p>
+                )}
+                {(m.tag_status === "approved" || (m.is_private && m.tag_status === "pending")) && <p className="mt-0.5 text-xs font-semibold text-emerald-400">✓ Listo para llenar</p>}
+                {m.is_private && m.tag_status === "untagged" && <p className="mt-0.5 text-xs font-semibold text-orange-300">{STATUS_LABEL.untagged}</p>}
+                {isAdmin && !m.is_private && m.tag_status === "pending" && <p className="mt-0.5 text-xs font-semibold text-orange-300">{STATUS_LABEL.pending}</p>}
                 {m.reason && <p className="mt-1 text-xs font-semibold text-blue-300">✨ {m.reason}</p>}
               </div>
             </div>
@@ -131,7 +169,27 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
               <NeoButton size="sm" variant={canFill(m) ? "neutral" : "default"} onClick={() => setPersonalize(m)} title="Llenarlo con los datos de un cliente o pedir cambios a la IA">
                 <UserPlus size={14} /> Personalizar
               </NeoButton>
-              {canFill(m) && (
+              {managesPrivate(m) && m.tag_status === "untagged" && (
+                <NeoButton size="sm" onClick={() => tagWithAI(m)} disabled={busyId === m.id}>
+                  <Sparkles size={14} /> {busyId === m.id ? "Etiquetando…" : "Etiquetar con IA"}
+                </NeoButton>
+              )}
+              {managesPrivate(m) && m.tag_status !== "untagged" && (
+                <NeoButton size="sm" variant="neutral" onClick={() => setReview(m.id)}>
+                  <Tags size={14} /> Editar etiquetas
+                </NeoButton>
+              )}
+              {managesPrivate(m) && m.tag_status !== "untagged" && !m.publish_requested_at && (
+                <NeoButton size="sm" variant="neutral" onClick={() => requestPublish(m)} disabled={busyId === m.id} title="Un admin lo revisa y, al publicarlo, lo usan todos">
+                  <Send size={14} /> Pedir que se publique
+                </NeoButton>
+              )}
+              {managesPrivate(m) && (
+                <NeoButton size="sm" variant="neutral" onClick={() => removeModel(m)} disabled={busyId === m.id} aria-label={`Eliminar ${m.name}`} title="Eliminar">
+                  <Trash2 size={14} />
+                </NeoButton>
+              )}
+              {canFill(m) && !m.is_private && (
                 <NeoButton size="sm" variant="neutral" onClick={() => setCorrect(m)} title="Señalar una parte que está mal o se puede mejorar">
                   <MessageSquareWarning size={14} /> Corregir
                 </NeoButton>
@@ -141,6 +199,20 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
         ))}
         {!loading && !list.length && <li className="gos-muted px-4 py-8 text-center text-sm">No hay modelos con ese nombre.</li>}
       </ul>
+
+      {uploading && (
+        <UploadModelDialog
+          onClose={() => setUploading(false)}
+          onSaved={refresh}
+          onDone={(model) => {
+            setUploading(false);
+            refresh();
+            setReview(model.id); // the AI's tags are checked right away
+          }}
+        />
+      )}
+
+      {review !== null && <TagEditor modelId={review} mode="review" onClose={() => { setReview(null); refresh(); }} onChanged={refresh} />}
 
       {personalize && (
         <PersonalizeDialog

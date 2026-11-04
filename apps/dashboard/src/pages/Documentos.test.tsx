@@ -336,7 +336,7 @@ describe("Documentos — Etiquetas", () => {
     api.models.mockResolvedValue({ data: { models: TAGGED } });
     renderAt("/documents?tab=biblioteca");
     const pending = (await screen.findByText("PODER ESPECIAL")).closest("li")!;
-    expect(within(pending).getByText(/pendiente de revisión/i)).toBeTruthy();
+    expect(within(pending).getByText(/por publicar/i)).toBeTruthy();
     expect(within(pending).getByRole("button", { name: /^llenar/i })).toBeTruthy();
   });
 

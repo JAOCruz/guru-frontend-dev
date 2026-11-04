@@ -10,6 +10,10 @@ export interface Model {
   category: string | null;
   reason?: string;
   tag_status?: "untagged" | "pending" | "approved"; // Etiquetas
+  is_private?: boolean; // only its uploader and the admins see it, until an admin publishes it
+  can_manage?: boolean;
+  owner_name?: string | null;
+  publish_requested_at?: string | null;
 }
 
 export interface HistoryClient {

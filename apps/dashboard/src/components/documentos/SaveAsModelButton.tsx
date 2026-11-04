@@ -11,16 +11,16 @@ export default function SaveAsModelButton({ documentId }: { documentId: number }
 
   const save = async () => {
     const ok = await confirmDialog(
-      "El texto de este documento (su última versión en Word) se guardará como una nueva versión del modelo. La IA quita los datos del cliente y los cambia por etiquetas. Un admin la revisa y la aprueba; desde ahí todos los digitadores la usan. El documento del cliente no cambia y sigue siendo solo tuyo.",
+      "El texto de este documento (su última versión en Word) se guardará como una nueva versión del modelo. La IA quita los datos del cliente y los cambia por etiquetas. Un admin la revisa y la publica; desde ahí todos los digitadores la usan. El documento del cliente no cambia y sigue siendo solo tuyo.",
       { title: "Guardar como nueva versión del modelo", confirmLabel: "Guardar" },
     );
     if (!ok) return;
     setBusy(true);
     try {
       const { data } = await etiquetasAPI.fromDocument(documentId);
-      notify(`Se guardó como v${data.version.version_number} de «${data.model_name}». Un admin debe aprobarla para que todos la usen.`, "success");
+      notify(`Se guardó como v${data.version.version_number} de «${data.model_name}». Un admin debe publicarla para que todos la usen.`, "success");
       if (data.client_data_left.length) {
-        notify(`Ojo: quedan datos del cliente en el párrafo ${data.client_data_left.join(", ")}. El admin debe quitarlos antes de aprobar.`, "error");
+        notify(`Ojo: quedan datos del cliente en el párrafo ${data.client_data_left.join(", ")}. El admin debe quitarlos antes de publicar.`, "error");
       }
     } catch (err: any) {
       notify(err?.response?.data?.error || "No se pudo guardar como modelo");

@@ -255,7 +255,7 @@ export default function TagEditor({ modelId, mode: initialMode, onClose, onSaved
       }
       load(data.model);
       onChanged?.();
-      notify(`Guardado como v${data.model.current?.version_number}; queda pendiente de aprobación`, "success");
+      notify(`Guardado como v${data.model.current?.version_number}; queda pendiente de publicar`, "success");
     } catch (err: any) {
       notify(err?.response?.data?.error || "No se pudieron guardar los cambios");
     } finally {
@@ -278,15 +278,15 @@ export default function TagEditor({ modelId, mode: initialMode, onClose, onSaved
   };
 
   const approve = async () => {
-    if (!(await confirmDialog(`¿Aprobar la v${model!.current!.version_number} de «${model!.name}»? Desde ahora los digitadores la usarán para llenar.`, { title: "Aprobar etiquetas", confirmLabel: "Aprobar" }))) return;
+    if (!(await confirmDialog(`¿Publicar la v${model!.current!.version_number} de «${model!.name}»? Desde ahora la podrán usar todos los usuarios y el bot, y su nombre saldrá en la lista del sitio web.`, { title: "Publicar modelo", confirmLabel: "Publicar" }))) return;
     setBusy(true);
     try {
       const { data } = await etiquetasAPI.approve(model!.current!.id);
       load(data.model);
       onChanged?.();
-      notify("Aprobado", "success");
+      notify("Publicado", "success");
     } catch (err: any) {
-      notify(err?.response?.data?.error || "No se pudo aprobar");
+      notify(err?.response?.data?.error || "No se pudo publicar");
     } finally {
       setBusy(false);
     }
@@ -353,7 +353,7 @@ export default function TagEditor({ modelId, mode: initialMode, onClose, onSaved
                   <span className="font-semibold">v{shown.version_number}</span>
                   {model.approved && (
                     <span className="text-foreground/60">
-                      · v{model.approved.version_number} aprobado por {model.approved.approved_by_name || "admin"} el {fmtDate(model.approved.approved_at)}
+                      · v{model.approved.version_number} publicado por {model.approved.approved_by_name || "admin"} el {fmtDate(model.approved.approved_at)}
                     </span>
                   )}
                 </div>
@@ -658,9 +658,9 @@ export default function TagEditor({ modelId, mode: initialMode, onClose, onSaved
                     <NeoButton className="w-full" size="sm" type="button" variant="neutral" onClick={saveEdits} disabled={busy || !ops.length}>
                       <Save size={15} className="shrink-0" /> Guardar como v{model.current!.version_number + 1} del modelo
                     </NeoButton>
-                    {model.status !== "approved" && (
-                      <NeoButton className="w-full" size="sm" type="button" onClick={approve} disabled={busy || ops.length > 0} title={ops.length ? "Guarda los cambios antes de aprobar" : undefined}>
-                        <CheckCircle2 size={15} className="shrink-0" /> Aprobar v{model.current!.version_number}
+                    {model.status !== "approved" && model.can_publish !== false && (
+                      <NeoButton className="w-full" size="sm" type="button" onClick={approve} disabled={busy || ops.length > 0} title={ops.length ? "Guarda los cambios antes de publicar" : undefined}>
+                        <CheckCircle2 size={15} className="shrink-0" /> Publicar v{model.current!.version_number}
                       </NeoButton>
                     )}
                   </div>

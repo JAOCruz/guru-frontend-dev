@@ -61,7 +61,7 @@ describe("Llenar un modelo aprobado", () => {
     expect(await screen.findByRole("heading", { name: "ACTO DE VENTA" })).toBeTruthy();
     expect(screen.getByText(/vehículos/i)).toBeTruthy();
     expect(screen.getByText("v2")).toBeTruthy();
-    expect(screen.getByText(/aprobado por leandro/i)).toBeTruthy();
+    expect(screen.getByText(/publicado por leandro/i)).toBeTruthy();
     expect(screen.getByText("0 de 4 llenas")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Vendedor" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Datos generales" })).toBeTruthy();
@@ -161,7 +161,7 @@ describe("Revisión de etiquetas (admin)", () => {
     tags.model.mockResolvedValue({ data: { model: PENDING } });
     tags.edit.mockResolvedValue({ data: { model: { ...PENDING, current: { ...V3, id: 14, version_number: 4 } } } });
     render(<TagEditor modelId={7} mode="review" onClose={() => {}} />);
-    expect(await screen.findByText(/pendiente de revisión/i)).toBeTruthy();
+    expect(await screen.findByText(/por publicar/i)).toBeTruthy();
     expect(screen.getByText("TERCERO: texto sin etiquetar")).toBeTruthy();
     expect(screen.getByText(/v2 · en uso/i)).toBeTruthy();
 
@@ -191,7 +191,7 @@ describe("Revisión de etiquetas (admin)", () => {
     tags.model.mockResolvedValue({ data: { model: PENDING } });
     tags.approve.mockResolvedValue({ data: { model: { ...PENDING, status: "approved", approved: V3 } } });
     render(<TagEditor modelId={7} mode="review" onClose={() => {}} />);
-    fireEvent.click(await screen.findByRole("button", { name: /aprobar v3/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /publicar v3/i }));
     await waitFor(() => expect(tags.approve).toHaveBeenCalledWith(13));
     expect(dialogs.confirmDialog).toHaveBeenCalled();
   });
@@ -211,7 +211,7 @@ describe("Revisión de etiquetas (admin)", () => {
     const versions = await screen.findByRole("list", { name: /versiones/i });
     fireEvent.click(within(versions).getByRole("button", { name: /^v2/i }));
     expect(screen.getByTestId("doc-url").textContent).toBe("tagfile/12");
-    expect(screen.queryByRole("button", { name: /aprobar/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /publicar/i })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /restaurar v2/i }));
     await waitFor(() => expect(tags.restore).toHaveBeenCalledWith(7, 12));
   });
@@ -219,7 +219,7 @@ describe("Revisión de etiquetas (admin)", () => {
     tags.model.mockResolvedValue({ data: { model: PENDING } });
     tags.edit.mockResolvedValue({ data: { model: { ...PENDING, current: { ...V3, id: 14, version_number: 4 } } } });
     render(<TagEditor modelId={7} mode="review" onClose={() => {}} />);
-    await screen.findByText(/pendiente de revisión/i);
+    await screen.findByText(/por publicar/i);
     const text = "vende a {{NOMBRE_COMPRADOR}} el vehículo";
     lastSelect!({ text, offset: 0, length: 27, occurrence: 0, selected: "vende a {{NOMBRE_COMPRADOR}}", hasTags: true });
     // a selection with tags can only be changed as text
@@ -262,7 +262,7 @@ describe("Revisión de etiquetas (admin)", () => {
     await waitFor(() => expect(tags.aiEdit).toHaveBeenCalledWith(7, "Agrega la nacionalidad del vendedor"));
     expect(await screen.findByText(/de nacionalidad \{\{NACIONALIDAD_VENDEDOR\}\}/)).toBeTruthy();
     // while a proposal is open, the usual save/approve buttons step aside
-    expect(screen.queryByRole("button", { name: /aprobar v3/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /publicar v3/i })).toBeNull();
     expect(screen.getByText(/\+ NACIONALIDAD_VENDEDOR/)).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Incluir cambio 2"));
     fireEvent.click(screen.getByRole("button", { name: /guardar como v4 \(1 cambio\)/i }));

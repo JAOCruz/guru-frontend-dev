@@ -64,7 +64,11 @@ export interface TagModel {
   status: TagStatus;
   current: TagVersion | null; // admin: latest version; employee: the approved one
   approved: TagVersion | null;
-  versions?: TagVersion[]; // admin only
+  versions?: TagVersion[]; // admin, or the owner of a private model
+  is_private?: boolean;
+  can_manage?: boolean;
+  can_publish?: boolean; // only an admin publishes
+  publish_requested_at?: string | null;
 }
 
 export interface TagSummaryModel {
@@ -75,6 +79,8 @@ export interface TagSummaryModel {
   latest_version: number | null;
   taggable: boolean;
   pending_corrections: number;
+  is_private?: boolean; // a private model whose owner asked to publish it
+  owner_name?: string | null;
 }
 
 export interface TagBatch {
@@ -108,7 +114,17 @@ export const etiquetasAPI = {
   startBatch: () => api.post<{ batch: TagBatch }>("/documentos/tags/batch"),
   aiTag: (id: number) => api.post<{ model: TagModel }>(`/documentos/tags/models/${id}/ai`, {}, { timeout: 180_000 }),
   model: (id: number) => api.get<{ model: TagModel }>(`/documentos/tags/models/${id}`),
-  // a personalized client document → the model's next version (pending until an admin approves it)
+  categories: () => api.get<{ categories: { id: number; name: string }[] }>("/documentos/tags/categories"),
+  // a person's own model: private until an admin publishes it
+  uploadModel: ({ file, name, category_id }: { file: File; name: string; category_id: number }) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("name", name);
+    fd.append("category_id", String(category_id));
+    return api.post<{ model: TagModel }>("/documentos/tags/models", fd, { timeout: 120_000 });
+  },
+  requestPublish: (id: number) => api.post<{ model: TagModel }>(`/documentos/tags/models/${id}/request-publish`),
+  // a personalized client document → the model's next version (pending until an admin publishes it)
   fromDocument: (documentId: number) =>
     api.post<{ version: { id: number; version_number: number }; model_name: string; client_data_left: number[] }>(
       `/documentos/tags/documents/${documentId}/as-model`, {}, { timeout: 180_000 },
@@ -146,8 +162,8 @@ export const tagVersionFileUrl = (id: number) => `${getAPIUrl()}/api/documentos/
 
 export const STATUS_LABEL: Record<TagStatus, string> = {
   untagged: "Sin etiquetar",
-  pending: "Pendiente de revisión",
-  approved: "Aprobado",
+  pending: "Por publicar",
+  approved: "Publicado",
 };
 
 export const CORRECTION_LABEL: Record<CorrectionStatus, string> = {
