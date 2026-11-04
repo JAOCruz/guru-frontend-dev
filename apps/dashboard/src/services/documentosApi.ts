@@ -14,6 +14,8 @@ export interface Model {
   can_manage?: boolean;
   owner_name?: string | null;
   publish_requested_at?: string | null;
+  description?: string | null;
+  most_used?: boolean; // among the models people use most
 }
 
 export interface HistoryClient {
@@ -150,6 +152,7 @@ export const generacionAPI = {
 
 export const modelFileUrl = (id: number, format: "docx" | "pdf", inline = false) =>
   `${getAPIUrl()}/api/documentos/models/${id}/file?format=${format}${inline ? "&inline=1" : ""}`;
+export const modelThumbnailUrl = (id: number) => `${getAPIUrl()}/api/documentos/models/${id}/thumbnail`;
 export const versionFileUrl = (id: number, format: "docx" | "pdf", inline = false) =>
   `${getAPIUrl()}/api/documentos/versions/${id}/file?format=${format}${inline ? "&inline=1" : ""}`;
 

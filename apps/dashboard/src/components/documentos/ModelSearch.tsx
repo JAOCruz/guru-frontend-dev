@@ -10,6 +10,7 @@ import TagEditor from "./TagEditor";
 import { useAuth } from "../../context/AuthContext";
 import { etiquetasAPI, STATUS_LABEL } from "../../services/etiquetasApi";
 import UploadModelDialog from "./UploadModelDialog";
+import ModelCard, { type ModelAction } from "./ModelCard";
 
 // "Buscar por nombre": our curated selection of models. They are used as they are and are
 // never saved to anyone's history; personalizing one is Generación (Fase 2).
@@ -93,6 +94,36 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
   };
 
   const list = aiResults ?? models;
+  const asCards = !aiResults && !q.trim(); // searching by name reads better as a list
+
+  // every action a model offers here, in order; a card keeps the main one in view and the rest under «Más»
+  const actionsFor = (m: Model): ModelAction[] => {
+    const manages = managesPrivate(m);
+    const busy = busyId === m.id;
+    const all: (ModelAction | false)[] = [
+      { key: "ver", label: "Ver", icon: <Eye size={14} />, onClick: () => setPreview(m) },
+      { key: "word", label: "Word", icon: <FileDown size={14} />, onClick: () => download(m, "docx"), ariaLabel: `Descargar Word de ${m.name}` },
+      { key: "pdf", label: "PDF", icon: <FileDown size={14} />, onClick: () => download(m, "pdf"), ariaLabel: `Descargar PDF de ${m.name}` },
+      canFill(m) && { key: "llenar", label: "Llenar", icon: <PenLine size={14} />, onClick: () => setFill(m), highlight: true, title: "Llenar etiqueta por etiqueta, viendo el documento" },
+      { key: "personalizar", label: "Personalizar", icon: <UserPlus size={14} />, onClick: () => setPersonalize(m), highlight: !canFill(m), title: "Llenarlo con los datos de un cliente o pedir cambios a la IA" },
+      manages && m.tag_status === "untagged" && { key: "etiquetar", label: busy ? "Etiquetando…" : "Etiquetar con IA", icon: <Sparkles size={14} />, onClick: () => tagWithAI(m), highlight: true, disabled: busy },
+      manages && m.tag_status !== "untagged" && { key: "etiquetas", label: "Editar etiquetas", icon: <Tags size={14} />, onClick: () => setReview(m.id) },
+      manages && m.tag_status !== "untagged" && !m.publish_requested_at && { key: "publicar", label: "Pedir que se publique", icon: <Send size={14} />, onClick: () => requestPublish(m), disabled: busy, title: "Un admin lo revisa y, al publicarlo, lo usan todos" },
+      manages && { key: "eliminar", label: "Eliminar", icon: <Trash2 size={14} />, onClick: () => removeModel(m), iconOnly: true, disabled: busy, ariaLabel: `Eliminar ${m.name}`, title: "Eliminar" },
+      canFill(m) && !m.is_private && { key: "corregir", label: "Corregir", icon: <MessageSquareWarning size={14} />, onClick: () => setCorrect(m), title: "Señalar una parte que está mal o se puede mejorar" },
+    ];
+    return all.filter(Boolean) as ModelAction[];
+  };
+
+  const privateText = (m: Model) => `🔒 ${isAdmin && m.owner_name ? `Privado de ${m.owner_name}` : "Privado"}`;
+  const badgeFor = (m: Model) =>
+    m.is_private
+      ? ({ text: privateText(m), tone: "private" } as const)
+      : isAdmin && m.tag_status === "pending"
+        ? ({ text: STATUS_LABEL.pending, tone: "pending" } as const)
+        : m.most_used
+          ? ({ text: "Más usado", tone: "used" } as const)
+          : null;
 
   return (
     <section className="space-y-3">
@@ -129,76 +160,63 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
         )}
       </p>
 
-      <ul className="gos-panel gos-list overflow-hidden">
-        {list.map((m) => (
-          <li key={m.id} className="flex flex-col gap-2 px-4 py-3 gos-md:flex-row gos-md:items-center gos-md:justify-between">
-            <div className="flex min-w-0 flex-1 items-start gap-3 gos-md:min-w-[16rem]">
-              <span aria-hidden="true" className="gos-badge mt-0.5 shrink-0 text-xl">
-                📄
-              </span>
-              <div className="min-w-0">
-                <p className="break-words text-sm font-bold text-white">{m.name}</p>
-                <p className="gos-muted text-[11px] font-bold uppercase tracking-wider">{m.category || "Sin categoría"}</p>
-                {m.is_private && (
-                  <p className="mt-0.5 text-xs font-semibold text-amber-300">
-                    🔒 {isAdmin && m.owner_name ? `Privado de ${m.owner_name}` : "Privado"}
-                    {m.publish_requested_at ? " · Publicación pedida" : ""}
-                  </p>
-                )}
-                {(m.tag_status === "approved" || (m.is_private && m.tag_status === "pending")) && <p className="mt-0.5 text-xs font-semibold text-emerald-400">✓ Listo para llenar</p>}
-                {m.is_private && m.tag_status === "untagged" && <p className="mt-0.5 text-xs font-semibold text-orange-300">{STATUS_LABEL.untagged}</p>}
-                {isAdmin && !m.is_private && m.tag_status === "pending" && <p className="mt-0.5 text-xs font-semibold text-orange-300">{STATUS_LABEL.pending}</p>}
-                {m.reason && <p className="mt-1 text-xs font-semibold text-blue-300">✨ {m.reason}</p>}
+      {asCards ? (
+        <>
+          <ul aria-label="Modelos" className="gos-model-grid">
+            {list.map((m) => (
+              <ModelCard
+                key={m.id}
+                model={m}
+                badge={badgeFor(m)}
+                actions={actionsFor(m)}
+                onPreview={() => setPreview(m)}
+                status={
+                  <>
+                    {m.is_private && m.publish_requested_at && <p className="gos-model-note text-amber-300">Publicación pedida</p>}
+                    {m.is_private && m.tag_status === "untagged" && <p className="gos-model-note text-orange-300">{STATUS_LABEL.untagged}</p>}
+                  </>
+                }
+              />
+            ))}
+          </ul>
+          {!loading && !list.length && <p className="gos-panel gos-muted px-4 py-8 text-center text-sm">Todavía no hay modelos.</p>}
+        </>
+      ) : (
+        <ul className="gos-panel gos-list overflow-hidden">
+          {list.map((m) => (
+            <li key={m.id} className="flex flex-col gap-2 px-4 py-3 gos-md:flex-row gos-md:items-center gos-md:justify-between">
+              <div className="flex min-w-0 flex-1 items-start gap-3 gos-md:min-w-[16rem]">
+                <span aria-hidden="true" className="gos-badge mt-0.5 shrink-0 text-xl">
+                  📄
+                </span>
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-bold text-white">{m.name}</p>
+                  <p className="gos-muted text-[11px] font-bold uppercase tracking-wider">{m.category || "Sin categoría"}</p>
+                  {m.is_private && (
+                    <p className="mt-0.5 text-xs font-semibold text-amber-300">
+                      {privateText(m)}
+                      {m.publish_requested_at ? " · Publicación pedida" : ""}
+                    </p>
+                  )}
+                  {(m.tag_status === "approved" || (m.is_private && m.tag_status === "pending")) && <p className="mt-0.5 text-xs font-semibold text-emerald-400">✓ Listo para llenar</p>}
+                  {m.is_private && m.tag_status === "untagged" && <p className="mt-0.5 text-xs font-semibold text-orange-300">{STATUS_LABEL.untagged}</p>}
+                  {isAdmin && !m.is_private && m.tag_status === "pending" && <p className="mt-0.5 text-xs font-semibold text-orange-300">{STATUS_LABEL.pending}</p>}
+                  {m.reason && <p className="mt-1 text-xs font-semibold text-blue-300">✨ {m.reason}</p>}
+                </div>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-1.5 gos-md:max-w-[62%] gos-md:justify-end">
-              <NeoButton size="sm" variant="neutral" onClick={() => setPreview(m)}>
-                <Eye size={14} /> Ver
-              </NeoButton>
-              <NeoButton size="sm" variant="neutral" onClick={() => download(m, "docx")} aria-label={`Descargar Word de ${m.name}`}>
-                <FileDown size={14} /> Word
-              </NeoButton>
-              <NeoButton size="sm" variant="neutral" onClick={() => download(m, "pdf")} aria-label={`Descargar PDF de ${m.name}`}>
-                <FileDown size={14} /> PDF
-              </NeoButton>
-              {canFill(m) && (
-                <NeoButton size="sm" onClick={() => setFill(m)} title="Llenar etiqueta por etiqueta, viendo el documento">
-                  <PenLine size={14} /> Llenar
-                </NeoButton>
-              )}
-              <NeoButton size="sm" variant={canFill(m) ? "neutral" : "default"} onClick={() => setPersonalize(m)} title="Llenarlo con los datos de un cliente o pedir cambios a la IA">
-                <UserPlus size={14} /> Personalizar
-              </NeoButton>
-              {managesPrivate(m) && m.tag_status === "untagged" && (
-                <NeoButton size="sm" onClick={() => tagWithAI(m)} disabled={busyId === m.id}>
-                  <Sparkles size={14} /> {busyId === m.id ? "Etiquetando…" : "Etiquetar con IA"}
-                </NeoButton>
-              )}
-              {managesPrivate(m) && m.tag_status !== "untagged" && (
-                <NeoButton size="sm" variant="neutral" onClick={() => setReview(m.id)}>
-                  <Tags size={14} /> Editar etiquetas
-                </NeoButton>
-              )}
-              {managesPrivate(m) && m.tag_status !== "untagged" && !m.publish_requested_at && (
-                <NeoButton size="sm" variant="neutral" onClick={() => requestPublish(m)} disabled={busyId === m.id} title="Un admin lo revisa y, al publicarlo, lo usan todos">
-                  <Send size={14} /> Pedir que se publique
-                </NeoButton>
-              )}
-              {managesPrivate(m) && (
-                <NeoButton size="sm" variant="neutral" onClick={() => removeModel(m)} disabled={busyId === m.id} aria-label={`Eliminar ${m.name}`} title="Eliminar">
-                  <Trash2 size={14} />
-                </NeoButton>
-              )}
-              {canFill(m) && !m.is_private && (
-                <NeoButton size="sm" variant="neutral" onClick={() => setCorrect(m)} title="Señalar una parte que está mal o se puede mejorar">
-                  <MessageSquareWarning size={14} /> Corregir
-                </NeoButton>
-              )}
-            </div>
-          </li>
-        ))}
-        {!loading && !list.length && <li className="gos-muted px-4 py-8 text-center text-sm">No hay modelos con ese nombre.</li>}
-      </ul>
+              <div className="flex flex-wrap gap-1.5 gos-md:max-w-[62%] gos-md:justify-end">
+                {actionsFor(m).map((a) => (
+                  <NeoButton key={a.key} size="sm" variant={a.highlight ? "default" : "neutral"} onClick={a.onClick} disabled={a.disabled} title={a.title} aria-label={a.ariaLabel}>
+                    {a.icon}
+                    {!a.iconOnly && ` ${a.label}`}
+                  </NeoButton>
+                ))}
+              </div>
+            </li>
+          ))}
+          {!loading && !list.length && <li className="gos-muted px-4 py-8 text-center text-sm">No hay modelos con ese nombre.</li>}
+        </ul>
+      )}
 
       {uploading && (
         <UploadModelDialog

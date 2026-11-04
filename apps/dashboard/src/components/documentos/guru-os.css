@@ -1415,3 +1415,214 @@ body:has(.gos-desk:not(.gos-md) .gos-actions:not(:has(> :nth-child(3)))) .fixed.
     transform: none;
   }
 }
+
+/* ── Biblioteca: cuadros de modelos ──────────────────────────────────────────
+   Sizes in px on purpose: the dashboard's root font is 22px, and in rem the columns collapse to two. */
+.gos-model-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 14px;
+  list-style: none;
+}
+@media (min-width: 640px) {
+  .gos-model-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 32px 22px;
+  }
+}
+.gos-model-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.gos-model-top {
+  position: relative;
+}
+.gos-model-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border: 2px solid #1e293b;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #161a29, #0f111a);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.gos-model-preview:hover,
+.gos-model-preview:focus-visible {
+  border-color: #3b82f6;
+  box-shadow: 6px 6px 0 0 #2563eb;
+  transform: translateY(-4px);
+}
+.gos-model-preview:active {
+  box-shadow: none;
+  transform: translateY(2px);
+}
+.gos-model-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gos-model-page img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  background: #fff;
+}
+.gos-model-page-icon {
+  font-size: 52px;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+}
+.gos-model-page.is-loading {
+  background: linear-gradient(100deg, transparent 30%, rgba(96, 165, 250, 0.12) 50%, transparent 70%) 0 0 / 200% 100%;
+  animation: gos-model-shimmer 1.6s linear infinite;
+}
+.gos-model-page.is-loading .gos-model-page-icon {
+  opacity: 0.35;
+}
+@keyframes gos-model-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.gos-model-badge {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  max-width: calc(100% - 52px);
+  overflow: hidden;
+  padding: 5px 10px;
+  border-radius: 0 6px 6px 0;
+  box-shadow: 2px 2px 0 0 #000;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gos-model-badge-used {
+  background: #2563eb;
+}
+.gos-model-badge-private {
+  background: #b45309;
+}
+.gos-model-badge-pending {
+  background: #c2410c;
+}
+.gos-model-more {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #334155;
+  border-radius: 10px;
+  background: #161a29;
+  box-shadow: 2px 2px 0 0 #000;
+  color: #e2e8f0;
+}
+.gos-model-more:hover,
+.gos-model-more[aria-expanded="true"] {
+  border-color: #60a5fa;
+  color: #fff;
+}
+.gos-model-name {
+  display: -webkit-box;
+  margin-top: 12px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 640px) {
+  .gos-model-name {
+    font-size: 17px;
+  }
+}
+.gos-model-category {
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.gos-model-description {
+  display: -webkit-box;
+  margin-top: 6px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.gos-model-note {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.guru-os .gos-model-main {
+  width: 100%;
+  margin-top: auto;
+}
+.gos-model-card > p:last-of-type {
+  margin-bottom: 10px;
+}
+.gos-model-menu {
+  position: absolute;
+  top: 52px;
+  right: 10px;
+  z-index: 30;
+  display: flex;
+  width: 210px;
+  flex-direction: column;
+  padding: 6px;
+  border: 2px solid #334155;
+  border-radius: 12px;
+  background: #161a29;
+  box-shadow: 4px 4px 0 0 #000;
+}
+.gos-model-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+.gos-model-menu button:hover:not(:disabled) {
+  background: #1e293b;
+}
+.gos-model-menu button:disabled {
+  opacity: 0.5;
+}
+@media (max-width: 639px) {
+  /* two columns: the left card's menu opens toward the right so it stays on screen */
+  .gos-model-card:nth-child(odd) .gos-model-menu {
+    right: auto;
+    left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gos-model-preview:hover,
+  .gos-model-preview:focus-visible,
+  .gos-model-preview:active {
+    transform: none;
+  }
+}
