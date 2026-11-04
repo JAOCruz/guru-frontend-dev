@@ -121,7 +121,7 @@ export default function ModelSearch({ aiQuery = null }: { aiQuery?: string | nul
           ? `La IA sugiere ${aiResults.length} modelo${aiResults.length === 1 ? "" : "s"} para "${q.trim()}".`
           : loading
             ? "Buscando…"
-            : `${list.length} modelo${list.length === 1 ? "" : "s"}${q.trim() ? " coinciden" : ""}. ¿No aparece? Descríbelo y usa «Buscar con IA».`}
+            : `${list.length} modelo${list.length === 1 ? "" : "s"}${q.trim() ? (list.length === 1 ? " coincide" : " coinciden") : ""}. ¿No aparece? Descríbelo y usa «Buscar con IA».`}
         {aiResults && (
           <button type="button" className="ml-2 font-semibold text-blue-400 underline" onClick={() => setAiResults(null)}>
             Ver búsqueda normal

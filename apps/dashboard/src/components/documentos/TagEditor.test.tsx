@@ -187,6 +187,16 @@ describe("Revisión de etiquetas (admin)", () => {
     });
   });
 
+  it("the owner of a private model edits it but cannot publish it or report corrections", async () => {
+    tags.model.mockResolvedValue({ data: { model: { ...PENDING, is_private: true, can_manage: true, can_publish: false } } });
+    render(<TagEditor modelId={7} mode="review" onClose={() => {}} />);
+    expect(await screen.findByText("🔒 Privado")).toBeTruthy();
+    expect(screen.getByText("Modelo privado")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /publicar v3/i })).toBeNull();
+    expect(screen.queryByText(/Reportar una/)).toBeNull();
+    expect(screen.getByRole("button", { name: /guardar como v4 del modelo/i })).toBeTruthy();
+  });
+
   it("approves the latest version after confirming", async () => {
     tags.model.mockResolvedValue({ data: { model: PENDING } });
     tags.approve.mockResolvedValue({ data: { model: { ...PENDING, status: "approved", approved: V3 } } });

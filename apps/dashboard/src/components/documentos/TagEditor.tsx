@@ -255,7 +255,7 @@ export default function TagEditor({ modelId, mode: initialMode, onClose, onSaved
       }
       load(data.model);
       onChanged?.();
-      notify(`Guardado como v${data.model.current?.version_number}; queda pendiente de publicar`, "success");
+      notify(`Guardado como v${data.model.current?.version_number}; ${data.model.is_private ? "ya la puedes usar" : "queda pendiente de publicar"}`, "success");
     } catch (err: any) {
       notify(err?.response?.data?.error || "No se pudieron guardar los cambios");
     } finally {
@@ -317,7 +317,7 @@ export default function TagEditor({ modelId, mode: initialMode, onClose, onSaved
       <header className="flex items-center justify-between gap-3 border-b-2 border-border bg-secondary-background px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <Tag size={18} className="shrink-0 text-main" />
-          <span className="truncate text-sm font-bold">{mode === "fill" ? "Llenar documento" : mode === "correct" ? "Corregir modelo" : "Revisión de etiquetas"}</span>
+          <span className="truncate text-sm font-bold">{mode === "fill" ? "Llenar documento" : mode === "correct" ? "Corregir modelo" : model?.is_private ? "Modelo privado" : "Revisión de etiquetas"}</span>
         </div>
         <button type="button" onClick={onClose} aria-label="Cerrar" className="rounded-base border-2 border-border bg-background p-1.5 hover:bg-main/10">
           <X size={18} />
@@ -349,7 +349,7 @@ export default function TagEditor({ modelId, mode: initialMode, onClose, onSaved
                 <h2 className="break-words font-heading text-lg font-black leading-tight lg:text-xl">{model.name}</h2>
                 <p className="text-xs text-foreground/60">{model.category || "Sin categoría"}</p>
                 <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
-                  <span className={`rounded-base border-2 border-border px-2 py-0.5 font-bold ${statusTone}`}>{STATUS_LABEL[model.status]}</span>
+                  <span className={`rounded-base border-2 border-border px-2 py-0.5 font-bold ${model.is_private ? "bg-foreground/10" : statusTone}`}>{model.is_private ? "🔒 Privado" : STATUS_LABEL[model.status]}</span>
                   <span className="font-semibold">v{shown.version_number}</span>
                   {model.approved && (
                     <span className="text-foreground/60">
@@ -422,7 +422,7 @@ export default function TagEditor({ modelId, mode: initialMode, onClose, onSaved
                 />
               )}
 
-              {mode === "review" && (
+              {mode === "review" && !model.is_private && (
                 <CorrectionsPanel
                   modelId={modelId}
                   versionId={shown.id}
