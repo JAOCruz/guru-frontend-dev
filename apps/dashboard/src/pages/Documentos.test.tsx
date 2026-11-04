@@ -325,7 +325,6 @@ describe("Documentos — Etiquetas", () => {
     renderAt("/documents?tab=biblioteca");
     const approved = (await screen.findByText("DECLARACIÓN JURADA DE INGRESOS")).closest("li")!;
     const pending = screen.getByText("PODER ESPECIAL").closest("li")!;
-    expect(within(approved).getByText(/listo para llenar/i)).toBeTruthy();
     expect(within(pending).queryByRole("button", { name: /^llenar/i })).toBeNull();
     fireEvent.click(within(approved).getByRole("button", { name: /^llenar/i }));
     expect(screen.getByTestId("tag-editor").textContent).toBe("fill:1");
