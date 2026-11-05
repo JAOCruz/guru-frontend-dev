@@ -538,6 +538,21 @@ const MediaAttachment: React.FC<{ apiPath: string; isOut: boolean }> = ({ apiPat
   );
 };
 
+// ─── Mensajes que no salieron ─────────────────────────────────────────────────
+
+// El backend explica por qué no salió (409 WINDOW_CLOSED: 24 h de WhatsApp; 502 SEND_FAILED: otro fallo)
+function sendErrorText(err: unknown, fallback = "No se envió el mensaje. Verifica que WhatsApp esté conectado e inténtalo de nuevo."): string {
+  const data = (err as { response?: { data?: { error?: unknown; code?: unknown } } })?.response?.data;
+  if ((data?.code === "WINDOW_CLOSED" || data?.code === "SEND_FAILED") && typeof data.error === "string") return data.error;
+  return fallback;
+}
+
+// Meta avisó después que no lo entregó (status del webhook)
+const FAILED_NOTES: Record<string, string> = {
+  failed_window: "No enviado: pasaron más de 24 h desde el último mensaje del cliente",
+  failed: "No enviado: WhatsApp no pudo entregarlo",
+};
+
 // ─── Message Bubble ───────────────────────────────────────────────────────────
 
 const MessageBubble: React.FC<{ msg: MsgRow; isHighlighted?: boolean }> = ({ msg, isHighlighted }) => {
@@ -584,6 +599,11 @@ const MessageBubble: React.FC<{ msg: MsgRow; isHighlighted?: boolean }> = ({ msg
           <p className="whitespace-pre-line break-words leading-relaxed">{text}</p>
         )}
         {isOut && msg.tools && msg.tools.length > 0 && <ToolsLine tools={msg.tools} />}
+        {isOut && msg.status && FAILED_NOTES[msg.status] && (
+          <p role="status" className="mt-1 rounded-base border-2 border-border bg-red-100 px-2 py-0.5 text-xs font-bold text-red-800">
+            ⚠️ {FAILED_NOTES[msg.status]}
+          </p>
+        )}
         {/* Timestamp */}
         <p
           className={`mt-0.5 font-base text-[11px] tabular-nums ${
@@ -1011,8 +1031,11 @@ const BotMessages: React.FC = () => {
     try {
       await botAPI.sendMessage(selectedPhone, text);
       await fetchMessages(selectedPhone);
-    } catch {
-      // keep optimistic on screen
+    } catch (err) {
+      // No salió: se quita la burbuja, el texto vuelve a la caja y se dice por qué (24 h de WhatsApp u otro fallo)
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+      setInputText((current) => current || text);
+      notify(sendErrorText(err));
     } finally {
       setSending(false);
     }
@@ -1053,7 +1076,7 @@ const BotMessages: React.FC = () => {
       cancelAttach();
       await fetchMessages(selectedPhone);
     } catch (err) {
-      notify("No se pudo enviar el archivo. Verifica que el bot esté conectado.");
+      notify(sendErrorText(err, "No se envió el archivo. Verifica que WhatsApp esté conectado e inténtalo de nuevo."));
     } finally {
       setSendingMedia(false);
     }
