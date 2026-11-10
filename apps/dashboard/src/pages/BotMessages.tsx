@@ -1063,9 +1063,16 @@ const BotMessages: React.FC = () => {
   };
 
   // ── Media attach handlers ──────────────────────────────────────────────────
-  const handleAttachSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Same types as the attach button's `accept`
+  const canAttach = (file: File) =>
+    /^(image|audio|video)\//.test(file.type) || /\.(pdf|docx?|xlsx?|txt)$/i.test(file.name);
+
+  // Leaves the file ready to send with its preview; the digitador still presses Enviar
+  const attachFromFile = (file: File) => {
+    if (!canAttach(file)) {
+      notify("Ese tipo de archivo no se puede enviar por el chat.");
+      return;
+    }
     if (file.size > 16 * 1024 * 1024) {
       notify("El archivo es muy grande (máximo 16MB).");
       return;
@@ -1079,8 +1086,54 @@ const BotMessages: React.FC = () => {
     } else {
       setAttachPreview(null);
     }
+  };
+
+  const handleAttachSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) attachFromFile(file);
     // reset input so the same file can be picked again later
     e.target.value = "";
+  };
+
+  const attachFirst = (files: File[]) => {
+    if (!files.length) return false;
+    if (files.length > 1) notify("Se adjuntó solo el primero: los archivos se envían de uno en uno.");
+    attachFromFile(files[0]);
+    return true;
+  };
+
+  // Drag a file from the computer onto the open chat. The counter ignores the dragleave of inner elements.
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+  const dropHandlers = {
+    onDragEnter: (e: React.DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepth.current += 1;
+      if (selectedPhone) setDragging(true);
+    },
+    onDragOver: (e: React.DragEvent) => {
+      if (hasFiles(e)) e.preventDefault();
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      if (!hasFiles(e)) return;
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (!dragDepth.current) setDragging(false);
+    },
+    onDrop: (e: React.DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault(); // the browser would open the file instead
+      dragDepth.current = 0;
+      setDragging(false);
+      if (selectedPhone) attachFirst(Array.from(e.dataTransfer.files ?? []));
+    },
+  };
+
+  // A screenshot or file pasted in the text box is attached; pasted text stays as text
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const files = Array.from(e.clipboardData?.files ?? []);
+    if (attachFirst(files)) e.preventDefault();
   };
 
   const cancelAttach = () => {
@@ -1760,10 +1813,20 @@ const BotMessages: React.FC = () => {
           RIGHT PANEL — Chat Area
       ════════════════════════════════════════════════════════════ */}
       <div
-        className={`flex flex-1 flex-col overflow-hidden bg-secondary-background ${
+        data-chat-drop
+        {...dropHandlers}
+        className={`relative flex flex-1 flex-col overflow-hidden bg-secondary-background ${
           !showRightPanel ? "hidden md:flex" : "flex"
         }`}
       >
+        {dragging && selectedPhone && (
+          <div className="pointer-events-none absolute inset-2 z-30 flex items-start justify-center rounded-base border-4 border-dashed border-main bg-background/85 pt-28">
+            <p className="flex items-center gap-2 font-heading text-lg font-semibold text-foreground">
+              <Paperclip size={20} />
+              Suelta para adjuntar
+            </p>
+          </div>
+        )}
         {/* ── Empty state ── */}
         {!selectedPhone ? (
           <div className="flex flex-1 flex-col items-center justify-center text-foreground/50">
@@ -2005,6 +2068,7 @@ const BotMessages: React.FC = () => {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   placeholder="Escribe un mensaje..."
                   className="flex-1 text-base md:text-sm"
                 />
