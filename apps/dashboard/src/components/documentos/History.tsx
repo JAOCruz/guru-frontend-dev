@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Eye, FileDown, FileText, Search, Send, Sparkles, Upload, X } from "lucide-react";
+import { Eye, FileDown, Search, Send, Sparkles, Upload, X } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import { useAuth } from "../../context/AuthContext";
 import { useUserColors } from "../../context/UserColorsContext";
@@ -24,6 +24,16 @@ const SORTS: { key: DocSort; label: string; emoji: string }[] = [
   { key: "name", label: "Nombre", emoji: "🔤" },
 ];
 
+const OTROS = "Otros documentos";
+const TODOS = "todos";
+// A big emoji per category, like the Servicios tiles
+const CAT_EMOJI: [RegExp, string][] = [
+  [/declara/i, "📜"], [/poder/i, "✍️"], [/venta|compra|inmueble|hipotec/i, "🏠"], [/alquiler|arrend|loca/i, "🔑"],
+  [/contrat|acuerdo|convenio/i, "🤝"], [/carta|certific|constancia/i, "✉️"], [/divorc|matrimon|famil|menor|union|unión|concubin/i, "💍"],
+  [/sociedad|empresa|comerc|acta/i, "🏢"], [/traduc/i, "🌍"], [/vehic|vehíc|carro|motor/i, "🚗"], [/testament|herencia|sucesi/i, "🕊️"],
+];
+export const catEmoji = (c: string) => (c === OTROS ? "🗂️" : CAT_EMOJI.find(([re]) => re.test(c))?.[1] ?? "📄");
+
 // Mis documentos: a grid with one card per document in the user's scope; a card opens its versions right below its row. Each digitador sees only theirs;
 // the admin sees everyone's and filters by digitador, with the same colored chips as Casos.
 // ?client= (from the search, or after personalizing) narrows the list to that client until it is cleared.
@@ -42,7 +52,24 @@ export default function History() {
   const [personalize, setPersonalize] = useState<{ doc: PortfolioDocument; version: DocVersion } | null>(null);
   const [approving, setApproving] = useState<{ doc: PortfolioDocument; version: DocVersion } | null>(null);
   const [sending, setSending] = useState(false);
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const cat = params.get("cat");
+  const setCat = (c: string | null) =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (c) next.set("cat", c);
+      else next.delete("cat");
+      return next;
+    });
+  // the category of a document is its model's; uploaded and AI documents go to «Otros documentos»
+  const [modelCats, setModelCats] = useState<Map<number, string>>(new Map());
+  useEffect(() => {
+    documentosAPI
+      .models()
+      .then(({ data }) => setModelCats(new Map(data.models.filter((m) => m.category).map((m) => [m.id, m.category!.trim()]))))
+      .catch(() => {});
+  }, []);
+  const catOf = (d: PortfolioDocument) => (d.template_id != null && modelCats.get(d.template_id)) || OTROS;
   // «Sin cliente» is id 0; ?doc= opens that document once the list is in
   const [clientFilter, setClientFilter] = useState<number | null>(params.has("client") ? Number(params.get("client")) : null);
   const wantedDoc = Number(params.get("doc")) || null;
@@ -77,7 +104,15 @@ export default function History() {
       (clientFilter === null || (d.client_id ?? 0) === clientFilter) &&
       (!term || [d.title, d.client_name, d.client_phone, d.created_by_name].some((x) => x?.toLowerCase().includes(term))),
   );
-  const visible = narrowed.filter((d) => (owner === "all" ? true : owner === "none" ? d.created_by == null : d.created_by === owner));
+  const mine = narrowed.filter((d) => (owner === "all" ? true : owner === "none" ? d.created_by == null : d.created_by === owner));
+  // Gurú OS flow: big category tiles first; a search, a client or a document link goes straight to the cards
+  const showTiles = !cat && clientFilter === null && !wantedDoc && !term;
+  const visible = cat && cat !== TODOS ? mine.filter((d) => catOf(d) === cat) : mine;
+  const categories = useMemo(() => {
+    const counts = new Map<string, number>();
+    mine.forEach((d) => counts.set(catOf(d), (counts.get(catOf(d)) ?? 0) + 1));
+    return [...counts].sort(([a], [b]) => (a === OTROS ? 1 : b === OTROS ? -1 : a.localeCompare(b, "es")));
+  }, [mine, modelCats]); // eslint-disable-line react-hooks/exhaustive-deps
   // Digitadores always get a chip; anyone else who made a document too, so no document is out of reach
   const chips = useMemo<Array<[Owner, string, number]>>(() => {
     const people = new Map<number, string>();
@@ -226,7 +261,42 @@ export default function History() {
         </div>
       )}
 
+      {showTiles ? (
+        documents === null ? (
+          <p className="gos-muted text-sm">Cargando…</p>
+        ) : (
+          <ul aria-label="Categorías" className="gos-grid">
+            <li className="flex">
+              <button type="button" onClick={() => setCat(TODOS)} className="gos-tile-big group w-full">
+                <span className="gos-emoji" aria-hidden="true">📂</span>
+                <span className="gos-tile-label text-sm">Todos</span>
+                <span className="gos-tile-hint">{countLabel(mine.length)}</span>
+              </button>
+            </li>
+            {categories.map(([c, n]) => (
+              <li key={c} className="flex">
+                <button type="button" onClick={() => setCat(c)} className="gos-tile-big group w-full">
+                  <span className="gos-emoji" aria-hidden="true">{catEmoji(c)}</span>
+                  <span className="gos-tile-label text-sm">{c}</span>
+                  <span className="gos-tile-hint">{countLabel(n)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : (
       <div className="flex min-w-0 flex-col gap-3">
+        {cat && (
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <button type="button" onClick={() => setCat(null)} className="gos-back">
+              <span aria-hidden="true">←</span> Volver a categorías
+            </button>
+            <h3 className="flex min-w-0 items-center gap-2 font-heading text-lg font-black text-white">
+              <span aria-hidden="true">{cat === TODOS ? "📂" : catEmoji(cat)}</span>
+              <span className="truncate">{cat === TODOS ? "Todos" : cat}</span>
+            </h3>
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="gos-muted text-xs font-bold">
             {visible.length} {visible.length === 1 ? "documento" : "documentos"}
@@ -248,24 +318,31 @@ export default function History() {
               return (
                 <Fragment key={d.id}>
                   <li className="gos-doc-card" data-open={open}>
-                    <button type="button" onClick={() => toggleDoc(d)} aria-expanded={open} title={d.title} className="flex h-full w-full flex-col items-center gap-2 p-5 text-center">
-                      <span className="gos-doc-icon" style={madeBy ? { backgroundColor: `color-mix(in srgb, ${madeBy.color.bg} 40%, #16213a)` } : undefined}>
-                        <FileText size={28} aria-hidden="true" />
-                      </span>
-                      <span className="gos-doc-title">{d.title}</span>
-                      <span className="gos-doc-sub">{d.client_name || "Sin cliente"}</span>
-                      {isAdmin && madeBy && d.created_by_name && (
-                        <span className="inline-flex max-w-full items-center gap-1.5 text-xs font-bold text-white">
-                          <UserAvatar appearance={madeBy} size="xs" />
-                          <span className="truncate">{d.created_by_name}</span>
+                    {/* Product-card layout (Leandro's reference): a big tile with the status on it, the details below */}
+                    <button type="button" onClick={() => toggleDoc(d)} aria-expanded={open} title={d.title} className="group flex h-full w-full flex-col gap-3 text-left">
+                      <span className="gos-card-tile">
+                        <span className="gos-card-badges">
+                          <StatusBadge approved={d.approved_version} />
+                          {d.prepared_by_bot && (
+                            <span className="gos-pill gos-pill-orange" title="Preparado por el bot">
+                              <span aria-hidden="true">🤖</span> Bot
+                            </span>
+                          )}
                         </span>
-                      )}
-                      <span className="gos-muted text-xs">
-                        {d.versions_count} {d.versions_count === 1 ? "versión" : "versiones"} · {fmt(d.updated_at)}
+                        <span className="gos-emoji" aria-hidden="true">{catEmoji(catOf(d))}</span>
                       </span>
-                      <span className="mt-auto flex flex-wrap items-center justify-center gap-1.5 pt-1">
-                        {d.prepared_by_bot && <BotBadge />}
-                        <StatusBadge approved={d.approved_version} />
+                      <span className="gos-card-info">
+                        <span className="gos-doc-title">{d.title}</span>
+                        <span className="gos-doc-sub">{d.client_name || "Sin cliente"}</span>
+                        {isAdmin && madeBy && d.created_by_name && (
+                          <span className="inline-flex max-w-full items-center gap-1.5 text-xs font-bold text-white">
+                            <UserAvatar appearance={madeBy} size="xs" />
+                            <span className="truncate">{d.created_by_name}</span>
+                          </span>
+                        )}
+                        <span className="gos-card-meta">
+                          {d.versions_count} {d.versions_count === 1 ? "versión" : "versiones"} · {fmt(d.updated_at)}
+                        </span>
                       </span>
                     </button>
                   </li>
@@ -375,6 +452,7 @@ export default function History() {
           </p>
         )}
       </div>
+      )}
 
       {upload && (
         <UploadDialog
@@ -425,6 +503,8 @@ function deliveryLine(d: PortfolioDocument): { text: string; warn: boolean } | n
   if (d.send_mode === "al_pagar" && d.approved_version) return { text: "Se enviará cuando el cliente pague", warn: false };
   return null;
 }
+
+const countLabel = (n: number) => `${n} ${n === 1 ? "documento" : "documentos"}`;
 
 function BotBadge() {
   return (

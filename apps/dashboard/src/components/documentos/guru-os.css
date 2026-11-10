@@ -1319,15 +1319,17 @@ body:has(.gos-desk:not(.gos-md) .gos-actions:not(:has(> :nth-child(3)))) .fixed.
   }
 }
 
-/* Mis documentos: one centered card per document, three across on desktop (Leandro's reference) */
+/* Mis documentos: product cards (Leandro's reference) in the Gurú OS style — a big dark tile with the
+   category emoji and the status on it, the details underneath. Four across on desktop, two on phones. */
 .gos-doc-grid {
   display: grid;
   grid-auto-flow: dense;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 0.75rem;
 }
 .gos-md .gos-doc-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.75rem 1.25rem;
 }
 .gos-doc-detail {
   grid-column: 1 / -1;
@@ -1335,36 +1337,83 @@ body:has(.gos-desk:not(.gos-md) .gos-actions:not(:has(> :nth-child(3)))) .fixed.
 }
 .gos-doc-card {
   min-width: 0;
-  border: 1px solid #334155;
-  border-radius: 1rem;
-  background: #1a2436;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-.gos-doc-card:hover {
-  border-color: #3b82f6;
-  transform: translateY(-2px);
-}
-.gos-doc-card[data-open="true"] {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 1px #60a5fa;
 }
 .gos-doc-card > button {
-  border-radius: inherit;
+  border-radius: 1.5rem;
 }
 .gos-doc-card > button:focus-visible {
   outline: 2px solid #60a5fa;
-  outline-offset: -3px;
+  outline-offset: 3px;
 }
-.gos-doc-icon {
+.gos-card-tile {
+  position: relative;
   display: flex;
-  height: 3.5rem;
-  width: 3.5rem;
-  flex: none;
   align-items: center;
   justify-content: center;
-  border-radius: 0.875rem;
-  background: #1e2f5c;
-  color: #93c5fd;
+  aspect-ratio: 5 / 6;
+  width: 100%;
+  background: linear-gradient(180deg, #161a29, #0f111a);
+  border: 2px solid #1e293b;
+  border-radius: 1.5rem;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.gos-doc-card:hover .gos-card-tile {
+  border-color: #3b82f6;
+  box-shadow: 6px 6px 0 0 #2563eb;
+  transform: translateY(-4px);
+}
+.gos-doc-card > button:active .gos-card-tile {
+  transform: translateY(4px);
+  box-shadow: none;
+}
+.gos-doc-card[data-open="true"] .gos-card-tile {
+  border-color: #60a5fa;
+  box-shadow: 6px 6px 0 0 #2563eb;
+}
+.gos-card-tile .gos-emoji {
+  display: block;
+  font-size: 3.25rem;
+  line-height: 1;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.55));
+  transition: transform 0.2s;
+}
+.gos-md .gos-card-tile .gos-emoji {
+  font-size: 4.5rem;
+}
+.gos-doc-card:hover .gos-card-tile .gos-emoji {
+  transform: scale(1.1) rotate(-6deg);
+}
+.gos-card-badges {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.gos-card-badges .gos-pill {
+  font-size: 0.65rem;
+}
+.gos-card-info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 0 0.25rem;
+}
+.gos-card-info .gos-doc-title {
+  font-size: 1rem;
+}
+.gos-doc-card:hover .gos-card-info .gos-doc-title {
+  color: #60a5fa;
+}
+.gos-card-meta {
+  color: #60a5fa;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 .gos-doc-title {
   display: -webkit-box;
@@ -1408,10 +1457,12 @@ body:has(.gos-desk:not(.gos-md) .gos-actions:not(:has(> :nth-child(3)))) .fixed.
   color: #fff;
 }
 @media (prefers-reduced-motion: reduce) {
-  .gos-doc-card {
+  .gos-card-tile,
+  .gos-card-tile .gos-emoji {
     transition: none;
   }
-  .gos-doc-card:hover {
+  .gos-doc-card:hover .gos-card-tile,
+  .gos-doc-card:hover .gos-card-tile .gos-emoji {
     transform: none;
   }
 }
