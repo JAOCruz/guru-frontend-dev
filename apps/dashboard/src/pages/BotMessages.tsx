@@ -754,6 +754,8 @@ const BotMessages: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const userScrolledRef = useRef(false);
   const prevMessageCount = useRef(0);
+  const [loadedPhone, setLoadedPhone] = useState<string | null>(null); // whose messages are in `messages`
+  const selectedPhoneRef = useRef<string | null>(null);
 
   // ── Fetch conversation list ─────────────────────────────────────────────────
 
@@ -911,9 +913,11 @@ const BotMessages: React.FC = () => {
     if (!silent) setMsgLoading(true);
     try {
       const res = await botAPI.getPhoneMessages(phone, showHidden);
+      if (phone !== selectedPhoneRef.current) return; // the user already opened another chat
       const data = res.data as unknown;
       const raw = Array.isArray(data) ? data : ((data as any).messages ?? []);
       setMessages([...raw].reverse()); // API returns DESC, we need ASC for chat display
+      setLoadedPhone(phone);
     } catch {
       if (!silent) setMessages([]);
     } finally {
@@ -934,6 +938,8 @@ const BotMessages: React.FC = () => {
   };
 
   useEffect(() => {
+    selectedPhoneRef.current = selectedPhone;
+    setLoadedPhone(null);
     if (selectedPhone) {
       fetchMessages(selectedPhone);
       // Mark this chat's inbound messages as read so the "Mensajes" badge drops
@@ -948,27 +954,27 @@ const BotMessages: React.FC = () => {
     return () => clearInterval(iv);
   }, [selectedPhone, fetchMessages]);
 
-  // Scroll to bottom ONLY on first load or conversation switch
-  const lastSelectedPhone = useRef<string | null>(null);
+  // Opening a chat jumps to its last message once its own messages have arrived (not the previous chat's);
+  // after that, new messages scroll only while the user is at the bottom.
+  const lastScrolledPhone = useRef<string | null>(null);
   useEffect(() => {
-    if (!messages.length) return;
-    const isNewConversation = selectedPhone !== lastSelectedPhone.current;
-    const isFirstLoad = prevMessageCount.current === 0;
+    if (!selectedPhone || loadedPhone !== selectedPhone || msgLoading || !messages.length) {
+      if (!selectedPhone) lastScrolledPhone.current = null;
+      return;
+    }
     const hasNewMessages = messages.length > prevMessageCount.current;
     prevMessageCount.current = messages.length;
-
-    if (isNewConversation || isFirstLoad) {
-      lastSelectedPhone.current = selectedPhone;
-      // Instant jump to bottom on conversation switch
+    if (lastScrolledPhone.current !== selectedPhone) {
+      lastScrolledPhone.current = selectedPhone;
+      userScrolledRef.current = false;
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
       }, 50);
     } else if (hasNewMessages && !userScrolledRef.current) {
-      // New message arrived and user is at bottom — smooth scroll
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
     // If user scrolled up: NEVER move scroll
-  }, [messages, selectedPhone]);
+  }, [messages, selectedPhone, loadedPhone, msgLoading]);
 
   // Track if user scrolled up manually
   const handleScrollContainer = useCallback(() => {
