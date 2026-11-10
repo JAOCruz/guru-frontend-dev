@@ -34,6 +34,8 @@ import {
   Image as ImageIcon,
   Paperclip,
   SlidersHorizontal,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { notify } from "../lib/dialogs";
 import { formatPhone } from "../lib/phone";
@@ -666,6 +668,7 @@ const BotMessages: React.FC = () => {
   const [convLoading, setConvLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "ai" | "manual">("all");
+  const [showHidden, setShowHidden] = useState(false); // admin: «Ver ocultos»
   const [showFilters, setShowFilters] = useState(false);
   const [contactFilter, setContactFilter] = useState<"all" | "clients" | "non_clients">("all");
   const [assignedFilter, setAssignedFilter] = useState<string>("ALL"); // "ALL" | "none" | user id
@@ -757,7 +760,7 @@ const BotMessages: React.FC = () => {
   const fetchConversations = useCallback(async (silent = false) => {
     if (!silent) setConvLoading(true);
     try {
-      const res = await botAPI.getMessages();
+      const res = await botAPI.getMessages(showHidden);
       const raw = res.data as {
         conversations?: Array<{
           phone: string;
@@ -791,7 +794,7 @@ const BotMessages: React.FC = () => {
     } finally {
       setConvLoading(false);
     }
-  }, []);
+  }, [showHidden]);
 
   const fetchGlobalStatus = useCallback(async () => {
     try {
@@ -907,7 +910,7 @@ const BotMessages: React.FC = () => {
   const fetchMessages = useCallback(async (phone: string, silent = false) => {
     if (!silent) setMsgLoading(true);
     try {
-      const res = await botAPI.getPhoneMessages(phone);
+      const res = await botAPI.getPhoneMessages(phone, showHidden);
       const data = res.data as unknown;
       const raw = Array.isArray(data) ? data : ((data as any).messages ?? []);
       setMessages([...raw].reverse()); // API returns DESC, we need ASC for chat display
@@ -916,7 +919,19 @@ const BotMessages: React.FC = () => {
     } finally {
       if (!silent) setMsgLoading(false);
     }
-  }, []);
+  }, [showHidden]);
+
+  const handleHiddenToggle = async () => {
+    if (!selectedPhone) return;
+    try {
+      await (showHidden ? botAPI.unhideChat(selectedPhone) : botAPI.hideChat(selectedPhone));
+      setShowRightPanel(false);
+      setSelectedPhone(null);
+      await fetchConversations(true);
+    } catch {
+      notify(`No se pudo ${showHidden ? "mostrar" : "ocultar"} el chat. Inténtalo de nuevo.`);
+    }
+  };
 
   useEffect(() => {
     if (selectedPhone) {
@@ -1603,6 +1618,22 @@ const BotMessages: React.FC = () => {
               <SlidersHorizontal size={14} />
               {activeFilters.length ? `Filtros · ${activeFilters.length}` : "Filtros"}
             </button>
+            {isAdmin && (
+              <button
+                type="button"
+                aria-pressed={showHidden}
+                onClick={() => {
+                  setSelectedPhone(null);
+                  setShowHidden((v) => !v);
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-base border-2 border-border px-2.5 py-1 text-xs font-semibold ${
+                  showHidden ? "bg-main text-main-foreground" : "bg-background"
+                }`}
+              >
+                <EyeOff size={14} />
+                Ver ocultos
+              </button>
+            )}
             {activeFilters.map((f) => (
               <button
                 key={f.key}
@@ -1700,7 +1731,7 @@ const BotMessages: React.FC = () => {
                 className="mx-auto mb-2 opacity-40"
               />
               <p className="font-base text-base">
-                {conversations.length ? "Ningún chat con estos filtros" : "Sin conversaciones"}
+                {conversations.length ? "Ningún chat con estos filtros" : showHidden ? "No hay chats ocultos" : "Sin conversaciones"}
               </p>
             </div>
           ) : (
@@ -1811,6 +1842,17 @@ const BotMessages: React.FC = () => {
 
                 {!isAdmin && selectedConv?.client_assigned_to != null && (
                   <UserBadge userId={selectedConv.client_assigned_to} size="sm" />
+                )}
+
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleHiddenToggle}
+                    className="inline-flex h-7 items-center gap-1 rounded-base border-2 border-border bg-background px-2 text-xs font-semibold"
+                  >
+                    {showHidden ? <Eye size={14} /> : <EyeOff size={14} />}
+                    {showHidden ? "Mostrar chat" : "Ocultar chat"}
+                  </button>
                 )}
 
                 {/* Assignment (admin only) */}

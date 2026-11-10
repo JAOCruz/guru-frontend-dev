@@ -397,7 +397,8 @@ export const botAPI = {
     botApi.get<{ url: string | null }>(`/whatsapp/profile-pic/${encodeURIComponent(phone)}`),
 
   // ── Legacy message/client endpoints ────────────────────────────────────
-  getMessages: () => botApi.get<{ conversations: Array<{phone:string;client_name:string|null;last_message:string;last_message_at:string;message_count:string}> }>("/messages/conversations"),
+  /** hidden: the admin's «Ver ocultos» */
+  getMessages: (hidden = false) => botApi.get<{ conversations: Array<{phone:string;client_name:string|null;last_message:string;last_message_at:string;message_count:string}> }>("/messages/conversations", hidden ? { params: { hidden: "1" } } : undefined),
   getClients: () => botApi.get<{ clients: BotClient[] }>("/clients"),
   /** POST /api/clients — create client record and link existing chat messages (409 if phone exists) */
   createClient: (data: { name: string; phone: string; email?: string; address?: string; notes?: string }) =>
@@ -427,8 +428,12 @@ export const botAPI = {
     botApi.get<Conversation[]>("/messages/conversations"),
 
   /** GET /api/messages/phone/:phone — full message history */
-  getPhoneMessages: (phone: string) =>
-    botApi.get<ChatMessage[]>(`/messages/phone/${encodeURIComponent(phone)}`),
+  getPhoneMessages: (phone: string, hidden = false) =>
+    botApi.get<ChatMessage[]>(`/messages/phone/${encodeURIComponent(phone)}`, hidden ? { params: { hidden: "1" } } : undefined),
+
+  /** Ocultar o volver a mostrar un chat (solo admin); no se borra nada */
+  hideChat: (phone: string) => botApi.post(`/messages/phone/${encodeURIComponent(phone)}/hide`),
+  unhideChat: (phone: string) => botApi.post(`/messages/phone/${encodeURIComponent(phone)}/unhide`),
 
   /** POST /api/messages/map-lid — link a privacy @lid chat to a real phone number (admin) */
   mapLid: (lidPhone: string, realPhone: string) =>
