@@ -4,7 +4,7 @@ import Modal, { fieldCls, labelCls } from "./Modal";
 import TakeColorDialog from "./TakeColorDialog";
 import { adminUsersAPI, type AdminUser, type AdminUserInput } from "../../services/api";
 import { apiError, generateTempPassword } from "../../lib/users";
-import { ADMIN_ONLY_AVATAR, AVATARS, AVATAR_KEYS, COLOR_KEYS, COLOR_PALETTE, type AvatarKey, type ColorKey } from "../../lib/userColors";
+import { ADMIN_ONLY_AVATAR, AVATARS, AVATAR_KEYS, COLOR_KEYS, COLOR_PALETTE, resolveColor, type AvatarKey, type ColorKey } from "../../lib/userColors";
 import { useUserColors } from "../../context/UserColorsContext";
 import TakeAvatarDialog from "./TakeAvatarDialog";
 import { todayISO } from "../../lib/dates";
@@ -73,7 +73,7 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
           });
         }
         if (colorSel && colorSel !== initialColor) {
-          await adminUsersAPI.setColor(user!.id, colorSel, { force: colorSel === colorConfirmed, label: COLOR_PALETTE[colorSel].label });
+          await adminUsersAPI.setColor(user!.id, colorSel, { force: colorSel === colorConfirmed, label: resolveColor(colorSel).label });
         }
         refresh().catch(() => {});
         onSaved();
@@ -195,7 +195,7 @@ const UserFormModal: React.FC<Props> = ({ user, onClose, onSaved }) => {
               })}
             </div>
             <p className="mt-1 text-xs text-foreground/60">
-              {colorSel ? COLOR_PALETTE[colorSel].label : "Sin color"} · los colores con letra ya los usa otra persona.
+              {colorSel ? resolveColor(colorSel).label : "Sin color"} · los colores con letra ya los usa otra persona.
             </p>
             {pendingColor && (
               <TakeColorDialog

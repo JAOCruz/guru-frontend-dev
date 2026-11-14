@@ -113,3 +113,13 @@ describe("applyRootTheme", () => {
     expect(root.style.size).toBe(0);
   });
 });
+
+describe("custom colors (Otro color…)", () => {
+  it("any #rrggbb becomes a «Personalizado» color with readable text", () => {
+    expect(resolveColor("#ff8800")).toEqual({ label: "Personalizado", bg: "#ff8800", text: "#000000" });
+    expect(resolveColor("#123456")).toEqual({ label: "Personalizado", bg: "#123456", text: "#ffffff" });
+  });
+  it("themes the sidebar with a custom color too", () => {
+    expect(themeFor({ isAdmin: false, color: "#123456" })).toEqual({ main: "#123456", mainForeground: "#ffffff" });
+  });
+});

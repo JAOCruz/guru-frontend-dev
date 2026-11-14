@@ -8,8 +8,8 @@ import { todayISO } from "../lib/dates";
 import UserAvatar from "../components/UserAvatar";
 import TakeAvatarDialog from "../components/users/TakeAvatarDialog";
 import {
-  ADMIN_ONLY_AVATAR, AVATARS, AVATAR_KEYS, COLOR_KEYS, COLOR_PALETTE, toAppearance,
-  type AvatarKey, type ColorKey,
+  ADMIN_ONLY_AVATAR, AVATARS, AVATAR_KEYS, COLOR_KEYS, COLOR_PALETTE, isCustomColor, resolveColor, toAppearance,
+  type AvatarKey,
 } from "../lib/userColors";
 
 const card = "rounded-base border-2 border-border bg-background shadow-shadow";
@@ -18,7 +18,7 @@ export default function MiCuenta() {
   const { user, refreshUser, isAdmin } = useAuth();
   const { users, refresh } = useUserColors();
 
-  const [color, setColor] = useState<ColorKey | null>((user?.color as ColorKey) ?? null);
+  const [color, setColor] = useState<string | null>(user?.color ?? null);
   const [avatar, setAvatar] = useState<AvatarKey | null>((user?.avatar as AvatarKey) ?? null);
   const [saving, setSaving] = useState(false);
   // Admin only: an animal someone else has, pending confirmation / confirmed to take
@@ -54,7 +54,7 @@ export default function MiCuenta() {
   };
 
   useEffect(() => {
-    setColor((user?.color as ColorKey) ?? null);
+    setColor(user?.color ?? null);
     setAvatar((user?.avatar as AvatarKey) ?? null);
   }, [user?.color, user?.avatar]);
 
@@ -213,6 +213,21 @@ export default function MiCuenta() {
                 );
               })}
             </div>
+            {/* Any color, like a paint palette: the system's own color picker (with eyedropper on most computers) */}
+            <label
+              className={`mt-3 flex w-fit cursor-pointer items-center gap-3 rounded-base border-2 border-border px-3 py-2 text-sm font-bold hover:-translate-y-0.5 ${
+                isCustomColor(color) ? "ring-4 ring-main ring-offset-2" : ""
+              }`}
+            >
+              <input
+                type="color"
+                aria-label="Otro color"
+                value={isCustomColor(color) ? color : resolveColor(color).bg}
+                onChange={(e) => setColor(e.target.value.toLowerCase())}
+                className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0"
+              />
+              🎨 Otro color…
+            </label>
           </div>
 
           <div>

@@ -86,3 +86,20 @@ describe("Mi cuenta — tomar un animal", () => {
     expect((await screen.findByTitle("Vaca · lo tiene Marleni")).hasAttribute("disabled")).toBe(true);
   });
 });
+
+describe("Mi cuenta — otro color (paleta libre)", () => {
+  it("saves any color picked from the system palette", async () => {
+    authAPI.updateAppearance.mockResolvedValue({ data: {} });
+    render(<MiCuenta />);
+    fireEvent.change(screen.getByLabelText(/otro color/i), { target: { value: "#a1b2c3" } });
+    fireEvent.click(screen.getByRole("button", { name: /^guardar$/i }));
+    await waitFor(() => expect(authAPI.updateAppearance).toHaveBeenCalledWith({ color: "#a1b2c3" }));
+  });
+  it("shows why a color too close to someone else's was refused", async () => {
+    authAPI.updateAppearance.mockRejectedValue({ response: { status: 409, data: { error: "Se parece mucho al color de Marleni; escoge otro", code: "COLOR_TOO_CLOSE" } } });
+    render(<MiCuenta />);
+    fireEvent.change(screen.getByLabelText(/otro color/i), { target: { value: "#ec4890" } });
+    fireEvent.click(screen.getByRole("button", { name: /^guardar$/i }));
+    expect(await screen.findByText(/se parece mucho al color de marleni/i)).toBeTruthy();
+  });
+});

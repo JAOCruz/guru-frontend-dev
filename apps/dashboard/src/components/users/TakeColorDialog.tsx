@@ -1,12 +1,12 @@
 import { NeoButton } from "@guru/ui";
 import Modal from "./Modal";
-import { COLOR_PALETTE, type ColorKey } from "../../lib/userColors";
+import { COLOR_PALETTE, resolveColor, type ColorKey } from "../../lib/userColors";
 
 interface Props {
   colorKey: ColorKey;
   owner: string;
   person: string; // who is getting the color
-  replaced: ColorKey | null; // the color that person has now (goes to the owner)
+  replaced: string | null; // the color that person has now (goes to the owner)
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -22,7 +22,7 @@ export default function TakeColorDialog({ colorKey, owner, person, replaced, onC
       </p>
       <p className="mt-2 text-sm text-foreground/70">
         {replaced
-          ? <>{owner} se quedará con el color que tenía {person}: <b>{COLOR_PALETTE[replaced].label}</b>.</>
+          ? <>{owner} se quedará con el color que tenía {person}: <b>{resolveColor(replaced).label}</b>.</>
           : <>{owner} recibirá otro color libre.</>}
       </p>
       <div className="mt-5 flex justify-end gap-2">

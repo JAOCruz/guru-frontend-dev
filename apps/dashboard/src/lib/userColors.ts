@@ -166,7 +166,17 @@ export const ADMIN_ONLY_AVATAR: AvatarKey = "owl";
 
 export const FALLBACK_COLOR: PaletteColor = { label: "Sin color", bg: "#9ca3af", text: "#ffffff" };
 
+// Besides the 12 palette colors, a user may pick any color of their own as #rrggbb (Mi cuenta → «Otro color…»)
+export const isCustomColor = (c?: string | null): c is string => !!c && /^#[0-9a-f]{6}$/i.test(c);
+
+// Black or white letters, whichever reads better on that background
+export function readableText(hex: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? "#000000" : "#ffffff";
+}
+
 export function resolveColor(key?: string | null): PaletteColor {
+  if (isCustomColor(key)) return { label: "Personalizado", bg: key.toLowerCase(), text: readableText(key) };
   return key && key in COLOR_PALETTE ? COLOR_PALETTE[key as ColorKey] : FALLBACK_COLOR;
 }
 
@@ -200,8 +210,8 @@ export function toAppearance(
 // Sidebar and top bar in the employee's own color (identity and diversity). The admin,
 // people who picked blue, and anyone without a color keep the Gurú blue.
 export function themeFor({ isAdmin, color }: { isAdmin: boolean; color?: string | null }): { main: string; mainForeground: string } | null {
-  if (isAdmin || !color || color === "blue" || !(color in COLOR_PALETTE)) return null;
-  const c = COLOR_PALETTE[color as ColorKey];
+  if (isAdmin || !color || color === "blue" || !(color in COLOR_PALETTE || isCustomColor(color))) return null;
+  const c = resolveColor(color);
   return { main: c.bg, mainForeground: c.text };
 }
 
