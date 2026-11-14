@@ -1677,3 +1677,12 @@ body:has(.gos-desk:not(.gos-md) .gos-actions:not(:has(> :nth-child(3)))) .fixed.
     transform: none;
   }
 }
+
+/* Mis documentos: the folder path stays one line; on phones only the open folder shows («Volver» goes up) */
+.gos-desk:not(.gos-md) .gos-crumbs nav {
+  font-size: 1rem;
+}
+.gos-desk:not(.gos-md) .gos-crumbs .gos-crumb-up,
+.gos-desk:not(.gos-md) .gos-crumbs .gos-crumb-sep {
+  display: none;
+}

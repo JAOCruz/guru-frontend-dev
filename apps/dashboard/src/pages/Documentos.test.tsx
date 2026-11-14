@@ -210,25 +210,56 @@ describe("Documentos — Mis documentos", () => {
     const tiles = () => screen.getByRole("list", { name: /categorías/i });
     beforeEach(() => api.documents.mockResolvedValue({ data: { documents: DOCS } }));
 
-    it("opens on big category tiles with their counts; documents not made from a model go to «Otros documentos»", async () => {
+    // The real model tree: CONTRATOS CIVILES › CONTRATOS AUTENTICOS › ESTADO CIVIL…
+    const PATHS = [
+      { ...MODELS[0], category: "ESTADO CIVIL", category_path: ["CONTRATOS CIVILES", "CONTRATOS AUTENTICOS", "ESTADO CIVIL"] },
+      { ...MODELS[1], category: "PODERES Y AUTORIZACIONES ESPECIALES", category_path: ["CONTRATOS CIVILES", "CONTRATOS AUTENTICOS", "PODERES Y AUTORIZACIONES ESPECIALES"] },
+      { id: 5, name: "NOTIFICACIÓN DE SENTENCIA", file_name: "n.docx", category: "NOTIFICACIONES", category_path: ["NOTIFICACIONES"] },
+    ];
+    const tile = (name: RegExp) => within(tiles()).getByRole("button", { name });
+    beforeEach(() => {
+      api.models.mockResolvedValue({ data: { models: PATHS } });
+      api.documents.mockResolvedValue({ data: { documents: [...DOCS, { ...DOC, id: 34, title: "Notificación a Pedro", template_id: 5 }] } });
+    });
+
+    it("opens on the top folders of the model tree with their counts; documents not made from a model go to «Otros documentos»", async () => {
       renderAt("/documents?tab=historial");
-      await waitFor(() => expect(within(tiles()).getByRole("button", { name: /declaraciones/i }).textContent).toMatch(/2 documentos/));
-      expect(within(tiles()).getByRole("button", { name: /contratos/i }).textContent).toMatch(/1 documento\b/);
-      expect(within(tiles()).getByRole("button", { name: /otros documentos/i }).textContent).toMatch(/1 documento\b/);
-      expect(within(tiles()).getByRole("button", { name: /todos/i }).textContent).toMatch(/4 documentos/);
+      await waitFor(() => expect(tile(/contratos civiles/i).textContent).toMatch(/3 documentos/));
+      expect(tile(/notificaciones/i).textContent).toMatch(/1 documento\b/);
+      expect(tile(/otros documentos/i).textContent).toMatch(/1 documento\b/);
+      expect(tile(/todos/i).textContent).toMatch(/5 documentos/);
+      expect(within(tiles()).queryByRole("button", { name: /estado civil/i })).toBeNull();
       expect(screen.queryByRole("button", { name: /declaración de soltería/i })).toBeNull();
     });
 
-    it("a tile shows only its documents as cards; «Volver a categorías» goes back to the tiles", async () => {
+    it("folders open like in Gurú OS down to the documents, with a path to go back up", async () => {
       renderAt("/documents?tab=historial");
-      await waitFor(() => expect(within(tiles()).getByRole("button", { name: /declaraciones/i }).textContent).toMatch(/2/));
-      fireEvent.click(within(tiles()).getByRole("button", { name: /declaraciones/i }));
+      await waitFor(() => expect(tile(/contratos civiles/i).textContent).toMatch(/3/));
+      fireEvent.click(tile(/contratos civiles/i));
+      await waitFor(() => expect(tile(/auténticos/i).textContent).toMatch(/3 documentos/));
+      fireEvent.click(tile(/auténticos/i));
+      await waitFor(() => expect(tile(/estado civil/i).textContent).toMatch(/2 documentos/));
+      expect(tile(/poderes y autorizaciones especiales/i).textContent).toMatch(/1 documento\b/);
+      const path = screen.getByRole("navigation", { name: /ruta/i });
+      expect(path.textContent).toMatch(/contratos civiles.*auténticos/i);
+      fireEvent.click(tile(/estado civil/i));
       const grid = await screen.findByRole("list", { name: /^documentos$/i });
       expect(within(grid).getByRole("button", { name: /declaración de soltería/i })).toBeTruthy();
       expect(within(grid).getByRole("button", { name: /declaración de ingresos/i })).toBeTruthy();
       expect(within(grid).queryByRole("button", { name: /poder para viaje/i })).toBeNull();
-      fireEvent.click(screen.getByRole("button", { name: /volver a categorías/i }));
-      expect(await screen.findByRole("list", { name: /categorías/i })).toBeTruthy();
+      fireEvent.click(within(screen.getByRole("navigation", { name: /ruta/i })).getByRole("button", { name: /contratos civiles/i }));
+      await waitFor(() => expect(tile(/auténticos/i)).toBeTruthy());
+      fireEvent.click(screen.getByRole("button", { name: /^volver$/i }));
+      await waitFor(() => expect(tile(/notificaciones/i)).toBeTruthy());
+    });
+
+    it("a folder with no subfolders goes straight to its documents", async () => {
+      renderAt("/documents?tab=historial");
+      await waitFor(() => expect(tile(/notificaciones/i).textContent).toMatch(/1/));
+      fireEvent.click(tile(/notificaciones/i));
+      const grid = await screen.findByRole("list", { name: /^documentos$/i });
+      expect(within(grid).getByRole("button", { name: /notificación a pedro/i })).toBeTruthy();
+      expect(within(grid).getAllByRole("button")).toHaveLength(1);
     });
 
     it("each card has a big tile with the status on it and the details below", async () => {

@@ -26,13 +26,32 @@ const SORTS: { key: DocSort; label: string; emoji: string }[] = [
 
 const OTROS = "Otros documentos";
 const TODOS = "todos";
-// A big emoji per category, like the Servicios tiles
+// A big emoji per folder of the model tree (CONTRATOS CIVILES › CONTRATOS AUTENTICOS › ESTADO CIVIL…); the most specific match first
 const CAT_EMOJI: [RegExp, string][] = [
-  [/declara/i, "📜"], [/poder/i, "✍️"], [/venta|compra|inmueble|hipotec/i, "🏠"], [/alquiler|arrend|loca/i, "🔑"],
-  [/contrat|acuerdo|convenio/i, "🤝"], [/carta|certific|constancia/i, "✉️"], [/divorc|matrimon|famil|menor|union|unión|concubin/i, "💍"],
-  [/sociedad|empresa|comerc|acta/i, "🏢"], [/traduc/i, "🌍"], [/vehic|vehíc|carro|motor/i, "🚗"], [/testament|herencia|sucesi/i, "🕊️"],
+  [/notifica/i, "📨"], [/aviso/i, "📢"], [/demanda/i, "⚖️"], [/recurso/i, "📑"], [/instancia|escrito/i, "🏛️"],
+  [/estado civil|matrimon|divorc/i, "💍"], [/natalidad/i, "👶"], [/herencia|familiar|testament|sucesi/i, "🕊️"],
+  [/poder|autoriza/i, "✍️"], [/protocolo/i, "🧾"], [/financier/i, "💰"], [/laboral/i, "💼"], [/renta|alquiler/i, "🔑"],
+  [/agrimensura/i, "📐"], [/embarcaci|maritim/i, "🚤"], [/ganado/i, "🐄"], [/maquina/i, "⚙️"], [/punto comercial/i, "🏪"],
+  [/vehicul/i, "🚗"], [/inmueble|inmobiliari/i, "🏠"], [/traslativ/i, "🔁"], [/comercial/i, "🏢"], [/acuerdo/i, "🤝"],
+  [/autentic/i, "🖋️"], [/firma privada/i, "📝"], [/declara/i, "📜"], [/contrat/i, "📜"],
 ];
 export const catEmoji = (c: string) => (c === OTROS ? "🗂️" : CAT_EMOJI.find(([re]) => re.test(c))?.[1] ?? "📄");
+
+// Folder names come in capitals and without accents; shown as «Auténticos», «Bajo firma privada»…
+const ACCENTS: Record<string, string> = {
+  autenticos: "auténticos", autentico: "auténtico", embarcacion: "embarcación", maritima: "marítima", vehiculos: "vehículos",
+  maquina: "máquina", notificacion: "notificación",
+};
+// A subfolder repeats its parent's first word (CONTRATOS CIVILES › CONTRATOS AUTENTICOS): it is left out
+export function folderLabel(name: string, parent?: string) {
+  let n = name.trim();
+  const first = parent?.trim().split(/\s+/)[0];
+  if (first && n.toUpperCase().startsWith(first.toUpperCase() + " ")) n = n.slice(first.length + 1);
+  if (n !== n.toUpperCase()) return n;
+  const words = n.toLowerCase().split(/(\s+|[()])/).map((w) => ACCENTS[w] ?? w).join("");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+const SEP = " › ";
 
 // Mis documentos: a grid with one card per document in the user's scope; a card opens its versions right below its row. Each digitador sees only theirs;
 // the admin sees everyone's and filters by digitador, with the same colored chips as Casos.
@@ -61,15 +80,24 @@ export default function History() {
       else next.delete("cat");
       return next;
     });
-  // the category of a document is its model's; uploaded and AI documents go to «Otros documentos»
-  const [modelCats, setModelCats] = useState<Map<number, string>>(new Map());
+  // A document lives in its model's folder (the whole path of the model tree); uploaded and AI documents go to «Otros documentos»
+  const [modelCats, setModelCats] = useState<Map<number, string[]>>(new Map());
   useEffect(() => {
     documentosAPI
       .models()
-      .then(({ data }) => setModelCats(new Map(data.models.filter((m) => m.category).map((m) => [m.id, m.category!.trim()]))))
+      .then(({ data }) =>
+        setModelCats(
+          new Map(
+            data.models
+              .map((m) => [m.id, (m.category_path?.length ? m.category_path : m.category ? [m.category] : []).map((c) => c.trim())] as const)
+              .filter(([, p]) => p.length > 0),
+          ),
+        ),
+      )
       .catch(() => {});
   }, []);
-  const catOf = (d: PortfolioDocument) => (d.template_id != null && modelCats.get(d.template_id)) || OTROS;
+  const pathOf = (d: PortfolioDocument) => (d.template_id != null && modelCats.get(d.template_id)) || [OTROS];
+  const catOf = (d: PortfolioDocument) => pathOf(d)[pathOf(d).length - 1];
   // «Sin cliente» is id 0; ?doc= opens that document once the list is in
   const [clientFilter, setClientFilter] = useState<number | null>(params.has("client") ? Number(params.get("client")) : null);
   const wantedDoc = Number(params.get("doc")) || null;
@@ -106,13 +134,24 @@ export default function History() {
   );
   const mine = narrowed.filter((d) => (owner === "all" ? true : owner === "none" ? d.created_by == null : d.created_by === owner));
   // Gurú OS flow: big category tiles first; a search, a client or a document link goes straight to the cards
-  const showTiles = !cat && clientFilter === null && !wantedDoc && !term;
-  const visible = cat && cat !== TODOS ? mine.filter((d) => catOf(d) === cat) : mine;
+  // ?cat= is the open folder's path ("CONTRATOS CIVILES › CONTRATOS AUTENTICOS"); «todos» lists everything
+  const folder = cat && cat !== TODOS ? cat.split(SEP) : [];
+  const inFolder = (d: PortfolioDocument) => folder.every((f, i) => pathOf(d)[i] === f);
+  const folderDocs = cat === TODOS ? mine : mine.filter(inFolder);
+  // The subfolders of the open folder with their counts ("" = documents sitting right in it, shown as cards under the tiles)
   const categories = useMemo(() => {
     const counts = new Map<string, number>();
-    mine.forEach((d) => counts.set(catOf(d), (counts.get(catOf(d)) ?? 0) + 1));
+    folderDocs.forEach((d) => {
+      const next = pathOf(d)[folder.length] ?? "";
+      counts.set(next, (counts.get(next) ?? 0) + 1);
+    });
     return [...counts].sort(([a], [b]) => (a === OTROS ? 1 : b === OTROS ? -1 : a.localeCompare(b, "es")));
-  }, [mine, modelCats]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [folderDocs, modelCats, cat]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hasSubfolders = categories.some(([c]) => c !== "");
+  // Gurú OS flow: folder tiles until a folder has no subfolders; a search, a client or a document link goes straight to the cards
+  const showTiles = cat !== TODOS && (documents === null ? !cat : hasSubfolders) && clientFilter === null && !wantedDoc && !term;
+  const visible = folderDocs.filter((d) => !showTiles || pathOf(d).length === folder.length);
+  const openFolder = (sub: string) => setCat([...folder, sub].join(SEP));
   // Digitadores always get a chip; anyone else who made a document too, so no document is out of reach
   const chips = useMemo<Array<[Owner, string, number]>>(() => {
     const people = new Map<number, string>();
@@ -261,42 +300,63 @@ export default function History() {
         </div>
       )}
 
-      {showTiles ? (
-        documents === null ? (
+      {cat && (
+        <div className="gos-crumbs flex min-w-0 items-center gap-3">
+          <button type="button" onClick={() => setCat(cat === TODOS || folder.length <= 1 ? null : folder.slice(0, -1).join(SEP))} className="gos-back">
+            <span aria-hidden="true">←</span> Volver
+          </button>
+          <nav aria-label="Ruta" className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 font-heading text-lg font-black text-white">
+            <button type="button" onClick={() => setCat(null)} className="gos-crumb-up gos-muted text-sm font-bold hover:text-white">
+              Carpetas
+            </button>
+            {(cat === TODOS ? ["Todos"] : folder).map((f, i, list) => (
+              <span key={i} className={`flex shrink-0 items-center gap-1${i < list.length - 1 ? " gos-crumb-up" : ""}`}>
+                <span aria-hidden="true" className="gos-crumb-sep gos-muted text-sm">›</span>
+                {i === list.length - 1 ? (
+                  <span className="flex min-w-0 items-center gap-2" aria-current="page">
+                    <span aria-hidden="true">{cat === TODOS ? "📂" : catEmoji(f)}</span>
+                    <span>{cat === TODOS ? "Todos" : folderLabel(f, folder[i - 1])}</span>
+                  </span>
+                ) : (
+                  <button type="button" onClick={() => setCat(folder.slice(0, i + 1).join(SEP))} className="gos-muted text-sm font-bold hover:text-white">
+                    {folderLabel(f, folder[i - 1])}
+                  </button>
+                )}
+              </span>
+            ))}
+          </nav>
+        </div>
+      )}
+
+      {showTiles &&
+        (documents === null ? (
           <p className="gos-muted text-sm">Cargando…</p>
         ) : (
           <ul aria-label="Categorías" className="gos-grid">
-            <li className="flex">
-              <button type="button" onClick={() => setCat(TODOS)} className="gos-tile-big group w-full">
-                <span className="gos-emoji" aria-hidden="true">📂</span>
-                <span className="gos-tile-label text-sm">Todos</span>
-                <span className="gos-tile-hint">{countLabel(mine.length)}</span>
-              </button>
-            </li>
-            {categories.map(([c, n]) => (
-              <li key={c} className="flex">
-                <button type="button" onClick={() => setCat(c)} className="gos-tile-big group w-full">
-                  <span className="gos-emoji" aria-hidden="true">{catEmoji(c)}</span>
-                  <span className="gos-tile-label text-sm">{c}</span>
-                  <span className="gos-tile-hint">{countLabel(n)}</span>
+            {folder.length === 0 && (
+              <li className="flex">
+                <button type="button" onClick={() => setCat(TODOS)} className="gos-tile-big group w-full">
+                  <span className="gos-emoji" aria-hidden="true">📂</span>
+                  <span className="gos-tile-label text-sm">Todos</span>
+                  <span className="gos-tile-hint">{countLabel(mine.length)}</span>
                 </button>
               </li>
-            ))}
+            )}
+            {categories
+              .filter(([c]) => c !== "")
+              .map(([c, n]) => (
+                <li key={c} className="flex">
+                  <button type="button" onClick={() => openFolder(c)} className="gos-tile-big group w-full">
+                    <span className="gos-emoji" aria-hidden="true">{catEmoji(c)}</span>
+                    <span className="gos-tile-label text-sm">{folderLabel(c, folder[folder.length - 1])}</span>
+                    <span className="gos-tile-hint">{countLabel(n)}</span>
+                  </button>
+                </li>
+              ))}
           </ul>
-        )
-      ) : (
+        ))}
+      {(!showTiles || (documents !== null && visible.length > 0)) && (
       <div className="flex min-w-0 flex-col gap-3">
-        {cat && (
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <button type="button" onClick={() => setCat(null)} className="gos-back">
-              <span aria-hidden="true">←</span> Volver a categorías
-            </button>
-            <h3 className="flex min-w-0 items-center gap-2 font-heading text-lg font-black text-white">
-              <span aria-hidden="true">{cat === TODOS ? "📂" : catEmoji(cat)}</span>
-              <span className="truncate">{cat === TODOS ? "Todos" : cat}</span>
-            </h3>
-          </div>
-        )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="gos-muted text-xs font-bold">
             {visible.length} {visible.length === 1 ? "documento" : "documentos"}

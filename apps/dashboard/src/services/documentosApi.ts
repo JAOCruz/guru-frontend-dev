@@ -8,6 +8,7 @@ export interface Model {
   name: string;
   file_name: string;
   category: string | null;
+  category_path?: string[]; // the folder path in the model tree, top folder first
   reason?: string;
   tag_status?: "untagged" | "pending" | "approved"; // Etiquetas
   is_private?: boolean; // only its uploader and the admins see it, until an admin publishes it
