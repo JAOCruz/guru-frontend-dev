@@ -1,5 +1,7 @@
 // A WhatsApp number as people read it: (809) 555-0101
 export function formatPhone(phone: string): string {
+  // Users with a WhatsApp username can hide their number: Meta gives a code like "DO.1349…" instead
+  if (/^[A-Z]{2}\./.test(phone)) return "Sin número · usuario de WhatsApp";
   const d = phone.replace(/\D/g, "");
   if (d.length === 11 && d.startsWith("1"))
     return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
