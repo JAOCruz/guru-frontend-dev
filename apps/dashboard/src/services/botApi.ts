@@ -185,6 +185,8 @@ export interface CreateInvoicePayload {
 
 export interface Invoice {
   id: number;
+  /** the logged-in user can open, prepare and send it (own, or a bot/admin quote of an assigned client) */
+  can_send?: boolean;
   doc_number?: string;
   type?: string;
   client_name?: string;

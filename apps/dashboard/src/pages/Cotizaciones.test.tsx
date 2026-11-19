@@ -50,6 +50,19 @@ describe("Cotizaciones — employee visibility", () => {
     expect(screen.queryByRole("button", { name: /enviar por whatsapp/i })).toBeNull();
   });
 
+  it("el digitador asignado puede enviar una cotización aprobada del bot (can_send)", async () => {
+    auth.isAdmin = false;
+    await open("approved", { created_by: null, created_by_name: null, can_send: true });
+    expect(await screen.findByRole("button", { name: /enviar por whatsapp/i })).toBeTruthy();
+  });
+
+  it("sin can_send, la cotización de otro no se puede enviar", async () => {
+    auth.isAdmin = false;
+    await open("approved", { created_by: 9, created_by_name: "Marleni", can_send: false });
+    await screen.findAllByText("Juan Pérez");
+    expect(screen.queryByRole("button", { name: /enviar por whatsapp/i })).toBeNull();
+  });
+
   it("an employee sees and can send the document once approved", async () => {
     auth.isAdmin = false;
     await open("approved");

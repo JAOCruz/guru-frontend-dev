@@ -38,6 +38,7 @@ type QuotationItem = QuoteLine;
 
 interface Quotation {
   id: number;
+  can_send?: boolean; // from the API: this user can send it (own, or a bot/admin quote of an assigned client)
   doc_number: string;
   client_name: string;
   client_phone: string;
@@ -1378,7 +1379,7 @@ export default function Cotizaciones() {
                 !["draft", "pending_approval"].includes(selectedQuotation.status) &&
                 whatsappAction({
                   isAdmin,
-                  isOwner: selectedQuotation.created_by === user?.id,
+                  isOwner: selectedQuotation.created_by === user?.id || !!selectedQuotation.can_send,
                   status: selectedQuotation.status,
                 }) === "send" && (
                   <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t-2 border-border">
