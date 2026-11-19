@@ -508,6 +508,11 @@ export const botAPI = {
   sendInvoiceWhatsapp: (id: number | string, opts?: { resend?: boolean }) =>
     botApi.post<SendQuoteResult>(`/invoices/${id}/send-whatsapp`, ...(opts?.resend ? [{ resend: true }] : [])),
 
+  /** POST /api/invoices/:id/approve — admin only: approves without sending (the digitador sends it).
+   *  400 { code: 'NOT_PENDING', status } when it was already decided; { code: 'PRICES_PENDING' } if prices are missing. */
+  approveInvoice: (id: number | string) =>
+    botApi.post<{ invoice: Invoice | null; message: string }>(`/invoices/${id}/approve`),
+
   /** POST /api/invoices/:id/request-approval — employee draft -> pending_approval (admin must approve before sending) */
   requestInvoiceApproval: (id: number | string) =>
     botApi.post<{ invoice: Invoice; message: string }>(`/invoices/${id}/request-approval`),

@@ -8,6 +8,7 @@ import { cn } from "@guru/ui";
 import api, { getAPIUrl } from "../../services/api";
 import UserAvatar from "../UserAvatar";
 import NotificationAlarm from "./NotificationAlarm";
+import QuickApprove, { isQuoteApproval } from "./QuickApprove";
 import { notificationNav, notificationPath, useNotificationPageKey } from "../../lib/notificationLinks";
 import { applyRootTheme, themeFor, toAppearance } from "../../lib/userColors";
 import {
@@ -54,7 +55,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   // Notifications
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState<Array<{ id: number; title: string; message: string; read: boolean; created_at: string; link?: string }>>([]);
+  const [notifications, setNotifications] = useState<Array<{ id: number; title: string; message: string; read: boolean; created_at: string; link?: string; metadata?: { invoice_id?: number } | null }>>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Unread WhatsApp messages badge (new inbound messages employees haven't opened)
@@ -477,6 +478,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         >
                           <p className="text-sm font-bold text-foreground">{n.title}</p>
                           <p className="text-xs text-foreground/70 line-clamp-2">{n.message}</p>
+                          {isAdmin && isQuoteApproval(n) && (
+                            <QuickApprove invoiceId={n.metadata!.invoice_id!} onDone={() => { if (!n.read) markRead(n.id); }} />
+                          )}
                         </div>
                       ))}
                     </div>
