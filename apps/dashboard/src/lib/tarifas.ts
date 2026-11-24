@@ -18,7 +18,7 @@ export const DEFAULT_RATES: Rates = {
     tipos: [
       { key: "carta_sencillo", label: "Carta sencillo", tramos: [{ desde: 1, precio: 700 }, { desde: 3, precio: 600 }, { desde: 10, precio: 500 }] },
       { key: "carta_denso", label: "Carta extensivo o denso", tramos: [{ desde: 1, precio: 1000 }, { desde: 3, precio: 800 }, { desde: 10, precio: 700 }] },
-      { key: "legal_denso", label: "Legal extensivo o denso", tramos: [{ desde: 1, precio: 800 }, { desde: 3, precio: 700 }, { desde: 10, precio: 600 }] },
+      { key: "legal_denso", label: "Legal extensivo o denso", tramos: [{ desde: 1, precio: 1000 }, { desde: 3, precio: 800 }, { desde: 10, precio: 700 }] },
     ],
   },
 };
