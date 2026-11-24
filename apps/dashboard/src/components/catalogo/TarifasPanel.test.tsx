@@ -27,11 +27,11 @@ afterEach(cleanup);
 describe("Tarifas", () => {
   it("muestra los totales calculados de cada caso", async () => {
     render(<TarifasPanel />);
-    const denso = await screen.findByRole("row", { name: /Carta extensivo o denso/ });
+    const denso = await screen.findByRole("group", { name: /Carta extensivo o denso/ });
     // 3 páginas a 800 = 2,400; 10 páginas a 700 = 7,000
     expect(within(denso).getByText("RD$2,400")).toBeTruthy();
     expect(within(denso).getByText("RD$7,000")).toBeTruthy();
-    const legal = screen.getByRole("row", { name: /Legal simple/ });
+    const legal = screen.getByRole("group", { name: /Legal simple/ });
     expect(within(legal).getByText("RD$500")).toBeTruthy(); // 2 fojas × 250
   });
 
@@ -39,12 +39,21 @@ describe("Tarifas", () => {
     render(<TarifasPanel />);
     const input = await screen.findByLabelText("Tarifa por foja Legal simple");
     fireEvent.change(input, { target: { value: "275" } });
-    const legal = screen.getByRole("row", { name: /Legal simple/ });
+    const legal = screen.getByRole("group", { name: /Legal simple/ });
     expect(within(legal).getByText("RD$550")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Guardar tarifas/ }));
     await waitFor(() => expect(serviceCatalogAPI.saveRates).toHaveBeenCalled());
     expect(serviceCatalogAPI.saveRates.mock.calls[0][0].foja.legal_simple).toBe(275);
     expect(notify).toHaveBeenCalledWith(expect.stringMatching(/guardad/i), "success");
+  });
+
+  it("avisa que hay cambios sin guardar hasta que se guardan", async () => {
+    render(<TarifasPanel />);
+    expect(screen.queryByText(/cambios sin guardar/i)).toBeNull();
+    fireEvent.change(await screen.findByLabelText("Tarifa por foja Carta simple"), { target: { value: "175" } });
+    expect(screen.getByText(/cambios sin guardar/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Guardar tarifas/ }));
+    await waitFor(() => expect(screen.queryByText(/cambios sin guardar/i)).toBeNull());
   });
 
   it("cambia el precio de un tramo de traducción", async () => {
@@ -67,7 +76,7 @@ describe("Tarifas", () => {
   it("un digitador ve las tarifas pero no las puede cambiar", async () => {
     auth.isAdmin = false;
     render(<TarifasPanel />);
-    await screen.findByRole("row", { name: /Legal simple/ });
+    await screen.findByRole("group", { name: /Legal simple/ });
     expect(screen.queryByLabelText("Tarifa por foja Legal simple")).toBeNull();
     expect(screen.queryByRole("button", { name: /Guardar tarifas/ })).toBeNull();
   });

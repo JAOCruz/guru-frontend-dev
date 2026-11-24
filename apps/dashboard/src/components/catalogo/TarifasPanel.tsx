@@ -56,11 +56,15 @@ export default function TarifasPanel({ onSaved }: { onSaved?: () => void } = {})
   };
 
   const money = (v: number) => (Number.isFinite(v) && v > 0 ? fmtRD(v) : "—");
-  const cell = "border-b-2 border-border px-2 py-2 text-sm";
-  const input = "w-24 rounded-base border-2 border-border bg-white px-2 py-1 text-right font-bold text-black";
+  const [changed, setChanged] = useState(false);
+  useEffect(() => { setChanged(dirty.current); }, [draft]);
+  const field = "rounded-base border-2 border-border bg-white px-2 py-1 font-bold text-black focus:outline-none focus:ring-2 focus:ring-main";
+  const inputCls = `${field} text-right`;
+  const chip = "flex flex-col items-center rounded-base border-2 border-border bg-secondary-background px-0.5 py-1 leading-tight";
+  const chipNum = "whitespace-nowrap text-[13px] font-black";
 
   return (
-    <NeoCard className="flex flex-col gap-6 p-4 sm:p-6" aria-busy={!loaded}>
+    <NeoCard className="flex min-w-0 flex-col gap-6 p-3 sm:p-6" aria-busy={!loaded}>
       <div>
         <h2 className="font-heading text-2xl font-black uppercase">Tarifas</h2>
         <p className="text-sm font-bold opacity-70">
@@ -68,110 +72,133 @@ export default function TarifasPanel({ onSaved }: { onSaved?: () => void } = {})
         </p>
       </div>
 
-      <section className="overflow-x-auto">
-        <h3 className="mb-2 text-lg font-black">Por foja</h3>
-        <table className="w-full min-w-[560px] border-collapse">
-          <thead>
-            <tr className="text-left text-xs uppercase opacity-70">
-              <th className={cell}>Tipo</th>
-              <th className={cell}>Por foja</th>
-              {FOJAS_VISTA.map((n) => <th key={n} className={`${cell} text-right`}>{n} {n === 1 ? "foja" : "fojas"}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {Object.keys(FOJA_RATES).map((k) => {
-              const label = FOJA_RATES[k].label;
-              const rate = draft.foja[k];
-              return (
-                <tr key={k}>
-                  <th scope="row" className={`${cell} text-left font-black`}>{label}</th>
-                  <td className={cell}>
-                    {isAdmin ? (
-                      <input aria-label={`Tarifa por foja ${label}`} className={input} type="number" min={1} inputMode="numeric"
+      <section className="flex flex-col gap-3" aria-labelledby="tarifas-foja">
+        <h3 id="tarifas-foja" className="text-lg font-black">Por foja</h3>
+        <ul className="flex flex-col gap-3">
+          {Object.keys(FOJA_RATES).map((k) => {
+            const label = FOJA_RATES[k].label;
+            const rate = draft.foja[k];
+            return (
+              <li key={k} role="group" aria-label={label}
+                className="flex flex-col gap-2 rounded-base border-2 border-border p-3 md:flex-row md:items-center md:gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 md:w-72 md:shrink-0 md:flex-nowrap">
+                  <span className="font-black">{label}</span>
+                  {isAdmin ? (
+                    <label className="flex items-center gap-1 whitespace-nowrap text-xs font-bold">
+                      RD$
+                      <input aria-label={`Tarifa por foja ${label}`} className={`${inputCls} w-20`} type="number" min={1} inputMode="numeric"
                         value={Number.isFinite(rate) ? rate : ""} onChange={(e) => setFoja(k, e.target.value)} />
-                    ) : money(rate)}
-                  </td>
-                  {FOJAS_VISTA.map((n) => <td key={n} className={`${cell} text-right font-bold`}>{money(rate * n)}</td>)}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <p className="mt-1 text-xs font-bold opacity-60">Modificación de 3 fojas o más: el digitador confirma el precio dentro del rango.</p>
+                      / foja
+                    </label>
+                  ) : (
+                    <span className="whitespace-nowrap font-bold">{money(rate)} / foja</span>
+                  )}
+                </div>
+                <div className="grid flex-1 grid-cols-2 gap-1.5 sm:grid-cols-4">
+                  {FOJAS_VISTA.map((n) => (
+                    <span key={n} className={chip}>
+                      <span className="whitespace-nowrap text-[10px] font-bold uppercase opacity-70">{n} {n === 1 ? "foja" : "fojas"}</span>
+                      <span className={chipNum}>{money(rate * n)}</span>
+                    </span>
+                  ))}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="text-xs font-bold opacity-60">Modificación de 3 fojas o más: el digitador confirma el precio dentro del rango.</p>
       </section>
 
-      <section className="overflow-x-auto">
-        <h3 className="mb-2 text-lg font-black">Traducciones (precio por página)</h3>
-        <p className="mb-2 text-xs font-bold opacity-60">
-          El precio por página baja con la cantidad: al llegar a un tramo, todas las páginas pasan a ese precio. Total = precio del tramo × páginas.
-        </p>
-        <table className="w-full min-w-[900px] border-collapse">
-          <thead>
-            <tr className="text-left text-xs uppercase opacity-70">
-              <th className={cell}>Tipo</th>
-              <th className={cell}>Tramos</th>
-              {PAGINAS_VISTA.map((n) => <th key={n} className={`${cell} text-right`}>{n} pág.</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {draft.traduccion.tipos.map((t, i) => (
-              <tr key={t.key}>
-                <th scope="row" className={`${cell} text-left align-top font-black`}>
-                  {isAdmin ? (
-                    <input aria-label={`Nombre del tipo ${i + 1}`} className="w-48 rounded-base border-2 border-border bg-white px-2 py-1 font-bold text-black"
-                      value={t.label} onChange={(e) => setTipo(i, (x) => ({ ...x, label: e.target.value }))} />
-                  ) : t.label}
-                  {isAdmin && draft.traduccion.tipos.length > 1 && (
-                    <button type="button" className="ml-2 align-middle opacity-70 hover:opacity-100" aria-label={`Quitar el tipo ${t.label}`}
-                      onClick={() => edit((d) => ({ ...d, traduccion: { tipos: d.traduccion.tipos.filter((_, j) => j !== i) } }))}>
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </th>
-                <td className={`${cell} align-top`}>
-                  <div className="flex flex-col gap-1">
-                    {t.tramos.map((x, j) => (
-                      <div key={j} className="flex items-center gap-1 whitespace-nowrap">
-                        {isAdmin ? (
-                          <>
-                            <span className="text-xs font-bold">desde</span>
-                            <input aria-label={`${t.label}: tramo ${j + 1} desde (páginas)`} className="w-14 rounded-base border-2 border-border bg-white px-1 py-0.5 text-right font-bold text-black"
+      <section className="flex flex-col gap-3" aria-labelledby="tarifas-trad">
+        <div>
+          <h3 id="tarifas-trad" className="text-lg font-black">Traducciones (precio por página)</h3>
+          <p className="text-xs font-bold opacity-60">
+            El precio por página baja con la cantidad: al llegar a un tramo, todas las páginas pasan a ese precio. Total = precio del tramo × páginas.
+          </p>
+        </div>
+        <div className="flex flex-col gap-4">
+          {draft.traduccion.tipos.map((t, i) => (
+            <article key={t.key} role="group" aria-label={t.label || `Tipo ${i + 1}`} className="flex min-w-0 flex-col gap-3 rounded-base border-2 border-border p-3">
+              <header className="flex items-center gap-2 md:max-w-md">
+                {isAdmin ? (
+                  <input aria-label={`Nombre del tipo ${i + 1}`} className={`${field} min-w-0 flex-1`}
+                    value={t.label} onChange={(e) => setTipo(i, (x) => ({ ...x, label: e.target.value }))} />
+                ) : (
+                  <span className="flex-1 font-black">{t.label}</span>
+                )}
+                {isAdmin && draft.traduccion.tipos.length > 1 && (
+                  <button type="button" className="rounded-base border-2 border-border p-1.5 hover:bg-red-100" aria-label={`Quitar el tipo ${t.label}`} title="Quitar este tipo"
+                    onClick={() => edit((d) => ({ ...d, traduccion: { tipos: d.traduccion.tipos.filter((_, j) => j !== i) } }))}>
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </header>
+
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,auto)_minmax(0,1fr)] lg:gap-6">
+              <ul className="flex flex-col gap-1.5">
+                {t.tramos.map((x, j) => (
+                  <li key={j} className="flex items-center gap-x-2 gap-y-1 text-sm font-bold">
+                    {isAdmin ? (
+                      <>
+                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="flex items-center gap-1 whitespace-nowrap">
+                            Desde
+                            <input aria-label={`${t.label}: tramo ${j + 1} desde (páginas)`} className={`${inputCls} w-12 px-1 disabled:opacity-60`}
                               type="number" min={1} disabled={j === 0} value={Number.isFinite(x.desde) ? x.desde : ""} onChange={(e) => setTramo(i, j, "desde", e.target.value)} />
-                            <span className="text-xs font-bold">pág.</span>
-                            <input aria-label={`${t.label}: precio por página desde ${x.desde} ${x.desde === 1 ? "página" : "páginas"}`} className={input}
+                            {x.desde === 1 ? "pág." : "págs."}
+                          </span>
+                          <span className="flex items-center gap-1 whitespace-nowrap">
+                            RD$
+                            <input aria-label={`${t.label}: precio por página desde ${x.desde} ${x.desde === 1 ? "página" : "páginas"}`} className={`${inputCls} w-20`}
                               type="number" min={1} value={Number.isFinite(x.precio) ? x.precio : ""} onChange={(e) => setTramo(i, j, "precio", e.target.value)} />
-                            {j > 0 && (
-                              <button type="button" aria-label={`Quitar el tramo ${j + 1} de ${t.label}`} className="opacity-70 hover:opacity-100"
-                                onClick={() => setTipo(i, (y) => ({ ...y, tramos: y.tramos.filter((_, k) => k !== j) }))}>
-                                <Trash2 size={12} />
-                              </button>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-xs font-bold">{tramoTexto(t, j)}: {money(x.precio)}</span>
+                            <span className="opacity-70">c/u</span>
+                          </span>
+                        </span>
+                        {j > 0 && (
+                          <button type="button" aria-label={`Quitar el tramo ${j + 1} de ${t.label}`} title="Quitar este tramo" className="ml-auto shrink-0 rounded-base p-1 hover:bg-red-100"
+                            onClick={() => setTipo(i, (y) => ({ ...y, tramos: y.tramos.filter((_, k) => k !== j) }))}>
+                            <Trash2 size={13} />
+                          </button>
                         )}
-                      </div>
-                    ))}
-                    {isAdmin && (
-                      <button type="button" className="self-start text-xs font-black underline"
-                        onClick={() => setTipo(i, (y) => {
-                          const last = y.tramos[y.tramos.length - 1];
-                          return { ...y, tramos: [...y.tramos, { desde: (last?.desde || 1) + 5, precio: last?.precio || 0 }] };
-                        })}>
-                        + tramo
-                      </button>
+                      </>
+                    ) : (
+                      <span>{tramoTexto(t, j)}: {money(x.precio)} c/u</span>
                     )}
-                  </div>
-                </td>
-                {PAGINAS_VISTA.map((n) => (
-                  <td key={n} className={`${cell} text-right align-top font-bold`}>{money(traduccionTotal(t, n).total)}</td>
+                  </li>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                {isAdmin && (
+                  <li>
+                    <button type="button" className="text-xs font-black underline"
+                      onClick={() => setTipo(i, (y) => {
+                        const last = y.tramos[y.tramos.length - 1];
+                        return { ...y, tramos: [...y.tramos, { desde: (last?.desde || 1) + 5, precio: last?.precio || 0 }] };
+                      })}>
+                      + Agregar tramo
+                    </button>
+                  </li>
+                )}
+              </ul>
+
+              <div>
+                <p className="mb-1 text-[11px] font-black uppercase opacity-70">Total según las páginas</p>
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                  {PAGINAS_VISTA.map((n) => {
+                    const r = traduccionTotal(t, n);
+                    return (
+                      <span key={n} className={chip} title={`${n} × ${money(r.porPagina)}`}>
+                        <span className="whitespace-nowrap text-[10px] font-bold uppercase opacity-70">{n} pág.</span>
+                        <span className={chipNum}>{money(r.total)}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+              </div>
+            </article>
+          ))}
+        </div>
         {isAdmin && (
-          <NeoButton variant="neutral" size="sm" className="mt-2"
+          <NeoButton variant="neutral" size="sm" className="self-start"
             onClick={() => edit((d) => {
               const label = "Tipo nuevo";
               // a key never used before: a removed type's catalog service is never reused by a new one
@@ -184,7 +211,8 @@ export default function TarifasPanel({ onSaved }: { onSaved?: () => void } = {})
       </section>
 
       {isAdmin && (
-        <div className="flex justify-end">
+        <div className="sticky bottom-2 z-10 flex flex-wrap items-center justify-end gap-3 rounded-base border-2 border-border bg-secondary-background p-3 shadow-shadow sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+          {changed && <span className="text-sm font-black text-amber-700">Tiene cambios sin guardar</span>}
           <NeoButton onClick={save} disabled={saving}>
             <Save size={16} /> {saving ? "Guardando…" : "Guardar tarifas"}
           </NeoButton>
