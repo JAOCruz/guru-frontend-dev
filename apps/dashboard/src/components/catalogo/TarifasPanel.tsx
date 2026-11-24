@@ -174,8 +174,8 @@ export default function TarifasPanel({ onSaved }: { onSaved?: () => void } = {})
           <NeoButton variant="neutral" size="sm" className="mt-2"
             onClick={() => edit((d) => {
               const label = "Tipo nuevo";
-              let key = slug(label);
-              for (let n = 2; d.traduccion.tipos.some((t) => t.key === key); n++) key = `${slug(label)}_${n}`;
+              // a key never used before: a removed type's catalog service is never reused by a new one
+              const key = `${slug(label)}_${Date.now().toString(36)}`;
               return { ...d, traduccion: { tipos: [...d.traduccion.tipos, { key, label, tramos: [{ desde: 1, precio: 0 }] }] } };
             })}>
             <Plus size={14} /> Agregar tipo de traducción

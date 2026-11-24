@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useTarifas } from "../../lib/tarifas";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -41,6 +42,7 @@ interface DashboardLayoutProps {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { user, logout, isAdmin } = useAuth();
+  useTarifas(); // the editable foja rates for every page (Cotizaciones, Mensajes), not only Catálogo
   // Every Gurú-blue element takes the employee's color; the admin keeps the Gurú blue.
   // Applied while rendering (before the pages below read the colors, e.g. charts).
   const themeKey = isAdmin ? "admin" : user?.color ?? "";
