@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import TurnstileWidget from "../components/TurnstileWidget";
 import { turnstileSiteKey } from "../lib/turnstile";
@@ -33,7 +34,7 @@ const Login: React.FC = () => {
   const [humanToken, setHumanToken] = useState<string | null>(null);
   const [turnstileReset, setTurnstileReset] = useState(0);
   const waitingHuman = !!siteKey && !humanToken;
-  const { login } = useAuth();
+  const { login, user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +56,10 @@ const Login: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // The session is still open (Recuérdame keeps it 30 days): opening /login — the landing's
+  // «Trabajas con nosotros», a bookmark or the browser's autocomplete — goes straight to the panel.
+  if (user) return <Navigate to="/" replace />;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background px-4">

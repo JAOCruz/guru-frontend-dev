@@ -1,15 +1,28 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 const login = vi.fn();
-vi.mock("../context/AuthContext", () => ({ useAuth: () => ({ login }) }));
+const auth: { user: unknown } = { user: null };
+vi.mock("../context/AuthContext", () => ({ useAuth: () => ({ login, user: auth.user }) }));
 
-import Login from "./Login";
+import LoginPage from "./Login";
+
+// Login lives under the router (it redirects when the session is already open)
+const Login = () => (
+  <MemoryRouter initialEntries={["/login"]}>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<p>Panel principal</p>} />
+    </Routes>
+  </MemoryRouter>
+);
 
 const checkbox = () => screen.getByRole("checkbox", { name: /recuérdame/i }) as HTMLInputElement;
 
 beforeEach(() => {
+  auth.user = null;
   localStorage.clear();
   login.mockReset();
   login.mockResolvedValue(undefined);
@@ -79,5 +92,14 @@ describe("Login human check (Cloudflare Turnstile)", () => {
     render(<Login />);
     const button = screen.getByRole("button", { name: /iniciar|entrar|ingresar|verificando/i }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
+  });
+});
+
+describe("Login con la sesión ya abierta", () => {
+  it("con «Recuérdame» la sesión sigue viva: abrir /login lleva directo al panel, sin pedir la contraseña", () => {
+    auth.user = { id: 1, username: "leandro", role: "admin" };
+    render(<Login />);
+    expect(screen.getByText("Panel principal")).toBeTruthy();
+    expect(screen.queryByLabelText(/contraseña/i)).toBeNull();
   });
 });
