@@ -10,6 +10,8 @@ import { useAuth } from "../context/AuthContext";
 import { NeoCard, NeoButton, NeoInput, NeoSelect, NeoBadge } from "@guru/ui";
 import { confirmDialog, notify } from "../lib/dialogs";
 import { FOJA_RATES } from "../lib/fojaRates";
+import { useTarifas } from "../lib/tarifas";
+import TarifasPanel from "../components/catalogo/TarifasPanel";
 
 interface PriceTier { min: number; max: number | null; label: string; price: number; }
 interface Service {
@@ -113,6 +115,8 @@ const hasTiers = (svc: Service) =>
 
 export default function ServicesCatalog() {
   const { isAdmin } = useAuth();
+  useTarifas(); // the editable foja rates, before the cards show «RD$250 × 2 fojas»
+  const [, setRatesVersion] = useState(0);
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -421,6 +425,7 @@ export default function ServicesCatalog() {
       <div className="flex justify-center gap-2">
         {["💎", "🔵", "🟦", "🔷", "💠"].map((e, i) => <span key={i} className="text-xl opacity-40">{e}</span>)}
       </div>
+      <TarifasPanel onSaved={() => setRatesVersion((v) => v + 1)} />
     </div>
   );
 

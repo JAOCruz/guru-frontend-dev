@@ -1610,6 +1610,12 @@ body:has(.gos-desk:not(.gos-md) .gos-actions:not(:has(> :nth-child(3)))) .fixed.
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
+.gos-model-price {
+  margin-top: 6px;
+  color: #fde68a;
+  font-size: 13px;
+  font-weight: 800;
+}
 .gos-model-description {
   display: -webkit-box;
   margin-top: 6px;

@@ -17,6 +17,9 @@ export interface Model {
   publish_requested_at?: string | null;
   description?: string | null;
   most_used?: boolean; // among the models people use most
+  fojas?: number | null; // Precio por foja: fojas del Word
+  foja_tipo?: string | null; // carta_simple | carta_motivada | legal_simple | legal_motivada
+  precio?: number | null; // fojas × tarifa vigente (null si aún no se calculó)
 }
 
 export interface HistoryClient {

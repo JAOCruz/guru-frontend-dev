@@ -114,6 +114,9 @@ export const serviceCatalogAPI = {
   create: (data: any) => api.post("/service-catalog", data),
   update: (id: number, data: any) => api.put(`/service-catalog/${id}`, data),
   delete: (id: number) => api.delete(`/service-catalog/${id}`),
+  // Tarifas editables: por foja y de traducción (solo el admin las guarda)
+  getRates: () => api.get("/service-catalog/rates"),
+  saveRates: (rates: any) => api.put("/service-catalog/rates", rates),
   calculate: (data: { serviceId: number; assetValue?: number; quantity?: number; fojas?: number; duplicados?: number }) =>
     api.post("/service-catalog/calculate", data),
 };
@@ -186,7 +189,7 @@ export const adminUsersAPI = {
   reactivate: (id: number) => api.post<{ user: AdminUser }>(`/admin/users/${id}/reactivate`),
 };
 
-export type ActivityCategory = "usuarios" | "facturas" | "asignaciones" | "servicios" | "seguridad" | "documentos" | "whatsapp";
+export type ActivityCategory = "usuarios" | "facturas" | "asignaciones" | "servicios" | "seguridad" | "documentos" | "whatsapp" | "precios";
 
 export interface ActivityItem {
   id: number;

@@ -13,6 +13,7 @@ const CATEGORIES: { key: ActivityCategory; label: string; cls: string }[] = [
   { key: "usuarios", label: "Usuarios", cls: "bg-blue-100" },
   { key: "facturas", label: "Facturas", cls: "bg-amber-100" },
   { key: "asignaciones", label: "Asignaciones", cls: "bg-purple-100" },
+  { key: "precios", label: "Precios", cls: "bg-lime-100" },
   { key: "servicios", label: "Servicios", cls: "bg-green-100" },
   { key: "seguridad", label: "Seguridad", cls: "bg-red-100" },
   { key: "documentos", label: "Documentos", cls: "bg-teal-100" },

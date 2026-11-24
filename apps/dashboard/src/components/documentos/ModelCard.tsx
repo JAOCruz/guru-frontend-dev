@@ -3,6 +3,7 @@ import { MoreHorizontal } from "lucide-react";
 import { NeoButton } from "@guru/ui";
 import type { Model } from "../../services/documentosApi";
 import ModelThumb from "./ModelThumb";
+import { modeloPrecioTexto } from "../../lib/tarifas";
 
 export interface ModelAction {
   key: string;
@@ -31,6 +32,7 @@ export default function ModelCard({ model, badge, status, actions, onPreview }: 
   const main = actions.find((a) => a.highlight) ?? actions[0];
   const others = actions.filter((a) => a !== main);
   // the library's import filled this with «Plantilla: <file>», which only repeats the name
+  const precio = modeloPrecioTexto(model);
   const description = model.description && !/^plantilla:/i.test(model.description) ? model.description : null;
 
   useEffect(() => {
@@ -81,6 +83,7 @@ export default function ModelCard({ model, badge, status, actions, onPreview }: 
       </div>
       <h3 className="gos-model-name" title={model.name}>{model.name}</h3>
       <p className="gos-model-category">{model.category || "Sin categoría"}</p>
+      {precio && <p className="gos-model-price">{precio}</p>}
       {description && <p className="gos-model-description">{description}</p>}
       {status}
       <NeoButton size="sm" className="gos-model-main" onClick={main.onClick} disabled={main.disabled} title={main.title}>
