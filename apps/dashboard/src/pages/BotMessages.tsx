@@ -684,6 +684,14 @@ const BotMessages: React.FC = () => {
   const [messages, setMessages] = useState<MsgRow[]>([]);
   const [msgLoading, setMsgLoading] = useState(false);
   const [inputText, setInputText] = useState("");
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  // la caja crece con el texto (hasta max-h-40) y vuelve a una línea al vaciarse
+  const fitComposer = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  useEffect(() => { fitComposer(composerRef.current); }, [inputText]); // también cuando el texto vuelve a la caja (no enviado)
   const [sending, setSending] = useState(false);
   // ── Media attach (send image/file from chat) ──
   const [attachFile, setAttachFile] = useState<File | null>(null);
@@ -1210,7 +1218,7 @@ const BotMessages: React.FC = () => {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -2063,14 +2071,16 @@ const BotMessages: React.FC = () => {
                 >
                   <Paperclip size={18} />
                 </NeoButton>
-                <NeoInput
-                  type="text"
+                {/* varias líneas: las listas (1-, 2-, …) le llegan al cliente con sus saltos; Enter envía, Shift+Enter baja de línea */}
+                <textarea
+                  ref={composerRef}
+                  rows={1}
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
                   onPaste={handlePaste}
                   placeholder="Escribe un mensaje..."
-                  className="flex-1 text-base md:text-sm"
+                  className="block max-h-40 min-h-11 w-full min-w-0 flex-1 resize-none overflow-y-auto rounded-base border-2 border-border bg-secondary-background px-4 py-2.5 text-base leading-snug text-foreground placeholder:text-foreground/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border md:min-h-9 md:py-1.5 md:text-sm"
                 />
                 <NeoButton
                   onClick={handleSend}

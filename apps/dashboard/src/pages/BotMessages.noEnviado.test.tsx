@@ -49,18 +49,18 @@ describe("Mensajes — mensajes que no salieron", () => {
   it("fuera de las 24 h: avisa, quita la burbuja y devuelve el texto a la caja", async () => {
     botAPI.sendMessage.mockRejectedValueOnce({ response: { status: 409, data: { code: "WINDOW_CLOSED", error: WINDOW_TEXT } } });
     await openChat();
-    const box = screen.getByPlaceholderText("Escribe un mensaje...") as HTMLInputElement;
+    const box = screen.getByPlaceholderText("Escribe un mensaje...") as HTMLTextAreaElement;
     fireEvent.change(box, { target: { value: "Ya está listo su documento" } });
     fireEvent.keyDown(box, { key: "Enter" });
     await waitFor(() => expect(notify).toHaveBeenCalledWith(WINDOW_TEXT));
-    expect(screen.queryByText("Ya está listo su documento")).toBeNull();
+    expect(screen.queryByText("Ya está listo su documento", { selector: ":not(textarea)" })).toBeNull(); // la burbuja se quitó (el texto vuelve a la caja)
     expect(box.value).toBe("Ya está listo su documento");
   });
 
   it("sin respuesta del servidor: aviso genérico de no enviado", async () => {
     botAPI.sendMessage.mockRejectedValueOnce(new Error("Network Error"));
     await openChat();
-    const box = screen.getByPlaceholderText("Escribe un mensaje...") as HTMLInputElement;
+    const box = screen.getByPlaceholderText("Escribe un mensaje...") as HTMLTextAreaElement;
     fireEvent.change(box, { target: { value: "Hola" } });
     fireEvent.keyDown(box, { key: "Enter" });
     await waitFor(() => expect(notify).toHaveBeenCalledWith(expect.stringMatching(/^no se envió/i)));

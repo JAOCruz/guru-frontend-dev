@@ -1,7 +1,10 @@
 import axios from "axios";
 import { handleInactiveSession, handlePasswordChangeRequired } from "./sessionGuard";
 
+// Con VITE_API_URL (ej. el dashboard de prueba) todo va a ese backend; sin ella, se decide por el dominio.
+const ENV_API = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 export const getAPIUrl = () => {
+  if (ENV_API) return ENV_API.replace(/\/api$/, "");
   if (typeof window === "undefined") return "http://localhost:3000";
   const host = window.location.hostname;
   // Production domains → Railway backend

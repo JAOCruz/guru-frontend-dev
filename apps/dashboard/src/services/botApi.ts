@@ -3,6 +3,9 @@ import { getAuthToken } from "../utils";
 import { fojaUnitPrice } from "../lib/fojaRates";
 
 export function getBotApiBaseURL(): string {
+  // el mismo backend que el resto del dashboard cuando el build trae VITE_API_URL (dashboard de prueba)
+  const env = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+  if (env) return env.endsWith("/api") ? env : `${env}/api`;
   if (typeof window === "undefined") return "/api";
   const host = window.location.hostname;
 

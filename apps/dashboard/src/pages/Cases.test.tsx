@@ -7,7 +7,7 @@ const { api, auth, dialogs } = vi.hoisted(() => ({
   api: { get: vi.fn(), post: vi.fn() },
   auth: { isAdmin: true, user: { id: 1, username: "admin", role: "admin" } },
 }));
-vi.mock("../services/api", () => ({ default: api }));
+vi.mock("../services/api", () => ({ default: api, getAPIUrl: () => "http://localhost:3000" }));
 vi.mock("../lib/dialogs", () => dialogs);
 vi.mock("../context/AuthContext", () => ({ useAuth: () => auth }));
 vi.mock("../context/UserColorsContext", async () => {

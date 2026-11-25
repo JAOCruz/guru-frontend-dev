@@ -3,32 +3,12 @@ import UserBadge from "../components/UserBadge";
 import UserAvatar from "../components/UserAvatar";
 import { useUserColors } from "../context/UserColorsContext";
 import { Search, RefreshCw, ChevronLeft, AlertCircle, Tag, SlidersHorizontal, X } from "lucide-react";
-import api from "../services/api";
+import api, { getAPIUrl } from "../services/api";
 import { getAuthToken } from "../utils";
 import { useAuth } from "../context/AuthContext";
 import { NeoCard, NeoButton, NeoBadge } from "@guru/ui";
 import { notify } from "../lib/dialogs";
 
-const getAPIUrl = () => {
-  if (typeof window === "undefined") return "http://localhost:3000";
-  const host = window.location.hostname;
-
-  // Production domains → Railway backend (HTTPS)
-  if (
-    host === "gurusolucionesrd.com" ||
-    host === "www.gurusolucionesrd.com" ||
-    host.includes("netlify.app")
-  ) {
-    return "https://guruweb-backend-production.up.railway.app";
-  }
-
-  if (host === "localhost" || host === "127.0.0.1") {
-    return "http://localhost:3000";
-  }
-
-  // Local / LAN development
-  return `http://${host}:3000`;
-};
 
 // Map frontend section IDs to backend case_type values
 const SECTION_TO_CASE_TYPE: Record<string, string> = {
